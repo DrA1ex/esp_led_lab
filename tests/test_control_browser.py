@@ -18,7 +18,7 @@ with sync_playwright() as p:
   row=page.evaluate('''() => ({
     v: newControlSource(),
     label:document.getElementById('control-value-label').textContent,
-    newSpeed:Math.round((Math.min(settings()['audio-min'],settings()['audio-max'])+newControlSource()*(settings()['audio-max']-Math.min(settings()['audio-min'],settings()['audio-max'])))*(255-settings()['speed-floor'])/255+settings()['speed-floor'])
+    newSpeed:Math.floor(transferValue(newControlSource(),settings()))
   })''')
   speeds.append(row)
  assert any('Speed:' in r['label'] for r in speeds),speeds[-1]

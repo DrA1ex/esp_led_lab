@@ -116,7 +116,7 @@ for(const id of ['freq-min','freq-max'])$(id).addEventListener('input',()=>{
  if(id==='freq-min')$('freq-max').value=Math.min(1000,hzSlider(lo*1.5)+1);
  if(id==='freq-max'||sliderHz(+$('freq-max').value)<lo*1.5)$('freq-min').value=Math.max(0,hzSlider(sliderHz(+$('freq-max').value)/1.5)-1);
 });
-$('defaults').onclick=()=>{const o={'param-source':'loudness','speed-floor':144,'spectrum-shape':70,'spectrum-onset':30,'line-response':75,fft:512,attack:25,release:210,noise:8,'adaptive-floor':0,gain:16,transient:10,agc:900,compression:82,'freq-min':hzSlider(40),'freq-max':1000};Object.entries(o).forEach(([k,v])=>$(k).value=v);refreshLabels();if(STATE.ready)resetDSP(Math.max(0,STATE.inputMode==='microphone'?STATE.mic?.written||0:Math.floor((STATE.playing&&STATE.context?STATE.context.currentTime-STATE.playStart:STATE.pausedAt)*fs)));};
+$('defaults').onclick=()=>{const o={'param-source':'loudness','spectrum-shape':70,'spectrum-onset':30,'line-response':75,fft:512,attack:25,release:210,noise:8,'adaptive-floor':0,gain:16,transient:10,agc:900,compression:82,'freq-min':hzSlider(40),'freq-max':1000};Object.entries(o).forEach(([k,v])=>$(k).value=v);refreshLabels();if(STATE.ready)resetDSP(Math.max(0,STATE.inputMode==='microphone'?STATE.mic?.written||0:Math.floor((STATE.playing&&STATE.context?STATE.context.currentTime-STATE.playStart:STATE.pausedAt)*fs)));};
 document.addEventListener('keydown',e=>{if(e.code==='Space'&&!['INPUT','SELECT','BUTTON'].includes(document.activeElement.tagName)){e.preventDefault();if(STATE.playing)pauseAudio();else if(STATE.buffer||STATE.inputMode==='microphone')playAudio();}});
 refreshLabels();
 init();

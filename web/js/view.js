@@ -5,7 +5,6 @@ function refreshLabels(){
  for(const id of ['speed','scale','light'])$(id+'-value').textContent=s[id];
  $('mix-value').textContent=s.mix+'%';
  for(const id of ['spectrum-shape','spectrum-onset','line-response'])$(id+'-value').textContent=s[id]+'%';
- $('speed-floor-value').textContent=s['speed-floor'];
  $('audio-min-value').textContent=s['audio-min'];$('audio-max-value').textContent=s['audio-max'];
  $('agc-value').textContent=s.agc+' ms';$('compression-value').textContent=s.compression+'%';
  $('attack-value').textContent=s.attack+' ms';$('release-value').textContent=s.release+' ms';
@@ -25,7 +24,7 @@ function refreshLabels(){
   const lut=new Uint8Array(m.memory.buffer,m.gamma_lut_ptr(),256),gamma=2.2+(s.gamma-128)/128;
   for(let k=0;k<256;k++){const v=s.gamma===0?k:Math.floor(255*Math.pow(k/255,gamma));lut[k]=k>0&&v===0?1:v;}
   m.apply_palette_gamma();
-  m.set_reaction_tuning(s['spectrum-shape']/100,s['spectrum-onset']/100,s['line-response']/100,s['speed-floor']);
+  m.set_reaction_tuning(s['spectrum-shape']/100,s['spectrum-onset']/100,s['line-response']/100,0);
   m.set_effects(s.color,s.brightness,s['audio-mode']);m.set_parameters(s.speed,s.scale,s.light,s.mix/100);m.set_audio_range(s['audio-min'],s['audio-max']);
   m.set_audio_window(s['input-min'],s['input-max'],s['input-gate']?1:0);m.set_origin(...originArgs(s,g.w));
  }
@@ -61,7 +60,8 @@ function feedRender(m){
  features[159]=STATE.newLine;
 }
 // Mirrors render.cpp: Brightness and Speed/Scale/Light read features[23]
-// (the selected control source); Line blends it with the fast line envelope.
+// (the selected control source) through the reaction range (transferValue);
+// Line blends it with the fast line envelope.
 function refreshEffective(){
  const s=settings(),kind=s['audio-mode'],single=kind>=5&&kind<=10,box=$('control-visual');
  box.hidden=!single;
@@ -70,12 +70,11 @@ function refreshEffective(){
  const control=newControlSource(s),lineMix=s['line-response']/100;
  let input=kind===6||kind===7?(1-lineMix)*control+lineMix*STATE.newLine:control;
  input=Math.max(0,Math.min(1,Number.isFinite(input)?input:0));
- const lo=Math.min(s['audio-min'],s['audio-max']),hi=s['audio-max'],mapped=lo+Math.floor(input*(hi-lo));
- let value=kind===8?(s['speed-floor']>0?s['speed-floor']+Math.floor(mapped*(255-s['speed-floor'])/255):mapped):mapped;
- const columns=currentGeometry().w;
- if(kind>=8)value=Math.round(s[kind===8?'speed':kind===9?'scale':'light']*(1-s.mix/100)+value*s.mix/100);
- else if(kind===6||kind===7)value=Math.round(input*columns/(kind===7?2:1));
- else value=Math.round(input*100);
+ const mapped=Math.floor(transferValue(input,s)),columns=currentGeometry().w;
+ let value;
+ if(kind>=8)value=Math.round(s[kind===8?'speed':kind===9?'scale':'light']*(1-s.mix/100)+mapped*s.mix/100);
+ else if(kind===6||kind===7)value=Math.floor(mapped*Math.floor(columns/(kind===7?2:1))/255);
+ else value=Math.round(mapped/2.55);
  const sourceName=$('param-source').selectedOptions[0].textContent;
  $('control-source-label').textContent=kind===6||kind===7?`${sourceName} + fast envelope`:sourceName;
  $('control-value-label').textContent=kind===5?`Brightness ${value}%`:kind===6||kind===7?`${value} ${isStrip(currentGeometry())?'LED':'columns'}`:`${param}: ${value}`;

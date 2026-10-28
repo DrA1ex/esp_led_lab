@@ -55,7 +55,8 @@ function remoteRuntimeConfig(){const s=settings();return {
   audio_min:s['audio-min'],audio_max:s['audio-max'],palette:s.palette,
   speed:s.speed,scale:s.scale,light:s.light,
   param_source:Math.max(0,PARAM_SOURCES.indexOf(s['param-source'])),
-  speed_floor:s['speed-floor'],spectrum_shape:s['spectrum-shape'],spectrum_onset:s['spectrum-onset'],
+  // The reaction range replaces the separate speed floor (0 = stock mapping).
+  speed_floor:0,spectrum_shape:s['spectrum-shape'],spectrum_onset:s['spectrum-onset'],
   ...tuningConfig(s,currentGeometry().w)
  };}
 function remoteFrame(snapshot,timestamp,mask){

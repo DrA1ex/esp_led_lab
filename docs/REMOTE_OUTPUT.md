@@ -110,7 +110,9 @@ Changes made together with the firmware (`esp_led_lamp`, `feature/remote-audio-d
   - `param_source` 0–7: loudness, spectral, bass, mid, high, peak, onset,
     beat — the "Signal source" selector, used by Brightness, Line and
     Speed/Scale/Light;
-  - `speed_floor` 0–255: Speed Control lower bound;
+  - `speed_floor` 0–255: Speed Control lower bound. The lab now always sends
+    0: *Reaction from* sets the lowest speed, so a gated reaction can stop
+    the effect;
   - `spectrum_shape`, `spectrum_onset` 0–100 %: the brighter Wave/Spectrum
     curve and onset accents. Both 0 reproduce the stock `dim8_raw` curve.
   

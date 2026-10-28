@@ -59,4 +59,16 @@ assert(lc0(0)&&lc0(100));
 const disc=frame(16,16,2,f=>{for(let i=0;i<128;i++)f[24+i]=1-i/127;},m=>m.set_origin(0,250,0,0,1));
 assert(disc(8,4)>disc(8,15),'brighter at the radial centre row');
 assert(disc(8,4)>disc(0,4));
+// Speed Control follows the curve: a gated window holds Perlin still (speed 0),
+// a signal above the window animates it.
+function perlinMoves(v,gate){
+ const m=new WebAssembly.Instance(mod).exports;
+ m.set_dimensions(16,16);m.set_palette(4);m.set_effects(0,0,8);m.set_parameters(120,180,200,1);
+ m.set_audio_window(160,255,gate);
+ const f=new Float32Array(m.memory.buffer,m.audio_features_ptr(),160);f.fill(0);f[23]=v;
+ const px=()=>Array.from(new Uint8Array(m.memory.buffer,m.framebuffer_ptr(),16*16*4));
+ m.render_frame(40);const a=px();m.render_frame(40);return px().some((x,i)=>x!==a[i]);
+}
+assert(!perlinMoves(.3,1),'gated speed stops the effect');
+assert(perlinMoves(.9,1),'signal above the window moves the effect');
 console.log('PASS origin (shift / ring / reverse / radial) and signal window, defaults unchanged');

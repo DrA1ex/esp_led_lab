@@ -15,7 +15,7 @@ const MODE_HINTS={
  5:'The whole picture pulses in brightness with the signal.',
  6:'A line grows from the start with the signal level.',
  7:'A line grows from the center in both directions.',
- 8:'The signal drives the effect speed (Speed).',
+ 8:'The signal drives the effect speed: reaction 0 stops most effects (Gradient stands still at 128).',
  9:'The signal drives the effect scale (Scale).',
  10:'The signal drives the Light parameter (effect brightness / tint).',
  11:'Upper half follows bass, lower half mids; a strip blends both. Experimental.',
