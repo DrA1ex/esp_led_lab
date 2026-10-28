@@ -1,0 +1,11 @@
+.DS_Store
+__pycache__/
+*.pyc
+node_modules/
+# Test outputs and screenshots
+tests/*.png
+tests/*.bin
+
+# Build outputs (make)
+dist/
+web/wasm/

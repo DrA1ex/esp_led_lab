@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0d1017"><title>ESP LED Music Lab</title>
+<link rel="stylesheet" href="css/app.css">
+</head><body><main class="app">
+
+<header class="topbar">
+ <div class="brand"><div class="brand-logo" aria-hidden="true">LED</div><div><div class="title">ESP LED Music Lab</div><div class="subtitle">Audio-reactive lamp effects · C++ → WebAssembly</div></div></div>
+ <div class="chips"><span class="chip" id="lamp-chip" title="Connected lamps">Lamps: none</span><span class="chip" id="fps">— FPS</span></div>
+</header>
+
+<div class="floating-preview" id="floating-preview" hidden aria-label="Pinned LED preview">
+ <div class="floating-matrices">
+  <div class="floating-matrix"><canvas id="floating-new" width="96" height="96" aria-label="LED preview"></canvas></div>
+ </div>
+</div>
+
+<div class="layout">
+<section class="workspace"><div class="workspace-sticky">
+
+ <div class="card main preview-card">
+  <div class="panelhead">
+   <div><h2 class="h2" id="preview-title">LED matrix</h2><div class="muted" id="matrix-label">16 × 16 · matrix</div></div>
+  </div>
+  <div class="compare">
+   <article class="matrixbox">
+    <div class="matrixstage"><canvas id="canvas-new" width="16" height="16" aria-label="LED preview: what the lamp shows"></canvas></div>
+    <div class="inline-spectrum bars new" id="new-mini-bars" title="16 FFT bands"></div>
+    <div class="matrixfoot"><span id="new-label">FFT</span><span id="fft-display">512 / 16 kHz</span></div>
+   </article>
+  </div>
+  <div class="events" aria-label="Rhythm">
+   <span class="event" id="bass"><b></b>Bass</span><span class="event" id="mid"><b></b>Mid</span><span class="event" id="high"><b></b>High</span>
+   <span class="event bpm" id="bpm" title="Experimental tempo estimate">BPM —</span>
+  </div>
+  <div class="control-visual" id="control-visual" hidden>
+   <div class="control-visual-header"><span>Control signal · <strong id="control-source-label">Loudness</strong></span><span id="control-value-label">—</span></div>
+   <div class="control-meter-track"><div class="control-meter-fill" id="control-fill"></div><div class="control-meter-marker" id="control-marker"></div></div>
+   <div class="hint" id="control-hint"></div>
+  </div>
+ </div>
+
+ <div class="card player audio-card">
+  <div class="player-row">
+   <select id="audio-input" class="compact-select" aria-label="Audio source"><option value="file" selected>File / demo</option><option value="microphone">Microphone</option></select>
+   <span class="filename" id="filename">No audio file</span>
+  </div>
+  <div class="transport">
+   <button class="primary" id="play" disabled>▶ Play</button>
+   <button class="secondary" id="demo">♫ Demo</button>
+   <button class="secondary" id="choose">↥ File…</button>
+   <button class="ghost icon" id="stop" title="Back to start" aria-label="Reset">■</button>
+   <input class="hide" type="file" id="file" accept="audio/*">
+  </div>
+  <div class="timebar"><span class="time" id="now">00:00</span><input id="seek" type="range" min="0" max="1000" value="0" aria-label="Position"><span class="time" id="duration">00:00</span></div>
+  <div class="quick-levels">
+   <label class="slider"><span>Volume <b class="value" id="playback-volume-value">100%</b></span><input id="playback-volume" type="range" min="0" max="100" value="100"></label>
+   <label class="slider" title="Audio reaction strength in the preview (not sent to the lamp)"><span>LED reaction <b class="value" id="mix-value">100%</b></span><input id="mix" type="range" min="0" max="100" value="100"></label>
+  </div>
+  <div class="status"><span class="dot" id="sound-dot"></span><span id="status">Loading WebAssembly…</span></div>
+ </div>
+
+ <div class="card remote-panel" id="remote-panel">
+  <div class="panelhead">
+   <h2 class="h2">Lamps over Wi-Fi</h2>
+   <label class="switch" title="Send audio features to connected lamps"><input id="remote-enable" type="checkbox" checked><span></span>Stream</label>
+  </div>
+  <form class="remote-form" id="remote-form" onsubmit="return false">
+   <input type="text" id="remote-address" placeholder="IP or host name, e.g. esp_lamp.local" aria-label="Lamp address" autocomplete="off" spellcheck="false">
+   <button class="secondary" id="remote-add" type="submit">Connect</button>
+  </form>
+  <div id="remote-devices" aria-live="polite"></div>
+  <div class="hint" id="remote-state">Streaming off · preview only</div>
+  <details class="more"><summary>Advanced</summary>
+   <div class="more-grid">
+    <label>Spectrum bands<select id="remote-bands"><option value="16">16</option><option value="32" selected>32 (ESP8266)</option><option value="64">64</option></select></label>
+    <label>Light offset, ms <span class="value" id="remote-latency-value">0 ms</span><input type="number" min="-100" max="500" step="5" value="0" id="remote-latency"></label>
+   </div>
+   <p class="hint">Only DSP features are sent, never audio. Lamp endpoint: <code>ws://address/audio</code>. A page served over HTTPS may block <code>ws://</code>; open it from localhost or as a file. “+” delays the light, “−” advances it.</p>
+  </details>
+ </div>
+
+</div></section>
+
+<aside class="card settings sidebar">
+ <nav class="tabs" role="tablist" aria-label="Settings">
+  <button role="tab" data-tab="effect" aria-selected="true">Effect</button>
+  <button role="tab" data-tab="audio">Audio</button>
+  <button role="tab" data-tab="led">LED</button>
+  <button role="tab" data-tab="dsp">DSP</button>
+ </nav>
+
+ <section class="tabpanel" data-panel="effect" role="tabpanel">
+  <div class="field"><label for="color">Color effect</label><select id="color"><option value="0">Perlin Noise</option><option value="1">Gradient</option><option value="2">Fire</option><option value="3">Aurora</option><option value="4" selected>Plasma</option><option value="5">Ripple</option><option value="6">Velum</option><option value="7">Particles</option><option value="8">Color Change</option><option value="9">Solid Color</option></select></div>
+  <div class="field"><label for="palette">Palette</label><select id="palette"><option value="0">Abyss</option><option value="1">Aquatic</option><option value="2">Autumn</option><option value="3">Azure</option><option value="4" selected>Bloom</option><option value="5">Blossom</option><option value="6">Blue</option><option value="7">Bonfire</option><option value="8">Cherry</option><option value="9">Cinnamon</option><option value="10">Coastal</option><option value="11">Cosmic</option><option value="12">Crimson</option><option value="13">Dawn</option><option value="14">Deep Sea</option><option value="15">Deep</option><option value="16">Dreams</option><option value="17">Dusk</option><option value="18">Earthy</option><option value="19">Electric</option><option value="20">Elegance</option><option value="21">Emerald</option><option value="22">Enchanted</option><option value="23">Enigma</option><option value="24">Ethereal</option><option value="25">Fiery</option><option value="26">Flames</option><option value="27">Forest</option><option value="28">Golden</option><option value="29">Harmony</option><option value="30">Hush</option><option value="31">Infusion</option><option value="32">Jade</option><option value="33">Lavender</option><option value="34">Limeade</option><option value="35">Luminous</option><option value="36">Magic Plum</option><option value="37">Marine</option><option value="38">Meadow</option><option value="39">Midnight</option><option value="40">Minty</option><option value="41">Monochrome</option><option value="42">Moorland</option><option value="43">Mossy</option><option value="44">Mystic</option><option value="45">Neon</option><option value="46">Nightfall</option><option value="47">Nocturnal</option><option value="48">Oasis</option><option value="49">Ocean</option><option value="50">Oceanic</option><option value="51">Pastel</option><option value="52">Rainbow Shadow</option><option value="53">Rainbow</option><option value="54">Raspberry</option><option value="55">Scarlet</option><option value="56">Seaside</option><option value="57">Serenade</option><option value="58">Serene</option><option value="59">Serenity</option><option value="60">Slate</option><option value="61">Spice</option><option value="62">Splash</option><option value="63">Starlight</option><option value="64">Sultry</option><option value="65">Sunny</option><option value="66">Sunrise</option><option value="67">Sunset</option><option value="68">Tender</option><option value="69">Terrain</option><option value="70">Tranquil</option><option value="71">Tropics</option><option value="72">Twilight</option><option value="73">Urban</option><option value="74">Velvet</option><option value="75">Vintage</option><option value="76">Violet</option><option value="77">Woodland</option><option value="78">Custom (Default)</option></select></div>
+  <div class="field"><label for="brightness">Brightness effect</label><select id="brightness"><option value="0">Fixed</option><option value="1">Pulse</option><option value="2">Wave</option><option value="3">Double Wave</option><option value="4">Oscillator</option></select></div>
+  <div class="field"><label for="speed">Speed <span class="value" id="speed-value">82</span></label><input id="speed" type="range" min="0" max="255" value="82"></div>
+  <div class="field"><label for="scale">Scale <span class="value" id="scale-value">190</span></label><input id="scale" type="range" min="0" max="255" value="190"></div>
+  <div class="field"><label for="light">Light <span class="value" id="light-value">180</span></label><input id="light" type="range" min="0" max="255" value="180"></div>
+  <p class="hint">These values are sent to the lamp with the audio and apply only while streaming; the preset saved on the lamp is not changed.</p>
+ </section>
+
+ <section class="tabpanel" data-panel="audio" role="tabpanel" hidden>
+  <div class="field"><label for="audio-mode">Audio reaction</label><select id="audio-mode">
+   <option value="0" selected>Off</option>
+   <optgroup label="Brightness by frequency"><option value="3">Spectrum</option><option value="4">Spectrum Center</option></optgroup>
+   <optgroup label="By loudness"><option value="1">Wave</option><option value="2">Wave Center</option><option value="5">Brightness</option><option value="6">Line</option><option value="7">Line Center</option></optgroup>
+   <optgroup label="Audio drives a parameter"><option value="8">Speed Control</option><option value="9">Scale Control</option><option value="10">Light Control</option></optgroup>
+   <optgroup label="Experimental"><option value="11">Bass / Mid / High</option><option value="12">Beat-aware</option></optgroup>
+  </select><p class="hint" id="audio-mode-hint"></p></div>
+  <div class="field" data-modes="5,6,7,8,9,10"><label for="param-source">Signal source</label><select id="param-source"><option value="loudness" selected>Loudness</option>
+<option value="spectral">Spectral activity</option>
+<option value="bass">Bass</option><option value="mid">Mid</option>
+<option value="high">Treble</option><option value="peak">Loudest band</option>
+<option value="onset">Onsets</option><option value="beat">Beats</option></select></div>
+  <div class="field" data-modes="8"><label for="speed-floor">Minimum speed <span class="value" id="speed-floor-value">144</span></label><input id="speed-floor" type="range" min="0" max="240" value="144"><p class="hint">Gradient stands still at Speed = 128, so the default floor is 144. 0 behaves like the stock firmware.</p></div>
+  <div class="field" data-modes="1,2,3,4"><label for="spectrum-shape">Column brightness <span class="value" id="spectrum-shape-value">70%</span></label><input id="spectrum-shape" type="range" min="0" max="100" value="70"></div>
+  <div class="field" data-modes="1,2,3,4"><label for="spectrum-onset">Onset flashes <span class="value" id="spectrum-onset-value">30%</span></label><input id="spectrum-onset" type="range" min="0" max="100" value="30"></div>
+  <div class="field" data-modes="6,7"><label for="line-response">Fast line response <span class="value" id="line-response-value">75%</span></label><input id="line-response" type="range" min="0" max="100" value="75"><p class="hint">Preview only: the lamp draws the line from the signal source.</p></div>
+  <div class="block" data-modes="1,2,3,4,5,6,7,8,9,10">
+   <div class="block-head"><span>Reaction range</span><button class="ghost small" id="range-reset" type="button">Reset</button></div>
+   <canvas class="transfer" id="transfer-curve" width="300" height="120" aria-label="Curve: signal → reaction"></canvas>
+   <div class="field-pair">
+    <div class="field"><label for="input-min">Signal from <span class="value" id="input-min-value">0%</span></label><input id="input-min" type="range" min="0" max="255" value="0"></div>
+    <div class="field"><label for="input-max">Signal to <span class="value" id="input-max-value">100%</span></label><input id="input-max" type="range" min="0" max="255" value="255"></div>
+   </div>
+   <div class="field-pair">
+    <div class="field"><label for="audio-min">Reaction from <span class="value" id="audio-min-value">0</span></label><input id="audio-min" type="range" min="0" max="255" value="0"></div>
+    <div class="field"><label for="audio-max">Reaction to <span class="value" id="audio-max-value">255</span></label><input id="audio-max" type="range" min="0" max="255" value="255"></div>
+   </div>
+   <label class="toggle"><input type="checkbox" id="input-gate"> Signal below “from” turns off (0)</label>
+   <p class="hint">The signal window “from–to” is stretched onto the reaction “from–to”. Above “to” the reaction is always at maximum; below “from” it stays at the minimum, or 0. Example: signal 0–60% → reaction 150–250.</p>
+  </div>
+  <div class="block" data-modes="1,2,3,4,6,7,11,12">
+   <div class="block-head"><span>Start and direction</span><button class="ghost small" id="origin-reset" type="button">Reset</button></div>
+   <div class="field"><label for="origin-shift">Start offset <span class="value" id="origin-shift-value">0 LED</span></label><input id="origin-shift" type="range" min="-8" max="8" value="0"></div>
+   <label class="toggle"><input type="checkbox" id="origin-reverse"> Reverse direction</label>
+   <label class="toggle"><input type="checkbox" id="origin-ring"> Ring (strip ends joined)</label>
+   <label class="toggle" data-requires-matrix><input type="checkbox" id="origin-radial"> Center modes as a circle (2D)</label>
+   <div class="field" data-requires-matrix data-requires="origin-radial"><label for="origin-y">Circle center Y <span class="value" id="origin-y-value">50%</span></label><input id="origin-y" type="range" min="0" max="1000" value="500"></div>
+   <p class="hint" id="origin-hint"></p>
+  </div>
+  <details class="more"><summary>How it works</summary>
+   <p class="hint">Spectrum and Wave do not draw on top of the picture; they scale the brightness of the running effect per column. Speed / Scale / Light Control change the preset parameter before rendering, as in the firmware. The preview uses the same DSP whose features the lamp receives. Everything on this tab except “Fast line response” and “LED reaction” is sent to the lamp.</p>
+  </details>
+ </section>
+
+ <section class="tabpanel" data-panel="led" role="tabpanel" hidden>
+  <div class="field"><label for="geometry">Matrix or strip</label><select id="geometry"><optgroup label="Matrices"><option value="16x16" selected>16 × 16 · matrix (lamp)</option><option value="32x32">32 × 32</option><option value="64x64">64 × 64</option><option value="128x128">128 × 128 (simulator)</option></optgroup>
+<optgroup label="Strips"><option value="7x1">7 LED · strip (torus)</option><option value="34x1">34 LED · strip (test)</option><option value="46x1">46 LED · strip (mini_lamp)</option><option value="60x1">60 LED · strip, 1 m</option><option value="153x1">153 LED · strip (ceiling)</option><option value="300x1">300 LED · strip, 5 m</option><option value="72x2">72 × 2 · two-row strip (tv)</option></optgroup>
+<optgroup label="Other"><option value="custom">Custom size…</option><option value="device">From connected ESP (hello_ack)</option></optgroup></select></div>
+  <div class="geometry-custom" id="geometry-custom" hidden><label>Width<input type="number" id="geom-w" min="1" max="1024" value="60"></label><span>×</span><label>Height<input type="number" id="geom-h" min="1" max="128" value="1"></label></div>
+  <p class="hint" id="geometry-note"></p>
+  <div class="toggles">
+   <label class="toggle"><input type="checkbox" id="led-dots" checked> Draw as LEDs</label>
+   <label class="toggle"><input type="checkbox" id="invert-y" checked> Flip vertically</label>
+   <label class="toggle"><input type="checkbox" id="xy-test"> Orientation test (corners)</label>
+   <label class="toggle"><input type="checkbox" id="simulate-led"> Simulate LED output</label>
+  </div>
+  <div class="field" data-requires="simulate-led"><label for="master-brightness">LED output brightness <span class="value" id="master-brightness-value">128</span></label><input id="master-brightness" type="range" min="0" max="255" value="128"></div>
+  <div class="field"><label for="gamma">Palette gamma <span class="value" id="gamma-value">2.20</span></label><input id="gamma" type="range" min="0" max="255" value="128"></div>
+  <details class="more"><summary>Orientation and accuracy</summary>
+   <p class="hint">Orientation test: red (0,0), green (W−1,0), blue (0,H−1), white (W−1,H−1) in firmware coordinates. Flipping only changes the display. Addressing is serpentine, like <code>Led::get_index</code>; long strips wrap onto several display lines.</p>
+   <p class="hint">Effects are hand-ported to C++/WASM; an exact match with the firmware is not proven (FastLED version, frame timing, physical LEDs). LED output simulation is approximate: brightness and TypicalLEDStrip correction, without current limiting or dithering.</p>
+  </details>
+ </section>
+
+ <section class="tabpanel" data-panel="dsp" role="tabpanel" hidden>
+  <div class="split"><p class="hint">Audio analyzer settings. They affect both the preview and what the lamp receives.</p><button class="ghost small" id="defaults">Reset ↺</button></div>
+  <div class="field"><label for="fft">FFT size</label><select id="fft"><option value="256">256 · 16 ms</option><option value="512" selected>512 · 32 ms</option><option value="1024">1024 · 64 ms</option><option value="2048">2048 · 128 ms</option><option value="4096">4096 · 256 ms</option><option value="8192">8192 · 512 ms</option></select><p class="hint" id="fft-hint"></p></div>
+  <div class="field-pair">
+   <div class="field"><label for="freq-min">Frequencies from <span class="value" id="freq-min-value">40 Hz</span></label><input id="freq-min" type="range" min="0" max="1000" value="116"></div>
+   <div class="field"><label for="freq-max">to <span class="value" id="freq-max-value">8 kHz</span></label><input id="freq-max" type="range" min="0" max="1000" value="1000"></div>
+  </div>
+  <p class="hint">Bands are spread logarithmically inside this range; sound outside it is ignored. Example: 200 Hz – 4 kHz for vocals and leads, 40–250 Hz for bass only.</p>
+  <div class="field"><label for="gain">Sensitivity <span class="value" id="gain-value">1.6×</span></label><input id="gain" type="range" min="5" max="50" value="16"></div>
+  <div class="field-pair">
+   <div class="field"><label for="attack">Attack <span class="value" id="attack-value">25 ms</span></label><input id="attack" type="range" min="5" max="200" step="5" value="25"></div>
+   <div class="field"><label for="release">Release <span class="value" id="release-value">210 ms</span></label><input id="release" type="range" min="25" max="850" step="5" value="210"></div>
+  </div>
+  <div class="field"><label for="transient">Onset threshold <span class="value" id="transient-value">1.0×</span></label><input id="transient" type="range" min="3" max="30" value="10"></div>
+  <div class="field"><label for="compression">Compression <span class="value" id="compression-value">82%</span></label><input id="compression" type="range" min="0" max="100" value="82"></div>
+  <div class="field"><label for="agc">Auto gain (AGC) <span class="value" id="agc-value">900 ms</span></label><input id="agc" type="range" min="100" max="3500" step="50" value="900"></div>
+  <div class="field-pair">
+   <div class="field"><label for="noise">Noise floor <span class="value" id="noise-value">0.008</span></label><input id="noise" type="range" min="0" max="50" value="8"></div>
+   <div class="field"><label for="adaptive-floor">Adaptive floor <span class="value" id="adaptive-floor-value">0%</span></label><input id="adaptive-floor" type="range" min="0" max="100" value="0"></div>
+  </div>
+  <details class="more"><summary>Details</summary>
+   <p class="hint">Hann-windowed FFT at 16 kHz (so the top frequency is 8 kHz), 16 logarithmic bands (32 for the lamp), envelope attack/release, adaptive noise floor, spectral-flux onset detector and an experimental tempo estimate (may be wrong on complex music).</p>
+  </details>
+ </section>
+</aside>
+</div>
+<footer class="footer">Everything is processed locally in the browser · only audio features are sent to the lamp</footer>
+</main>
+<script src="js/state.js"></script>
+<script src="js/geometry.js"></script>
+<script src="js/tuning.js"></script>
+<script src="js/remote.js"></script>
+<script src="js/remote-ui.js"></script>
+<script src="js/view.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/main.js"></script>
+</body></html>

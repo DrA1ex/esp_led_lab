@@ -1,0 +1,196 @@
+'use strict';
+// Settings → WASM renderers, canvas painting and live meters.
+function refreshLabels(){
+ const s=settings(),g=currentGeometry();
+ for(const id of ['speed','scale','light'])$(id+'-value').textContent=s[id];
+ $('mix-value').textContent=s.mix+'%';
+ for(const id of ['spectrum-shape','spectrum-onset','line-response'])$(id+'-value').textContent=s[id]+'%';
+ $('speed-floor-value').textContent=s['speed-floor'];
+ $('audio-min-value').textContent=s['audio-min'];$('audio-max-value').textContent=s['audio-max'];
+ $('agc-value').textContent=s.agc+' ms';$('compression-value').textContent=s.compression+'%';
+ $('attack-value').textContent=s.attack+' ms';$('release-value').textContent=s.release+' ms';
+ $('noise-value').textContent=(s.noise/1000).toFixed(3);$('adaptive-floor-value').textContent=s['adaptive-floor']+'%';
+ $('gain-value').textContent=(s.gain/10).toFixed(1)+'×';$('transient-value').textContent=(s.transient/10).toFixed(1)+'×';
+ $('matrix-label').textContent=geometryLabel(g);
+ $('gamma-value').textContent=s.gamma===0?'off':(2.2+(s.gamma-128)/128).toFixed(2);
+ $('master-brightness-value').textContent=s['master-brightness'];const range=frequencyRange(s);
+ $('freq-min-value').textContent=formatHz(range.lo);$('freq-max-value').textContent=formatHz(range.hi);
+ $('fft-display').textContent=`FFT ${s.fft} · ${formatHz(range.lo)}–${formatHz(range.hi)}`;
+ $('fft-hint').textContent=`${(16000/s.fft).toFixed(1)} Hz per bin. Larger sizes separate bass notes better but react more slowly.`;
+ if(STATE.ready)STATE.modules.dsp.exports.set_frequency_range(range.lo,range.hi);
+ refreshGeometryUi(g);
+ if(STATE.ready){
+  const m=STATE.modules.new.exports;
+  m.set_dimensions(g.w,g.h);m.set_palette(s.palette);
+  const lut=new Uint8Array(m.memory.buffer,m.gamma_lut_ptr(),256),gamma=2.2+(s.gamma-128)/128;
+  for(let k=0;k<256;k++){const v=s.gamma===0?k:Math.floor(255*Math.pow(k/255,gamma));lut[k]=k>0&&v===0?1:v;}
+  m.apply_palette_gamma();
+  m.set_reaction_tuning(s['spectrum-shape']/100,s['spectrum-onset']/100,s['line-response']/100,s['speed-floor']);
+  m.set_effects(s.color,s.brightness,s['audio-mode']);m.set_parameters(s.speed,s.scale,s.light,s.mix/100);m.set_audio_range(s['audio-min'],s['audio-max']);
+  m.set_audio_window(s['input-min'],s['input-max'],s['input-gate']?1:0);m.set_origin(...originArgs(s,g.w));
+ }
+ refreshTuningUi(s,g);
+ refreshEffective();
+}
+// Control source for parameter modes; the same source is sent to the ESP as
+// config.param_source (see remote-ui.js).
+function newControlSource(s=settings()){
+ switch(s['param-source']){
+  case 'spectral':return STATE.newParam;
+  case 'bass':return STATE.levels[0];
+  case 'mid':return STATE.levels[1];
+  case 'high':return STATE.levels[2];
+  case 'peak':return Math.max(...STATE.newSpectrum);
+  case 'onset':return Math.max(...STATE.pulses);
+  case 'beat':return STATE.beatConfidence*STATE.beatPulse;
+  default:return STATE.newLoudness;
+ }
+}
+function feedRender(m){
+ const s=settings(),d=STATE.modules.dsp.exports,features=new Float32Array(m.memory.buffer,m.audio_features_ptr(),160);
+ features.fill(0);
+ for(let j=0;j<16;j++)features[j]=STATE.newSpectrum[j];
+ for(let j=0;j<3;j++){features[16+j]=STATE.pulses[j];features[19+j]=STATE.events[j];}
+ features[22]=STATE.newParam;
+ features[23]=newControlSource(s);
+ const history=remoteEnabled()&&RS.visual?RS.visual.newWave:new Float32Array(d.memory.buffer,d.new_wave_ptr(),128);
+ const head=remoteEnabled()&&RS.visual?RS.visual.newWaveHead:d.new_wave_head();
+ for(let j=0;j<128;j++)features[24+j]=history[(head+j)%128];
+ features[152]=STATE.bpm;features[153]=STATE.beatConfidence;features[154]=STATE.beatPhase;features[155]=STATE.beatPulse;
+ for(let j=0;j<3;j++)features[156+j]=STATE.levels[j];
+ features[159]=STATE.newLine;
+}
+// Mirrors render.cpp: Brightness and Speed/Scale/Light read features[23]
+// (the selected control source); Line blends it with the fast line envelope.
+function refreshEffective(){
+ const s=settings(),kind=s['audio-mode'],single=kind>=5&&kind<=10,box=$('control-visual');
+ box.hidden=!single;
+ if(!single)return;
+ const param=kind===8?'Speed':kind===9?'Scale':kind===10?'Light':kind===5?'Brightness':'Line width';
+ const control=newControlSource(s),lineMix=s['line-response']/100;
+ let input=kind===6||kind===7?(1-lineMix)*control+lineMix*STATE.newLine:control;
+ input=Math.max(0,Math.min(1,Number.isFinite(input)?input:0));
+ const lo=Math.min(s['audio-min'],s['audio-max']),hi=s['audio-max'],mapped=lo+Math.floor(input*(hi-lo));
+ let value=kind===8?(s['speed-floor']>0?s['speed-floor']+Math.floor(mapped*(255-s['speed-floor'])/255):mapped):mapped;
+ const columns=currentGeometry().w;
+ if(kind>=8)value=Math.round(s[kind===8?'speed':kind===9?'scale':'light']*(1-s.mix/100)+value*s.mix/100);
+ else if(kind===6||kind===7)value=Math.round(input*columns/(kind===7?2:1));
+ else value=Math.round(input*100);
+ const sourceName=$('param-source').selectedOptions[0].textContent;
+ $('control-source-label').textContent=kind===6||kind===7?`${sourceName} + fast envelope`:sourceName;
+ $('control-value-label').textContent=kind===5?`Brightness ${value}%`:kind===6||kind===7?`${value} ${isStrip(currentGeometry())?'LED':'columns'}`:`${param}: ${value}`;
+ $('control-fill').style.width=(input*100).toFixed(2)+'%';
+ $('control-marker').style.left=(input*100).toFixed(2)+'%';
+ const hint=kind===10&&s.color!==9&&s.brightness===0?'Light Control has no effect on this preset: Fixed brightness and not Solid Color':
+ (kind===8&&s.color===9?'In Solid Color, Speed sets the hue':
+ (kind===9&&s.color===9?'In Solid Color, Scale sets the saturation':''));
+ $('control-hint').textContent=hint;
+}
+
+const displayScale=()=>Math.min(2,devicePixelRatio||1);
+// Converts the serpentine WASM framebuffer to a row-major display image
+// (optionally Y-inverted and LED-output corrected) and draws it.
+function paint(m,canvas,side,dots){
+ const n=m.get_width(),h=m.get_height();
+ const u=new Uint8ClampedArray(m.memory.buffer,m.framebuffer_ptr(),n*h*4);
+ const off=STATE.canvases[side].off;off.width=n;off.height=h;
+ const oc=off.getContext('2d',{willReadFrequently:true});const img=oc.createImageData(n,h);
+ const conf=settings(),invertY=conf['invert-y'],master=conf['simulate-led']?conf['master-brightness']:255,correction=conf['simulate-led']?[255,176,240]:[255,255,255];
+ for(let y=0;y<h;y++)for(let x=0;x<n;x++){
+  const src=((y&1)?n-1-x:x)+y*n,si=src*4,dstY=invertY?h-1-y:y,di=(dstY*n+x)*4;
+  for(let c=0;c<3;c++){
+   const adj=Math.floor(correction[c]*(master+1)/256);
+   img.data[di+c]=Math.floor(u[si+c]*(adj+1)/256);
+  }
+  img.data[di+3]=255;
+ }
+ oc.putImageData(img,0,0);
+ // A lightweight readout of the *actual* WASM RGB output, not of the audio
+ // analyzer. It helps distinguish a dead DSP from a very dark original overlay.
+ let sum=0,samples=0;
+ for(let i=0;i<n*h;i+=Math.max(1,Math.floor(n*h/256))){sum+=img.data[i*4]+img.data[i*4+1]+img.data[i*4+2];samples++;}
+ STATE.output[side]=sum/(samples*3*255);
+ if(isStrip({w:n,h}))drawStrip(canvas,img.data,n,h,dots);
+ else drawMatrix(canvas,off,img.data,n,h,dots);
+ const mirror=$('floating-'+side);
+ if(mirror&&!$('floating-preview').hidden)drawMirror(mirror,canvas);
+}
+function drawMatrix(canvas,off,data,n,h,dots){
+ const stage=canvas.parentElement;
+ if(stage.style.aspectRatio!==`${n} / ${h}`)stage.style.aspectRatio=`${n} / ${h}`;
+ const dpi=displayScale(),view=canvas.clientWidth||canvas.width;
+ const cw=Math.max(64,Math.round(view*dpi)),ch=Math.max(16,Math.round(cw*h/n));
+ if(canvas.width!==cw||canvas.height!==ch){canvas.width=cw;canvas.height=ch;}
+ const ctx=canvas.getContext('2d');
+ ctx.fillStyle='#030508';ctx.fillRect(0,0,cw,ch);
+ if(dots&&n*h<=1024){
+  const dx=cw/n,dy=ch/h,radius=Math.max(1,Math.min(dx,dy)*.33);
+  for(let y=0;y<h;y++)for(let x=0;x<n;x++){
+   const i=(y*n+x)*4,bright=Math.max(data[i],data[i+1],data[i+2])/255;
+   ctx.beginPath();ctx.arc((x+.5)*dx,(y+.5)*dy,radius,0,Math.PI*2);
+   ctx.fillStyle=`rgb(${data[i]},${data[i+1]},${data[i+2]})`;
+   if(bright>.2){ctx.shadowColor=ctx.fillStyle;ctx.shadowBlur=dx*.45*bright;}
+   ctx.fill();ctx.shadowBlur=0;
+  }
+ }else{ctx.imageSmoothingEnabled=false;ctx.drawImage(off,0,0,cw,ch);}
+}
+// Strips are wrapped onto display lines (see stripLayout) so each LED keeps a
+// readable size; a soft halo is drawn instead of shadowBlur to stay cheap at
+// 1024 LEDs x 2 renderers x 60 FPS.
+function drawStrip(canvas,data,n,h,dots){
+ const stage=canvas.parentElement;
+ if(stage.style.aspectRatio)stage.style.aspectRatio='';
+ const cssW=Math.max(120,canvas.clientWidth||stage.clientWidth||300),dpi=displayScale();
+ const L=stripLayout(n,h,cssW);
+ const cw=Math.round(cssW*dpi),ch=Math.max(1,Math.round(L.height*dpi));
+ if(canvas.width!==cw||canvas.height!==ch){canvas.width=cw;canvas.height=ch;}
+ const ctx=canvas.getContext('2d');
+ ctx.setTransform(dpi,0,0,dpi,0,0);
+ ctx.fillStyle='#030508';ctx.fillRect(0,0,cssW,L.height);
+ const p=L.pitch,core=Math.max(.8,p*.34);
+ for(let y=0;y<h;y++){
+  const top=y*(L.rowHeight+L.gap);
+  for(let x=0;x<n;x++){
+   const i=(y*n+x)*4,r=data[i],g=data[i+1],b=data[i+2];
+   const col=x%L.perLine,line=Math.floor(x/L.perLine),cx=(col+.5)*p,cy=top+(line+.5)*p;
+   if(!dots){ctx.fillStyle=`rgb(${r},${g},${b})`;ctx.fillRect(col*p+.5,top+line*p+.5,Math.max(1,p-1),Math.max(1,p-1));continue;}
+   ctx.fillStyle='#0d131c';ctx.beginPath();ctx.arc(cx,cy,core,0,Math.PI*2);ctx.fill();
+   const bright=Math.max(r,g,b)/255;
+   if(bright<.02)continue;
+   if(bright>.2){ctx.fillStyle=`rgba(${r},${g},${b},${(.28*bright).toFixed(3)})`;ctx.beginPath();ctx.arc(cx,cy,p*.5,0,Math.PI*2);ctx.fill();}
+   ctx.fillStyle=`rgb(${r},${g},${b})`;ctx.beginPath();ctx.arc(cx,cy,core,0,Math.PI*2);ctx.fill();
+  }
+ }
+ ctx.setTransform(1,0,0,1,0,0);
+}
+// The compact floating dock copies the rendered canvas, keeping its aspect ratio.
+function drawMirror(mirror,canvas){
+ const strip=document.body.classList.contains('strip-layout');
+ const mw=strip?Math.max(96,Math.round((mirror.clientWidth||300)*displayScale())):96;
+ const mh=strip?Math.max(4,Math.round(mw*canvas.height/Math.max(1,canvas.width))):96;
+ if(mirror.width!==mw||mirror.height!==mh){mirror.width=mw;mirror.height=mh;}
+ const mc=mirror.getContext('2d'),k=Math.min(mw/canvas.width,mh/canvas.height);
+ const w=canvas.width*k,hh=canvas.height*k;
+ mc.imageSmoothingEnabled=true;mc.clearRect(0,0,mw,mh);
+ mc.drawImage(canvas,(mw-w)/2,(mh-hh)/2,w,hh);
+}
+
+function updateFloatingPreview(){
+ const panel=document.querySelector('.main'),dock=$('floating-preview');
+ if(!panel||!dock)return;
+ const stacked=window.matchMedia('(max-width:1199px)').matches;
+ const r=panel.getBoundingClientRect();
+ dock.hidden=!(stacked && r.bottom<0 && window.scrollY>0);
+}
+window.addEventListener('scroll',updateFloatingPreview,{passive:true});
+window.addEventListener('resize',updateFloatingPreview,{passive:true});
+function meters(){
+ const vals=STATE.newSpectrum,wrap=$('new-mini-bars');
+ for(let j=0;j<16;j++)wrap.children[j].style.height=`${Math.max(2,Math.min(100,vals[j]*100))}%`;
+ const mode=+($('audio-mode').value),isWave=[1,2].includes(mode),isParam=[5,6,7,8,9,10].includes(mode);
+ const strength=isParam?newControlSource():(isWave?STATE.newLoudness:Math.max(...vals));
+ $('new-label').textContent=`FFT: ${Math.round(strength*100)}% · RGB: ${Math.round(STATE.output.new*100)}%`;
+ drawTransfer(mode?strength:NaN);
+ for(let j=0;j<3;j++)$(['bass','mid','high'][j]).classList.toggle('active',STATE.pulses[j]>.35);
+ $('bpm').textContent=STATE.beatConfidence>.21?`${Math.round(STATE.bpm)} BPM · ${Math.round(STATE.beatConfidence*100)}%`:'BPM —';
+}
