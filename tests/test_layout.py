@@ -25,7 +25,7 @@ with sync_playwright() as p:
         top = page.evaluate(f'''() => {{
           const r = {RECT};
           return {{document:document.documentElement.scrollWidth,scrollHeight:document.documentElement.scrollHeight,
-            stage:r('.matrixstage'),info:r('.preview-info'),main:r('.main'),player:r('.audio-card'),remote:r('.remote-panel'),
+            stage:r('.matrixstage'),info:r('.preview-info'),main:r('.main'),library:r('.library'),transport:r('.transport'),remote:r('.remote-panel'),
             workspace:r('.workspace'),settings:r('.settings'),panels:r('.tabpanels')}};
         }}''')
         assert top['document'] <= width + 1, (width, 'horizontal overflow',top)
@@ -38,11 +38,15 @@ with sync_playwright() as p:
             # A matrix sits beside its readout and fits the height budget.
             assert top['info']['x'] >= top['stage']['x']+top['stage']['width'], (width,'readout not beside the matrix',top)
             assert 160 <= top['stage']['height'] <= min(390, height*0.45), (width,'matrix size',top)
-            assert abs(top['main']['x']-top['remote']['x'])>50 or abs(top['player']['x']-top['remote']['x'])>50, (width,'player and lamps not side by side',top)
+            # Three columns: playlist | preview over lamps | settings; the transport sits in the header.
+            assert top['library']['x']+top['library']['width'] <= top['main']['x'] < top['settings']['x'], (width,'not three columns',top)
+            assert abs(top['main']['x']-top['remote']['x']) < 2 and top['remote']['y'] > top['main']['y'], (width,'lamps not under the preview',top)
+            assert top['transport']['bottom'] <= top['main']['y'] and top['transport']['height'] < 70, (width,'transport not in the header',top)
+            assert abs(top['library']['bottom']-top['remote']['bottom']) < 2, (width,'playlist column does not reach the bottom',top)
         else:
             assert top['stage']['width'] <= 362, (width,'oversized matrix',top)
-        if width <=760:
-            assert top['player']['y'] > top['main']['y'],(width,'small mobile not stacked',top)
+            # Stacked: transport row, then preview → playlist → lamps → settings.
+            assert top['transport']['bottom'] <= top['main']['y'] < top['library']['y'] < top['remote']['y'] < top['settings']['y'], (width,'stacked order',top)
         if width >= 1200:
             # Scrolling a long settings panel keeps the tabs in place and the page still.
             page.locator('.tabs [data-tab="audio"]').click()

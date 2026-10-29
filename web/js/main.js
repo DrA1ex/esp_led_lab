@@ -21,7 +21,7 @@ async function init(){
   STATE.ready=true;
   STATE.modules.new.exports.set_palette(3);
   refreshLabels();resetDSP();
-  $('status').textContent='WASM ready · choose a file or start the demo beat';$('play').disabled=true;
+  $('status').textContent='Pick a track or the demo beat';$('play').disabled=true;
   requestAnimationFrame(animate);
  }catch(err){
   console.error(err);$('status').textContent='WASM loading error: '+err.message;
@@ -81,32 +81,26 @@ try{
 for(const id of ['geometry','geom-w','geom-h'])$(id).addEventListener('change',()=>{
  try{localStorage.setItem(GEOMETRY_KEY,JSON.stringify({value:$('geometry').value,w:$('geom-w').value,h:$('geom-h').value}));}catch(_){}
 });
-$('audio-input').onchange=async()=>{
- const mode=$('audio-input').value;
+// Microphone or file / demo. A failed microphone falls back to the file side.
+async function setInputMode(mode){
  pauseAudio();STATE.inputMode=mode;
  if(STATE.ready)resetDSP(); // the release tail would read the other source's timeline
+ const fileSide=()=>{
+  $('play').disabled=!STATE.buffer;playLabel('▶','Play (Space)');$('filename').textContent=STATE.fileName||'No audio file';
+  $('duration').textContent=STATE.buffer?asTime(STATE.buffer.duration):'00:00';$('now').textContent=asTime(STATE.pausedAt);$('seek').disabled=false;
+ };
  if(mode==='microphone'){
-  $('play').disabled=false;$('play').textContent='🎙 Start microphone';
-  try{await startMicrophone();}catch(err){console.error(err);STATE.inputMode='file';$('audio-input').value='file';
-   $('play').disabled=!STATE.buffer;$('play').textContent='▶ Play';$('filename').textContent=STATE.fileName||'No audio file';
-   $('duration').textContent=STATE.buffer?asTime(STATE.buffer.duration):'00:00';$('seek').disabled=false;
-   $('status').textContent='Microphone error: '+err.message;}
- }else{
-  $('play').disabled=!STATE.buffer;$('play').textContent='▶ Play';
-  $('filename').textContent=STATE.fileName||'No audio file';$('duration').textContent=STATE.buffer?asTime(STATE.buffer.duration):'00:00';
-  $('now').textContent=asTime(STATE.pausedAt);$('seek').disabled=false;
-  $('status').textContent=STATE.buffer?'File ready to play':'Choose a file or the demo beat';
- }
-};
+  $('play').disabled=false;playLabel('🎙','Start microphone (Space)');
+  try{await startMicrophone();}catch(err){console.error(err);STATE.inputMode='file';fileSide();$('status').textContent='Microphone error: '+err.message;}
+ }else{fileSide();$('status').textContent=STATE.buffer?'Ready to play':'Pick a track or the demo beat';}
+ if(typeof renderPlaylist==='function')renderPlaylist();
+}
 $('playback-volume').addEventListener('input',()=>{
  const v=+$('playback-volume').value/100;
  $('playback-volume-value').textContent=Math.round(v*100)+'%';
  if(STATE.playbackGain&&STATE.context)STATE.playbackGain.gain.setTargetAtTime(v,STATE.context.currentTime,.01);
 });
-$('choose').onclick=()=>$('file').click();$('file').onchange=async ev=>{const file=ev.target.files[0];if(!file)return;try{await ensureAudio();$('status').textContent='Decoding audio file…';const buf=await STATE.context.decodeAudioData(await file.arrayBuffer());if(buf.duration>1200)throw new Error('Files longer than 20 minutes are not supported yet');loadBuffer(buf,await resamplePCM(buf),file.name);await playAudio();}catch(err){console.error(err);$('status').textContent='Error: '+err.message;}};
-$('demo').onclick=async()=>{await ensureAudio();const a=demoAudio();loadBuffer(a.buffer,a.pcm,'Demo Loop · 120 BPM (looped)',true);await playAudio();};
 $('play').onclick=async()=>{try{if(STATE.playing)pauseAudio();else await playAudio();}catch(err){console.error(err);$('status').textContent='Error: '+err.message;}};
-$('stop').onclick=()=>{pauseAudio();STATE.pausedAt=0;$('seek').value=0;$('now').textContent='00:00';$('status').textContent='Reset';};
 // While the slider is held the animation loop leaves it alone; the jump happens on release.
 $('seek').addEventListener('pointerdown',()=>{STATE.seeking=true;});
 for(const ev of ['pointerup','pointercancel','blur'])$('seek').addEventListener(ev,()=>{STATE.seeking=false;});
@@ -126,6 +120,5 @@ for(const id of ['freq-min','freq-max'])$(id).addEventListener('input',()=>{
  if(id==='freq-max'||sliderHz(+$('freq-max').value)<lo*1.5)$('freq-min').value=Math.max(0,hzSlider(sliderHz(+$('freq-max').value)/1.5)-1);
 });
 $('defaults').onclick=()=>{const o={'param-source':'loudness','spectrum-shape':70,'spectrum-onset':30,'line-response':75,fft:512,attack:25,release:210,noise:8,'adaptive-floor':0,gain:16,transient:10,agc:900,compression:82,'freq-min':hzSlider(40),'freq-max':1000};Object.entries(o).forEach(([k,v])=>$(k).value=v);refreshLabels();if(STATE.ready)resetDSP(Math.max(0,STATE.inputMode==='microphone'?STATE.mic?.written||0:Math.floor((STATE.playing&&STATE.context?STATE.context.currentTime-STATE.playStart:STATE.pausedAt)*fs)));};
-document.addEventListener('keydown',e=>{if(e.code==='Space'&&!['INPUT','SELECT','BUTTON'].includes(document.activeElement.tagName)){e.preventDefault();if(STATE.playing)pauseAudio();else if(STATE.buffer||STATE.inputMode==='microphone')playAudio();}});
 refreshLabels();
 init();

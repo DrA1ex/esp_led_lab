@@ -5,6 +5,22 @@
 
 <header class="topbar">
  <div class="brand"><div class="brand-logo" aria-hidden="true">LED</div><div><div class="title">ESP LED Music Lab</div><div class="subtitle">Audio-reactive lamp effects · C++ → WebAssembly</div></div></div>
+ <div class="transport" id="transport" aria-label="Player">
+  <div class="transport-buttons">
+   <button class="ghost round" id="prev" title="Previous (P) · restarts the track after 3 s" aria-label="Previous">⏮</button>
+   <button class="primary round play" id="play" title="Play (Space)" aria-label="Play" disabled>▶</button>
+   <button class="ghost round" id="next" title="Next (N)" aria-label="Next" disabled>⏭</button>
+  </div>
+  <div class="now-playing">
+   <div class="track-head"><span class="filename" id="filename">No audio file</span><span class="status"><span class="dot" id="sound-dot"></span><span id="status">Loading WebAssembly…</span></span></div>
+   <div class="timebar"><span class="time" id="now">00:00</span><input id="seek" type="range" min="0" max="1000" value="0" aria-label="Position"><span class="time" id="duration">00:00</span></div>
+  </div>
+  <div class="transport-modes">
+   <button class="ghost round mode" id="shuffle" title="Shuffle" aria-label="Shuffle" aria-pressed="false">🔀</button>
+   <button class="ghost round mode" id="repeat" title="Repeat: off" aria-label="Repeat: off" aria-pressed="false">🔁</button>
+  </div>
+  <label class="volume" title="Playback volume (the lamp is not affected)"><span aria-hidden="true">🔊</span><input id="playback-volume" type="range" min="0" max="100" value="100" aria-label="Volume"><b class="value" id="playback-volume-value">100%</b></label>
+ </div>
  <div class="chips"><span class="chip" id="lamp-chip" title="Connected lamps">Lamps: none</span><span class="chip" id="fps">— FPS</span></div>
 </header>
 
@@ -15,11 +31,30 @@
 </div>
 
 <div class="layout">
+<aside class="card library" id="library" aria-label="Playlist">
+ <div class="panelhead"><h2 class="h2">Playlist</h2><span class="muted" id="pl-count"></span></div>
+ <div class="sources" role="list">
+  <button class="source" id="demo" role="listitem"><span class="source-icon" aria-hidden="true">♫</span><span class="source-name">Demo beat<small>120 BPM loop</small></span></button>
+  <button class="source" id="mic-source" role="listitem"><span class="source-icon" aria-hidden="true">🎙</span><span class="source-name">Microphone<small>live, not played back</small></span></button>
+ </div>
+ <div class="library-actions">
+  <button class="secondary" id="folder" title="Open a folder (replaces the list)">📁 Folder…</button>
+  <button class="secondary" id="choose" title="Add files to the list">+ Files…</button>
+  <button class="ghost icon" id="pl-clear" title="Clear the list" aria-label="Clear the list">🗑</button>
+  <input class="hide" type="file" id="file" accept="audio/*" multiple>
+  <input class="hide" type="file" id="folder-input" webkitdirectory multiple>
+ </div>
+ <button class="ghost reopen" id="pl-reopen" hidden></button>
+ <input type="search" id="pl-search" placeholder="Filter" aria-label="Filter the playlist" autocomplete="off" spellcheck="false" hidden>
+ <ol class="playlist" id="playlist" aria-label="Tracks"></ol>
+ <p class="hint library-empty" id="pl-empty">Open a folder or add files. You can also drop files or folders anywhere on the page.</p>
+</aside>
 <section class="workspace"><div class="workspace-grid">
 
  <div class="card main preview-card">
   <div class="panelhead">
    <div><h2 class="h2" id="preview-title">LED matrix</h2><div class="muted" id="matrix-label">16 × 16 · matrix</div></div>
+   <label class="mix" title="Audio reaction strength in the preview (not sent to the lamp)"><span>LED reaction <b class="value" id="mix-value">100%</b></span><input id="mix" type="range" min="0" max="100" value="100"></label>
   </div>
   <div class="preview-body">
    <div class="matrixstage"><canvas id="canvas-new" width="16" height="16" aria-label="LED preview: what the lamp shows"></canvas></div>
@@ -39,26 +74,6 @@
   </div>
  </div>
 
- <div class="card player audio-card">
-  <div class="player-row">
-   <select id="audio-input" class="compact-select" aria-label="Audio source"><option value="file" selected>File / demo</option><option value="microphone">Microphone</option></select>
-   <span class="filename" id="filename">No audio file</span>
-  </div>
-  <div class="transport">
-   <button class="primary" id="play" disabled>▶ Play</button>
-   <button class="secondary" id="demo">♫ Demo</button>
-   <button class="secondary" id="choose">↥ File…</button>
-   <button class="ghost icon" id="stop" title="Back to start" aria-label="Reset">■</button>
-   <input class="hide" type="file" id="file" accept="audio/*">
-  </div>
-  <div class="timebar"><span class="time" id="now">00:00</span><input id="seek" type="range" min="0" max="1000" value="0" aria-label="Position"><span class="time" id="duration">00:00</span></div>
-  <div class="quick-levels">
-   <label class="slider"><span>Volume <b class="value" id="playback-volume-value">100%</b></span><input id="playback-volume" type="range" min="0" max="100" value="100"></label>
-   <label class="slider" title="Audio reaction strength in the preview (not sent to the lamp)"><span>LED reaction <b class="value" id="mix-value">100%</b></span><input id="mix" type="range" min="0" max="100" value="100"></label>
-  </div>
-  <div class="status"><span class="dot" id="sound-dot"></span><span id="status">Loading WebAssembly…</span></div>
- </div>
-
  <div class="card remote-panel" id="remote-panel">
   <div class="panelhead">
    <h2 class="h2">Lamps over Wi-Fi</h2>
@@ -68,6 +83,11 @@
    <input type="text" id="remote-address" placeholder="IP or host name, e.g. esp_lamp.local" aria-label="Lamp address" autocomplete="off" spellcheck="false">
    <button class="secondary" id="remote-add" type="submit">Connect</button>
   </form>
+  <div class="lamps-master" id="lamps-master" aria-label="All lamps">
+   <button class="ghost small" id="lamps-connect" title="Connect every lamp in the list">Connect all</button>
+   <div class="power-pair" role="group" aria-label="Power of all connected lamps"><button class="ghost small" id="lamps-on" title="Turn all connected lamps on">⏻ On</button><button class="ghost small" id="lamps-off" title="Turn all connected lamps off">Off</button></div>
+   <label class="master-bright" title="Brightness of all connected lamps (saved on each lamp)"><span aria-hidden="true">☀</span><input id="lamps-brightness" type="range" min="0" max="100" value="50" aria-label="Brightness of all connected lamps"><b class="value" id="lamps-brightness-value">—</b></label>
+  </div>
   <div id="remote-devices" aria-live="polite"></div>
   <div class="hint" id="remote-state">Streaming off · preview only</div>
   <details class="more"><summary>Advanced</summary>
@@ -75,8 +95,10 @@
     <label>Spectrum bands<select id="remote-bands"><option value="16">16</option><option value="32" selected>32</option><option value="64">64</option></select></label>
     <label>Light offset, ms <span class="value" id="remote-latency-value">0 ms</span><input type="number" min="-100" max="500" step="5" value="0" id="remote-latency"></label>
    </div>
+   <label class="toggle"><input type="checkbox" id="remote-autoconnect"> Connect all lamps when the page opens</label>
    <label class="toggle"><input type="checkbox" id="remote-adapt" checked> Adapt to each lamp</label>
    <p class="hint">Each lamp gets the band count that fits its width (about one band per column; “Spectrum bands” is then ignored) and can have its own mode and start point on its card. Off: every lamp gets the same stream and settings.</p>
+   <p class="hint">On / Off and brightness apply to every connected lamp and are saved on the lamp, like its own controls. Older firmware without the <code>control</code> capability gets them over HTTP (<code>/api/power</code>, <code>/api/brightness</code>) and its state is not shown.</p>
    <p class="hint">Only DSP features are sent, never audio. Lamp endpoint: <code>ws://address/audio</code>. A page served over HTTPS may block <code>ws://</code>; open it from localhost or as a file. “+” delays the light, “−” advances it.</p>
   </details>
  </div>
@@ -214,5 +236,6 @@
 <script src="js/remote-ui.js"></script>
 <script src="js/view.js"></script>
 <script src="js/audio.js"></script>
+<script src="js/playlist.js"></script>
 <script src="js/main.js"></script>
 </body></html>

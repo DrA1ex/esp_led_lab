@@ -34,12 +34,25 @@ function startSilenceTail(){
  const release=+($('release')?.value||210);
  STATE.tailUntil=STATE.tailPos+Math.round(fs*Math.min(6,Math.max(2.5,release*6/1000)));
 }
+// The header play button is an icon; its label and tooltip carry the words.
+function playLabel(icon,label){const b=$('play');b.textContent=icon;b.title=label;b.setAttribute('aria-label',label);}
 function loadBuffer(buffer,pcm,name,isDemo=false){
- pauseAudio();STATE.inputMode='file';$('audio-input').value='file';STATE.loopDemo=isDemo;
+ pauseAudio();STATE.inputMode='file';STATE.loopDemo=isDemo;
  STATE.buffer=buffer;STATE.pcm=pcm;STATE.audioLen=buffer.duration;STATE.fileName=name;STATE.pausedAt=0;resetDSP();
  if(+$('audio-mode').value===0){$('audio-mode').value=3;refreshLabels();}
  $('filename').textContent=name;$('duration').textContent=asTime(buffer.duration);$('now').textContent='00:00';$('seek').value=0;$('seek').disabled=false;
- $('play').disabled=false;$('play').textContent='▶ Play';$('status').textContent='Ready to play: '+name;
+ $('play').disabled=false;playLabel('▶','Play (Space)');$('status').textContent='Ready to play';
+}
+// Decode → 20-minute limit → loadBuffer → play. `current()` says whether this
+// load is still wanted (a newer track or source may have been picked meanwhile).
+async function loadFile(file,name=file.name,current=()=>true){
+ await ensureAudio();$('status').textContent='Decoding…';
+ const buf=await STATE.context.decodeAudioData(await file.arrayBuffer());
+ if(!current())return false;
+ if(buf.duration>1200)throw new Error('Files longer than 20 minutes are not supported yet');
+ const pcm=await resamplePCM(buf);
+ if(!current())return false;
+ loadBuffer(buf,pcm,name);await playAudio();return true;
 }
 async function ensureAudio(){
  if(!STATE.context)STATE.context=new (window.AudioContext||window.webkitAudioContext)();
@@ -67,10 +80,11 @@ async function playAudio(){
  source.onended=()=>{
   if(STATE.source!==source)return;
   STATE.playing=false;STATE.source=null;STATE.pausedAt=0;remoteInvalidate();startSilenceTail();
-  $('play').textContent='▶ Play again';$('now').textContent='00:00';$('seek').value=0;
-  $('status').textContent='Playback finished · press Play to start again';
+  playLabel('▶','Play again (Space)');$('now').textContent='00:00';$('seek').value=0;
+  $('status').textContent='Finished';
+  if(typeof onTrackEnded==='function')onTrackEnded(); // playlist: next track or repeat
  };
- source.start(0,offset);$('play').textContent='Ⅱ Pause';$('status').textContent='Playing · DSP and rendering in WebAssembly';
+ source.start(0,offset);playLabel('Ⅱ','Pause (Space)');$('status').textContent='Playing';
 }
 function stopMicrophone(){
  remoteInvalidate();
@@ -84,7 +98,7 @@ function stopMicrophone(){
  }
  if(STATE.playing)startSilenceTail();
  STATE.playing=false;STATE.source=null;
- $('play').textContent='🎙 Start microphone';
+ playLabel('🎙','Start microphone (Space)');
 }
 function pauseAudio(){
  remoteInvalidate();
@@ -94,7 +108,7 @@ function pauseAudio(){
   const src=STATE.source;STATE.source=null;STATE.playing=false;try{src?.stop();}catch(_){}
   startSilenceTail();
  }
- $('play').textContent='▶ Play';
+ playLabel('▶','Play (Space)');
 }
 function receiveMicSamples(samples,mic){
  if(STATE.mic!==mic||STATE.inputMode!=='microphone')return;
@@ -168,8 +182,8 @@ async function startMicrophone(){
   }
   resetDSP(0);STATE.playing=true;STATE.pausedAt=0;
   $('filename').textContent='Microphone · LIVE';$('duration').textContent='LIVE';$('now').textContent='00:00';$('seek').value=0;$('seek').disabled=true;
-  $('play').disabled=false;$('play').textContent='■ Stop microphone';
-  $('status').textContent=`Microphone on · ${mic.nativeRate} Hz → 16 kHz · not played back`;
+  $('play').disabled=false;playLabel('■','Stop microphone (Space)');
+  $('status').textContent=`Live · ${mic.nativeRate} Hz → 16 kHz`;
  }catch(err){stopMicrophone();throw err;}
 }
 function sampleAt(index){
@@ -191,4 +205,4 @@ for(let j=0;j<3;j++)STATE.levels[j]=levels[j];
 const newer=new Float32Array(d.memory.buffer,d.new_bands_ptr(),16),p=new Float32Array(d.memory.buffer,d.new_pulses_ptr(),3),e=new Float32Array(d.memory.buffer,d.new_events_ptr(),3);
 for(let j=0;j<16;j++)STATE.newSpectrum[j]=newer[j];for(let j=0;j<3;j++){STATE.pulses[j]=p[j];STATE.events[j]=e[j];}
 }
-function seekTo(pos){if(!STATE.buffer||STATE.inputMode!=='file')return;let wasPlaying=STATE.playing;pauseAudio();STATE.pausedAt=Math.min(STATE.buffer.duration-.01,Math.max(0,pos));const start=Math.floor(STATE.pausedAt*fs);resetDSP(start);if(wasPlaying)playAudio();}
+function seekTo(pos){if(!STATE.buffer||STATE.inputMode!=='file')return;let wasPlaying=STATE.playing;pauseAudio();STATE.pausedAt=Math.min(STATE.buffer.duration-.01,Math.max(0,pos));const start=Math.floor(STATE.pausedAt*fs);resetDSP(start);$('now').textContent=asTime(STATE.pausedAt);$('seek').value=Math.floor(STATE.pausedAt/STATE.buffer.duration*1000);if(wasPlaying)playAudio();}

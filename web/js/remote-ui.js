@@ -173,15 +173,21 @@ function lampCard(d){
  if(card)return card;
  card=document.createElement('div');card.className='lamp';
  card.innerHTML='<div class="lamp-row"><input type="checkbox" title="Send audio to this lamp"><span class="lamp-name"></span><span class="lamp-badge"></span>'+
-  '<div class="lamp-actions"><button class="ghost lamp-geo" title="Use this lamp\'s size for the preview" hidden></button><button class="ghost lamp-connect"></button>'+
+  '<div class="lamp-actions"><button class="ghost lamp-geo" title="Use this lamp\'s size for the preview" hidden></button>'+
+  '<button class="ghost lamp-power" hidden>⏻</button><button class="ghost lamp-connect"></button>'+
   '<button class="ghost lamp-remove" title="Remove lamp" aria-label="Remove lamp">×</button></div></div>'+
   '<div class="lamp-tune"><label>Mode<select class="lamp-mode"></select></label><label>Bands<select class="lamp-bands">'+
   '<option value="">Auto</option><option>16</option><option>32</option><option>64</option></select></label>'+
-  '<label>Start, LED<input class="lamp-shift" type="number" step="1" placeholder="lab"></label></div><div class="lamp-stats"></div>';
+  '<label>Start, LED<input class="lamp-shift" type="number" step="1" placeholder="lab"></label></div>'+
+  '<label class="lamp-ctl" hidden><span aria-hidden="true">☀</span><input class="lamp-bright" type="range" min="0" max="100" aria-label="Lamp brightness"><b class="value"></b></label>'+
+  '<div class="lamp-stats"></div>';
  const q=sel=>card.querySelector(sel);
  q('input').onchange=e=>{d.selected=e.target.checked;d.stop();};
  q('.lamp-geo').onclick=()=>applyGeometry(d.width,d.height);
  q('.lamp-connect').onclick=()=>d.socket?d.disconnect():d.connect();
+ q('.lamp-power').onclick=()=>d.control('power',d.power===false);
+ const bright=q('.lamp-bright'),send=throttle(v=>d.control('brightness',v),120);
+ bright.oninput=()=>{held(bright);q('.lamp-ctl .value').textContent=bright.value+'%';send(pct255(+bright.value));};
  q('.lamp-remove').onclick=()=>{REMOTE.remove(d);saveLamps();};
  q('.lamp-name').textContent=d.address;
  // Every mode; a visualization the lamp does not render is sent as Off (see the stats line).
@@ -202,11 +208,20 @@ function updateLampCard(d){
  const geo=q('.lamp-geo');geo.hidden=!(d.width>0&&d.height>0);
  if(!geo.hidden)geo.textContent=geometryLabel(clampGeometry(d.width,d.height));
  q('.lamp-connect').textContent=d.socket?'Disconnect':'Connect';
+ const power=q('.lamp-power'),ctl=q('.lamp-ctl');
+ power.hidden=ctl.hidden=!d.controllable;
+ power.classList.toggle('on',d.power===true);power.classList.toggle('off',d.power===false);
+ power.title=d.power===false?'Lamp is off · turn on':d.power?'Lamp is on · turn off':'Turn the lamp off';
+ power.setAttribute('aria-pressed',String(d.power!==false));
+ const bright=q('.lamp-bright');
+ if(d.brightness!==null&&!isHeld(bright)){bright.value=to100(d.brightness);q('.lamp-ctl .value').textContent=to100(d.brightness)+'%';}
+ else if(d.brightness===null&&!isHeld(bright))q('.lamp-ctl .value').textContent='—';
  q('.lamp-tune').hidden=!lampAdapt();
  const stats=[];
  if(d.socket&&d.status==='ready'){
   stats.push(`RTT ${Number.isFinite(d.rtt)?d.rtt.toFixed(1)+' ms':'—'}`,`sent ${d.sent}`,`received ${d.received}`,`buffer ${d.buffered}`);
   if(d.dropped||d.receiverDropped)stats.push(`<span class="warn">dropped ${d.dropped} / ${d.receiverDropped}</span>`);
+  if(!d.capabilities.includes('control'))stats.push('<span class="warn">older firmware: power and brightness over HTTP, state unknown</span>');
   if(!d.capabilities.includes('tuning'))stats.push('<span class="warn">older firmware: no reaction tuning</span>');
   else if(!d.visualizations.length)stats.push('<span class="warn">older firmware: no visualizations</span>');
   const mode=lampConfig(d,remoteRuntimeConfig()).audio_effect;
@@ -216,6 +231,40 @@ function updateLampCard(d){
  const html=stats.join('<span>·</span>');
  const box=q('.lamp-stats');if(box.innerHTML!==html)box.innerHTML=html;box.hidden=!html;
  return card;
+}
+// Power and brightness for all connected lamps (saved on each lamp).
+const to100=v=>Math.round(v*100/255),pct255=p=>Math.round(p*255/100);
+function throttle(fn,ms){let last=0,timer=0,args=null;return (...a)=>{args=a;const wait=last+ms-performance.now();
+ if(wait<=0){last=performance.now();fn(...args);}else if(!timer)timer=setTimeout(()=>{timer=0;last=performance.now();fn(...args);},wait);};}
+// A slider being dragged (or just released) is not overwritten by lamp reports.
+const HELD=new WeakMap();
+const held=el=>HELD.set(el,performance.now()),isHeld=el=>document.activeElement===el&&performance.now()-(HELD.get(el)||0)<1500;
+function renderLampsMaster(){
+ const all=REMOTE.devices,ctl=REMOTE.controllable,offline=all.filter(d=>!d.socket);
+ const connect=$('lamps-connect');if(!connect)return;
+ connect.disabled=!all.length;
+ connect.textContent=!all.length||offline.length===all.length?'Connect all':offline.length?`Connect ${offline.length} more`:'Disconnect all';
+ $('lamps-on').disabled=$('lamps-off').disabled=$('lamps-brightness').disabled=!ctl.length;
+ const known=ctl.filter(d=>d.power!==null);
+ $('lamps-on').classList.toggle('active',known.length>0&&known.every(d=>d.power));
+ $('lamps-off').classList.toggle('active',known.length>0&&known.every(d=>!d.power));
+ const slider=$('lamps-brightness'),levels=ctl.map(d=>d.brightness).filter(v=>v!==null);
+ if(isHeld(slider))return;
+ if(!ctl.length){$('lamps-brightness-value').textContent='—';return;}
+ if(!levels.length){$('lamps-brightness-value').textContent=slider.value+'%';return;}
+ const avg=to100(levels.reduce((a,b)=>a+b,0)/levels.length),same=levels.every(v=>v===levels[0]);
+ slider.value=avg;$('lamps-brightness-value').textContent=(same?'':'~')+avg+'%';
+}
+function initLampsMaster(){
+ $('lamps-connect').onclick=()=>{if(REMOTE.devices.some(d=>!d.socket))REMOTE.connectAll();else REMOTE.disconnectAll();renderRemoteDevices();};
+ $('lamps-on').onclick=()=>REMOTE.control('power',true);
+ $('lamps-off').onclick=()=>REMOTE.control('power',false);
+ const slider=$('lamps-brightness'),send=throttle(v=>REMOTE.control('brightness',v),120);
+ slider.oninput=()=>{held(slider);$('lamps-brightness-value').textContent=slider.value+'%';send(pct255(+slider.value));};
+ const AUTO_KEY='esp-led-lab.autoconnect',auto=$('remote-autoconnect');
+ try{auto.checked=localStorage.getItem(AUTO_KEY)==='1';}catch(_){}
+ auto.onchange=()=>{try{localStorage.setItem(AUTO_KEY,auto.checked?'1':'0');}catch(_){}if(auto.checked)REMOTE.connectAll();};
+ if(auto.checked)REMOTE.connectAll();
 }
 const LAMPS_KEY='esp-led-lab.lamps';
 function saveLamps(){try{localStorage.setItem(LAMPS_KEY,JSON.stringify(REMOTE.devices.map(d=>d.address)));}catch(_){}}
@@ -228,6 +277,7 @@ function renderRemoteDevices(){
  const list=$('remote-devices');if(!list)return;
  for(const [d,card] of LAMP_CARDS)if(!REMOTE.devices.includes(d)){card.remove();LAMP_CARDS.delete(d);}
  REMOTE.devices.forEach((d,i)=>{const card=updateLampCard(d);if(list.children[i]!==card)list.insertBefore(card,list.children[i]||null);});
+ renderLampsMaster();
  const ready=REMOTE.devices.filter(d=>d.status==='ready');
  const chip=$('lamp-chip');
  if(chip){
@@ -247,8 +297,9 @@ function renderRemoteDevices(){
 function initRemote(){
  $('remote-add').onclick=()=>{try{const d=REMOTE.add($('remote-address').value);d.connect();$('remote-address').value='';saveLamps();renderRemoteDevices();}
  catch(err){$('remote-state').textContent=err.message;}};
- // Remembered lamps come back disconnected; one click connects them.
+ // Remembered lamps come back disconnected unless "Connect all lamps when the page opens" is on.
  try{for(const address of JSON.parse(localStorage.getItem(LAMPS_KEY)||'[]'))if(typeof address==='string'&&address)REMOTE.add(address);}catch(_){}
+ initLampsMaster();
  $('remote-enable').onchange=()=>{
   if(!remoteEnabled()){remoteInvalidate();if(STATE.ready&&STATE.playing)resetDSP(Math.max(0,currentDisplaySample()));}
   else remoteInvalidate();renderRemoteDevices();

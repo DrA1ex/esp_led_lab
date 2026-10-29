@@ -19,10 +19,24 @@ built with.
 - **Development:** `make serve`, then open <http://localhost:8000/>. The
   microphone needs `localhost` or HTTPS.
 
-Pick a demo loop, an audio file or the microphone and choose an audio
-reaction on the **Audio** tab. To drive a lamp, enter its address under
-**Lamps over Wi-Fi** (the firmware's `ws://<ip>/audio`). Lamp addresses, the
-LED geometry and the active settings tab are remembered in the browser.
+Pick the demo beat, the microphone or a track in the **Playlist** column and
+choose an audio reaction on the **Audio** tab. To drive a lamp, enter its
+address under **Lamps over Wi-Fi** (the firmware's `ws://<ip>/audio`). Lamp
+addresses, the LED geometry and the active settings tab are remembered in the
+browser.
+
+The player sits in the header: ⏮ (restarts the track after 3 s, otherwise
+previous), play/pause, ⏭, shuffle, repeat off / all / one, volume. Hotkeys:
+Space play/pause, ←/→ seek ±5 s, N / P next / previous. **📁 Folder…** replaces
+the list with a folder's audio files (recursive, natural sort; Chrome/Edge
+remember it between reloads, other browsers use a folder upload), **+ Files…**
+and drag-and-drop of files or folders append.
+
+**Lamps over Wi-Fi** can connect every listed lamp at once (optionally when
+the page opens), and turn all connected lamps on or off or set their
+brightness; each lamp card has its own power button and brightness slider.
+These are saved on the lamp (`power` / `brightness` on the `/audio` socket;
+older firmware gets `/api/power` and `/api/brightness` over HTTP).
 
 ## LED geometry
 
@@ -90,10 +104,11 @@ web/                 development page (served as-is)
   js/state.js        shared state, settings
   js/geometry.js     matrices/strips, strip display layout
   js/remote.js       Remote Audio v1 wire format, WebSocket devices, clock sync
-  js/remote-ui.js    feature snapshots, presentation timing, device list
+  js/remote-ui.js    feature snapshots, presentation timing, device list, lamp power / brightness
   js/tuning.js       reaction range, start point, transfer curve, mode hints
   js/view.js         settings → WASM, canvas painting, meters
   js/audio.js        file / demo / microphone input and DSP feed
+  js/playlist.js     playlist, folder / files / drop, next / previous, repeat, shuffle, hotkeys
   js/main.js         bootstrap, animation loop, UI wiring
   wasm/              built render.wasm, dsp.wasm (committed)
 dist/standalone.html single-file build (committed)

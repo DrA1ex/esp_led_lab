@@ -2,7 +2,8 @@
 """WebSocket audio receiver that answers like the ESP8266 firmware
 (src/network/protocol/server/remote_audio_ws.cpp): hello_ack with
 WIDTH x HEIGHT and capabilities, sync_ack, clock_ack, config_ack, start_ack,
-stop_ack and status. Use it to check the lab without a lamp.
+stop_ack, status and the lamp controls (power, brightness -> control_ack).
+Use it to check the lab without a lamp.
 Run: python3 scripts/mock_remote_receiver.py --port 8765 [--width 153 --height 1]
 then connect the lab to 127.0.0.1:8765.
 Requires: pip install websockets. Never flashes or configures an ESP device.
@@ -35,6 +36,7 @@ def parse_frame(message):
 
 ARGS = None
 START = time.monotonic()
+LAMP = dict(power=True, brightness=128)  # persists across connections, like the lamp's config
 
 
 def millis():
@@ -67,8 +69,10 @@ def receiver(ws):
             print('hello', msg)
             ws.send(json.dumps(dict(type='hello_ack', version=1, session=1, width=ARGS.width,
                                     height=ARGS.height, bands=32, band_counts=[16, 32, 64], fps=60,
-                                    capabilities=['sync', 'clock', 'config', 'status', 'tuning', 'visualizations'],
-                                    visualizations=[] if ARGS.no_viz else list(range(12, 25)))))
+                                    capabilities=['sync', 'clock', 'config', 'status', 'tuning', 'visualizations']
+                                    + ([] if ARGS.no_control else ['control']),
+                                    visualizations=[] if ARGS.no_viz else list(range(12, 25)),
+                                    **({} if ARGS.no_control else LAMP))))
         elif op == 'sync':
             t1 = millis()
             ws.send(json.dumps(dict(type='sync_ack', session=1, id=msg.get('id'), t0=msg.get('t0'),
@@ -97,7 +101,19 @@ def receiver(ws):
             ws.send(json.dumps(dict(type='stop_ack', session=1)))
         elif op == 'status':
             ws.send(json.dumps(dict(type='status', session=1, playing=playing, received=frames,
-                                    received_frames=frames, dropped=0, buffer_occupancy=0)))
+                                    received_frames=frames, dropped=0, buffer_occupancy=0,
+                                    **({} if ARGS.no_control else LAMP))))
+        elif op in ('power', 'brightness') and not ARGS.no_control:
+            value = msg.get('on' if op == 'power' else 'value')
+            if op == 'power' and isinstance(value, bool):
+                LAMP['power'] = value
+            elif op == 'brightness' and isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= 255:
+                LAMP['brightness'] = value
+            else:
+                ws.send(json.dumps(dict(type='error', reason='invalid_' + op)))
+                continue
+            print(op, value)
+            ws.send(json.dumps(dict(type='control_ack', **LAMP)))
         else:
             ws.send(json.dumps(dict(type='error', reason='unknown_command')))
 
@@ -109,6 +125,7 @@ if __name__ == '__main__':
     ap.add_argument('--width', type=int, default=16)
     ap.add_argument('--height', type=int, default=16)
     ap.add_argument('--no-viz', action='store_true', help='behave like firmware without visualizations')
+    ap.add_argument('--no-control', action='store_true', help='behave like firmware without power / brightness')
     args = ARGS = ap.parse_args()
     print(f'Mock ESP receiver listening on ws://{args.host}:{args.port}/audio')
     with serve(receiver, args.host, args.port) as server:

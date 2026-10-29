@@ -54,7 +54,28 @@ const RemoteAudio = (() => {
    this.sent=0;this.dropped=0;this.buffered=0;this.received=0;this.delay=NaN;this.syncId=0;this.pending=new Map();this.syncSamples=[];
    this.reconnectAttempts=0;this.reconnectAt=0;this.manual=false;this.lastSync=0;this.lastStatus=0;this.lastConfig='';this.clockSamples=0;
    this.receiverPlaying=false;this.started=false;this.lastError='';this.receiverDropped=0;this.receiverStale=0;this.lastStartAt=0;
-   this.width=0;this.height=0;this.capabilities=[];this.visualizations=[];}
+   this.width=0;this.height=0;this.capabilities=[];this.visualizations=[];this.power=null;this.brightness=null;}
+  // Lamp power / brightness as last reported (null: unknown, e.g. older firmware).
+  lampState(msg){
+   if(typeof msg.power==='boolean')this.power=msg.power;
+   if(Number.isFinite(msg.brightness))this.brightness=Math.max(0,Math.min(255,Math.round(msg.brightness)));
+  }
+  // hello_ack received: the lamp accepts commands on this socket.
+  get controllable(){return this.socket?.readyState===1&&!['connecting','handshake'].includes(this.status);}
+  // power: boolean; brightness: 0..255 (persisted on the lamp). Firmware with the
+  // "control" capability takes it on this socket; older firmware gets the HTTP API
+  // (/api/power, /api/brightness in %), whose cross-origin reply cannot be read.
+  control(kind,value){
+   if(!this.controllable||!['power','brightness'].includes(kind))return false;
+   value=kind==='power'?Boolean(value):Math.max(0,Math.min(255,Math.round(value)));
+   this[kind]=value;
+   if(this.capabilities.includes('control'))this.sendText(kind==='power'?{type:'power',on:value}:{type:'brightness',value});
+   else{
+    const u=new URL(this.url),arg=kind==='power'?(value?1:0):Math.round(value*100/255);
+    if(typeof fetch==='function')fetch(`${u.protocol==='wss:'?'https:':'http:'}//${u.host}/api/${kind}?value=${arg}`,{mode:'no-cors',cache:'no-store'}).catch(()=>{});
+   }
+   this.notify();return true;
+  }
   connect(){
    this.manual=false;
    if(this.socket&&this.socket.readyState<=1)return;
@@ -88,6 +109,7 @@ const RemoteAudio = (() => {
     this.capabilities=Array.isArray(msg.capabilities)?msg.capabilities.map(String):[];
     // Visualization effect ids (firmware numbering) -> lab audio modes (+1).
     this.visualizations=Array.isArray(msg.visualizations)?msg.visualizations.map(n=>Number(n)+1).filter(Number.isInteger):[];
+    this.power=null;this.brightness=null;this.lampState(msg);
     this.status='synchronizing';this.reconnectAttempts=0;this.syncBurst();this.notify();
    }else if(type==='sync_ack'){
     const id=msg.id, t0=this.pending.get(id);
@@ -117,6 +139,8 @@ const RemoteAudio = (() => {
     }
    }else if(type==='stop_ack'){
     if(this.session===null){this.started=false;this.receiverPlaying=false;this.notify();}
+   }else if(type==='control_ack'){
+    this.lampState(msg);this.notify();
    }else if(type==='error'){
     this.lastError=String(msg.reason||'unknown_error');
     if(this.lastError==='clock_not_set'){this.synced=false;this.status='clock rejected';this.sync();}
@@ -128,6 +152,7 @@ const RemoteAudio = (() => {
     this.receiverStale=Number(msg.stale??this.receiverStale);
     this.delay=Number(msg.presentation_delay_ms??msg.frame_age_ms??this.delay);
     this.buffered=Number(msg.buffer_occupancy??msg.buffered_frames??this.buffered);
+    this.lampState(msg);
     // A device may stop after its 300 ms stream timeout. Resume the same
     // control lease instead of silently remaining stopped until page reload.
     if(this.session!==null&&!this.receiverPlaying&&now()-this.lastStartAt>1000){
@@ -180,6 +205,11 @@ const RemoteAudio = (() => {
   // frame / config may be functions of the device (per-lamp adaptation).
   stream(frame,config){for(const d of this.devices)d.stream(typeof frame==='function'?frame(d):frame,typeof config==='function'?config(d):config);}
   get available(){return this.devices.some(d=>d.selected&&d.status==='ready'&&d.synced);}
+  // Lamps that take power / brightness commands right now.
+  get controllable(){return this.devices.filter(d=>d.controllable);}
+  connectAll(){for(const d of this.devices)if(!d.socket)d.connect();}
+  disconnectAll(){for(const d of this.devices)d.disconnect();}
+  control(kind,value){let n=0;for(const d of this.controllable)if(d.control(kind,value))n++;return n;}
  }
  return {serialize,addressToUrl,pickBands,Hub,Device,newId};
 })();

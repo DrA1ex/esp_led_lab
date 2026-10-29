@@ -35,6 +35,8 @@ with sync_playwright() as p:
     }''')
     page.set_content((ROOT/'dist'/'standalone.html').read_text())
     page.wait_for_function('STATE.ready',timeout=10000)
+    # One stream for all lamps: the band count below comes from "Spectrum bands", not each lamp's width.
+    page.evaluate("$('remote-adapt').checked=false;$('remote-adapt').onchange()")
     for port in [8765,8766]:
         page.locator('#remote-address').fill(f'127.0.0.1:{port}')
         page.locator('#remote-add').click()
@@ -48,7 +50,7 @@ with sync_playwright() as p:
     assert page.evaluate('''() => __control.filter(f=>f.type==='clock').length>=2''')
     print('PASS 32-band multi-device mock socket / handshake / clock / demo stream')
     for count in [16,64]:
-        page.locator('#remote-bands').select_option(str(count))
+        page.locator('#remote-bands').select_option(str(count),force=True)
         page.wait_for_function(f'__frames.some(f=>new DataView(f.buf).getUint8(7)==={count})',timeout=10000)
         expected=38+count*2
         assert page.evaluate(f'''() => __frames.filter(f=>new DataView(f.buf).getUint8(7)==={count}).every(f=>f.buf.byteLength==={expected})''')
@@ -72,12 +74,12 @@ with sync_playwright() as p:
       }}});
     }''')
     page.locator('#remote-enable').check(force=True)
-    page.locator('#audio-input').select_option('microphone',force=True)
+    page.locator('#mic-source').click()
     page.wait_for_function('STATE.mic && STATE.mic.written>4096',timeout=18000)
     page.wait_for_function('''__frames.some(f=>new DataView(f.buf).getUint8(6)&1)''',timeout=18000)
     assert page.evaluate('''() => __frames.some(f => (new DataView(f.buf).getUint8(6)&1) &&
         new DataView(f.buf).getUint8(7)===64)''')
-    page.locator('#audio-input').select_option('file',force=True)
+    page.locator('#mic-source').click()  # second click: back to the file side
     page.wait_for_function('STATE.mic===null')
     print('PASS microphone causal frames, live flag, track cleanup and source change')
     assert not errors,errors
