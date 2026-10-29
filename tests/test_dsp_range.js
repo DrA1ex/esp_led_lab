@@ -1,4 +1,4 @@
-// FFT sizes 256..8192 and the analysed frequency range: bands are spread
+// FFT sizes 64..8192 and the analysed frequency range: bands are spread
 // logarithmically inside [lo, hi]; tones outside the range do not light bands.
 const fs=require('fs'),path=require('path'),assert=require('node:assert/strict');
 const mod=new WebAssembly.Module(fs.readFileSync(path.join(__dirname,'../web/wasm/dsp.wasm')));
@@ -19,7 +19,7 @@ const argmax=a=>a.indexOf(Math.max(...a));
 // Expected band of a frequency for a logarithmic split of [lo, hi].
 const bandOf=(f,lo,hi,n)=>Math.floor(Math.log(f/lo)/Math.log(hi/lo)*n);
 
-for(const size of [256,512,1024,2048,4096,8192]){
+for(const size of [64,128,256,512,1024,2048,4096,8192]){
  const {b16,b32,b64}=bandsFor(1000,size);
  assert(b16.every(v=>Number.isFinite(v)&&v>=0&&v<=1),`finite ${size}`);
  assert.equal(argmax(b64),bandOf(1000,40,8000,64),`1 kHz peak, FFT ${size}`);
@@ -42,4 +42,4 @@ for(const f of [100,6000]){
 }
 // Invalid input is clamped: never wider than 20 Hz .. 8 kHz, never empty.
 const d=new WebAssembly.Instance(mod).exports;d.set_frequency_range(5,50000);d.set_frequency_range(3000,3000);
-console.log('PASS DSP: FFT 256..8192, logarithmic bands inside the frequency range, out-of-range tones stay dark');
+console.log('PASS DSP: FFT 64..8192, logarithmic bands inside the frequency range, out-of-range tones stay dark');

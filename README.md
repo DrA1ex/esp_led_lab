@@ -81,13 +81,39 @@ Both default to the stock firmware picture.
 
 ## Analyzer
 
-The **DSP** tab sets the FFT size (256–8192 points at 16 kHz; larger sizes
-separate bass notes better but react more slowly) and the analysed
-**frequency range** (20 Hz – 8 kHz, the Nyquist limit of the 16 kHz
-analysis). The 16 preview bands and the 32/64 bands sent to the lamp are
+The **DSP** tab sets the FFT size (64–8192 points) and **analysis sample rate**
+(8, 16, 32 or 48 kHz; default 16 kHz). Bin spacing is sample rate / FFT size;
+window duration is FFT size / sample rate. Larger FFTs or lower rates separate
+nearby frequencies better, while smaller FFTs react faster. The analysed
+**frequency range** runs from 20 Hz to half the selected rate (Nyquist).
+The 16 LED feature bands and the 32/64 bands sent to the lamp are
 spread logarithmically inside that range, and sound outside it is ignored.
 Band levels are normalised so a tone reads the same at every FFT size. The
-lamp only receives bands, so neither setting needs firmware support.
+lamp only receives features, so these settings need no firmware changes.
+Changing the analysis rate resamples the loaded audio without altering playback;
+live microphone resampling and anti-alias filters follow the selected rate.
+Short FFTs overlap by at least 50%; the tempo tracker keeps its own 16 ms cadence.
+The original file rate is read from its metadata before browser decoding; the
+microphone rate comes from the capture track settings. Analysis rates above the
+source are disabled, and lower-rate sources automatically cap the selected rate.
+A native-rate option covers sources such as 22.05 or 44.1 kHz. If file metadata
+is unavailable, the UI says so and uses the decoded buffer's rate as a fallback.
+Files below the minimum 8 kHz analysis rate are resampled to 8 kHz, with the
+frequency range still capped at half the original rate; the UI explains this.
+File decoding uses an offline context so a lower-rate playback device cannot
+prematurely discard frequencies the analyzer can use.
+
+The bars beside the LED preview show actual FFT bins grouped logarithmically
+for the available display width. Unresolved low-frequency groups merge; a
+64-point FFT therefore draws fewer, broader bars than a large FFT. Captions
+show the displayed group count and Hz per bin. The lamps still receive their
+negotiated 16/32/64 feature bands independently of this analyzer display.
+
+File metadata parsing uses the bundled MIT-licensed `music-metadata` library;
+normal builds work offline. To regenerate its browser bundle, run
+`npm ci --prefix scripts/metadata --ignore-scripts` then
+`node scripts/build_metadata.mjs`. Third-party licenses are in
+`web/vendor/THIRD_PARTY_LICENSES.txt`.
 
 ## Project layout
 

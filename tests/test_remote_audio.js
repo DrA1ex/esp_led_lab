@@ -23,7 +23,7 @@ assert.equal(RemoteAudio.addressToUrl('ws://lamp.local:81/audio'),'ws://lamp.loc
 assert.throws(()=>RemoteAudio.addressToUrl('https://bad'),/ws/);
 const wasm=new WebAssembly.Instance(new WebAssembly.Module(fs.readFileSync(path.join(__dirname,'../web/wasm/dsp.wasm')))).exports;
 const input=new Float32Array(wasm.memory.buffer,wasm.new_input_ptr(),1024);
-for(const size of [256,512,1024]){
+for(const size of [64,128,256,512,1024]){
  wasm.reset_dsp();
  let nonzero=[false,false,false];
  for(let frame=0;frame<50;frame++){
@@ -55,4 +55,4 @@ for(const size of [256,512,1024]){
  got.length=0;hub.stream({bands:32},{audio_effect:1});
  assert.deepEqual(got.map(g=>g[1].bands),[32,32],'plain values still go to every lamp');
 }
-console.log('PASS remote v1 16/32/64 binary vectors + C++/WASM single-FFT spectra (256/512/1024)');
+console.log('PASS remote v1 16/32/64 binary vectors + C++/WASM single-FFT spectra (64/128/256/512/1024)');

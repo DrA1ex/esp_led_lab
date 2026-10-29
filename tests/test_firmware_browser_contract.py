@@ -53,11 +53,13 @@ with sync_playwright() as p:
     assert page.evaluate('''() => __firmwareLog.some(m=>m.type==='start')''')
     assert page.evaluate('''() => __firmwareLog.some(m=>m.type==='frame'&&m.bytes===102)''')
     print('PASS firmware-like receiver: idle -> start_ack -> binary 32-band frames -> status playing true')
+    # Diagnose a manual mismatch with per-lamp band adaptation disabled.
+    page.evaluate("$('remote-adapt').checked=false;$('remote-adapt').onchange()")
     page.locator('#remote-bands').select_option('64',force=True)
-    page.wait_for_timeout(120)
+    page.wait_for_function("document.getElementById('remote-state').textContent.includes('lamp accepts only 32')")
     assert page.evaluate('REMOTE.devices[0].session===null')
     assert page.evaluate('!REMOTE.devices[0].supported.includes(64)')
-    assert 'only accepts 32' in page.locator('#remote-state').inner_text()
+    assert 'lamp accepts only 32' in page.locator('#remote-state').inner_text()
     print('PASS mismatch: firmware 32-only support diagnosed, no invalid packets sent')
     assert not failures, failures
     browser.close()

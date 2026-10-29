@@ -49,15 +49,22 @@ if(STATE.playing&&STATE.inputMode==='microphone'&&STATE.mic){
  if(current>=STATE.tailUntil)STATE.tailUntil=-1;
 }
 if(current>=0&&(!remoteEnabled()||!STATE.playing)){
- let processed=0;while(STATE.nextSample<=current&&processed<12){processAudio(STATE.nextSample);STATE.nextSample+=hop;processed++;}
- if(STATE.nextSample<current-12*hop)STATE.nextSample=Math.max(+($('fft').value),current-(current%hop));
+ const budget=Math.max(12,Math.ceil(fs*.06/hop));
+ let processed=0;while(STATE.nextSample<=current&&processed<budget){processAudio(STATE.nextSample);STATE.nextSample+=hop;processed++;}
+ if(STATE.nextSample<current-budget*hop)STATE.nextSample=Math.max(+($('fft').value),current-(current%hop));
 }
 const s=settings(),m=STATE.modules.new.exports;feedRender(m);if(s['xy-test'])m.render_test_pattern();else m.render_frame(dt);paint(m,$('canvas-new'),'new',s['led-dots']);
-STATE.frames++;if(t-STATE.lastStats>250){refreshEffective();meters();if(t-STATE.lastStats>1000){$('fps').textContent=Math.round(STATE.frames*1000/Math.max(1,t-STATE.lastStats))+' FPS';STATE.frames=0;STATE.lastStats=t;}}}
+// Meters follow every rendered frame; the FPS counter has its own clock.
+meters();
+if(t-STATE.lastUi>=100){refreshEffective();STATE.lastUi=t;}
+STATE.frames++;
+if(t-STATE.lastStats>=1000){$('fps').textContent=Math.round(STATE.frames*1000/Math.max(1,t-STATE.lastStats))+' FPS';STATE.frames=0;STATE.lastStats=t;}
+}
+$('fps').hidden=!/[?&]debug\b/.test(location.search);
 initRemote();
-$('new-mini-bars').innerHTML=Array.from({length:16},()=>'<div class="bar" style="height:2%"></div>').join('');
+spectrumPlan();
 initTuning();
-for(const id of inputIds){$(id).addEventListener('input',refreshLabels);$(id).addEventListener('change',refreshLabels);}
+for(const id of inputIds.filter(id=>id!=='sample-rate')){$(id).addEventListener('input',refreshLabels);$(id).addEventListener('change',refreshLabels);}
 // Settings tabs; the active tab is remembered.
 const TAB_KEY='esp-led-lab.tab';
 function selectTab(name){
@@ -86,13 +93,14 @@ async function setInputMode(mode){
  pauseAudio();STATE.inputMode=mode;
  if(STATE.ready)resetDSP(); // the release tail would read the other source's timeline
  const fileSide=()=>{
-  $('play').disabled=!STATE.buffer;playLabel('▶','Play (Space)');$('filename').textContent=STATE.fileName||'No audio file';
+  $('play').disabled=!STATE.buffer;playLabel('play','Play (Space)');$('filename').textContent=STATE.fileName||'No audio file';
   $('duration').textContent=STATE.buffer?asTime(STATE.buffer.duration):'00:00';$('now').textContent=asTime(STATE.pausedAt);$('seek').disabled=false;
  };
  if(mode==='microphone'){
-  $('play').disabled=false;playLabel('🎙','Start microphone (Space)');
-  try{await startMicrophone();}catch(err){console.error(err);STATE.inputMode='file';fileSide();$('status').textContent='Microphone error: '+err.message;}
- }else{fileSide();$('status').textContent=STATE.buffer?'Ready to play':'Pick a track or the demo beat';}
+  $('play').disabled=false;playLabel('mic','Start microphone (Space)');
+  try{await startMicrophone();}catch(err){console.error(err);STATE.inputMode='file';await changeAnalysisRate(fs);fileSide();$('status').textContent='Microphone error: '+err.message;}
+ }else{await changeAnalysisRate(fs);fileSide();$('status').textContent=STATE.buffer?'Ready to play':'Pick a track or the demo beat';}
+ refreshAnalysisUi();
  if(typeof renderPlaylist==='function')renderPlaylist();
 }
 $('playback-volume').addEventListener('input',()=>{
@@ -106,6 +114,7 @@ $('seek').addEventListener('pointerdown',()=>{STATE.seeking=true;});
 for(const ev of ['pointerup','pointercancel','blur'])$('seek').addEventListener(ev,()=>{STATE.seeking=false;});
 $('seek').oninput=()=>{if(!STATE.buffer||STATE.inputMode!=='file')return;STATE.seeking=true;$('now').textContent=asTime(+($('seek').value)/1000*STATE.buffer.duration);};
 $('seek').onchange=()=>{STATE.seeking=false;if(STATE.buffer&&STATE.inputMode==='file')seekTo(+($('seek').value)/1000*STATE.buffer.duration);};
+$('sample-rate').addEventListener('change',()=>changeAnalysisRate(+$('sample-rate').value));
 $('fft').addEventListener('change',()=>{
  if(!STATE.ready)return;
  const start=STATE.inputMode==='microphone'?STATE.mic?.written||0:
@@ -119,6 +128,6 @@ for(const id of ['freq-min','freq-max'])$(id).addEventListener('input',()=>{
  if(id==='freq-min')$('freq-max').value=Math.min(1000,hzSlider(lo*1.5)+1);
  if(id==='freq-max'||sliderHz(+$('freq-max').value)<lo*1.5)$('freq-min').value=Math.max(0,hzSlider(sliderHz(+$('freq-max').value)/1.5)-1);
 });
-$('defaults').onclick=()=>{const o={'param-source':'loudness','spectrum-shape':70,'spectrum-onset':30,'line-response':75,fft:512,attack:25,release:210,noise:8,'adaptive-floor':0,gain:16,transient:10,agc:900,compression:82,'freq-min':hzSlider(40),'freq-max':1000};Object.entries(o).forEach(([k,v])=>$(k).value=v);refreshLabels();if(STATE.ready)resetDSP(Math.max(0,STATE.inputMode==='microphone'?STATE.mic?.written||0:Math.floor((STATE.playing&&STATE.context?STATE.context.currentTime-STATE.playStart:STATE.pausedAt)*fs)));};
+$('defaults').onclick=()=>{const o={'param-source':'loudness','spectrum-shape':70,'spectrum-onset':30,'line-response':75,fft:512,'sample-rate':16000,attack:25,release:210,noise:8,'adaptive-floor':0,gain:16,transient:10,agc:900,compression:82,'freq-min':hzSlider(40),'freq-max':1000};Object.entries(o).forEach(([k,v])=>$(k).value=v);refreshLabels();if(STATE.ready)resetDSP(Math.max(0,STATE.inputMode==='microphone'?STATE.mic?.written||0:Math.floor((STATE.playing&&STATE.context?STATE.context.currentTime-STATE.playStart:STATE.pausedAt)*fs)));changeAnalysisRate(16000);};
 refreshLabels();
 init();

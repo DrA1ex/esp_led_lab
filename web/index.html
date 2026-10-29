@@ -1,30 +1,49 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0d1017"><title>ESP LED Music Lab</title>
 <link rel="stylesheet" href="css/app.css">
-</head><body><main class="app">
+</head><body><svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+ <symbol id="i-play" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7Z" fill="currentColor" stroke="none"/></symbol>
+ <symbol id="i-pause" viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z" fill="currentColor" stroke="none"/></symbol>
+ <symbol id="i-stop" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="1" fill="currentColor" stroke="none"/></symbol>
+ <symbol id="i-prev" viewBox="0 0 24 24"><path d="M5 5v14m14-14L9 12l10 7Z"/></symbol>
+ <symbol id="i-next" viewBox="0 0 24 24"><path d="M19 5v14M5 5l10 7-10 7Z"/></symbol>
+ <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="m18 3 4 4-4 4M2 17h3c5 0 5-10 10-10h7M2 7h3c2 0 3 2 4 4m4 4c1 2 2 2 4 2h5m-4-4 4 4-4 4"/></symbol>
+ <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4M3 11V8a2 2 0 0 1 2-2h16M7 22l-4-4 4-4m14-1v3a2 2 0 0 1-2 2H3"/></symbol>
+ <symbol id="i-repeat-one" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4M3 11V8a2 2 0 0 1 2-2h16M7 22l-4-4 4-4m14-1v3a2 2 0 0 1-2 2H3m7-8 2-1v6"/></symbol>
+ <symbol id="i-volume" viewBox="0 0 24 24"><path d="m11 5-6 4H2v6h3l6 4Zm4 3a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></symbol>
+ <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2m-7 9v3m-4 0h8"/></symbol>
+ <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13M9 9l12-2"/><ellipse cx="6" cy="18" rx="3" ry="3"/><ellipse cx="18" cy="16" rx="3" ry="3"/></symbol>
+ <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 20h18a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1H11L9 3H3a1 1 0 0 0-1 1v15a1 1 0 0 0 1 1Z"/></symbol>
+ <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+ <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></symbol>
+ <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 2v10m-5-8a9 9 0 1 0 10 0"/></symbol>
+ <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></symbol>
+ <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+</svg>
+<main class="app">
 
 <header class="topbar">
  <div class="brand"><div class="brand-logo" aria-hidden="true">LED</div><div><div class="title">ESP LED Music Lab</div><div class="subtitle">Audio-reactive lamp effects · C++ → WebAssembly</div></div></div>
  <div class="transport" id="transport" aria-label="Player">
   <div class="transport-buttons">
-   <button class="ghost round" id="prev" title="Previous (P) · restarts the track after 3 s" aria-label="Previous">⏮</button>
-   <button class="primary round play" id="play" title="Play (Space)" aria-label="Play" disabled>▶</button>
-   <button class="ghost round" id="next" title="Next (N)" aria-label="Next" disabled>⏭</button>
+   <button class="ghost round" id="prev" title="Previous (P) · restarts the track after 3 s" aria-label="Previous"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-prev"/></svg></button>
+   <button class="primary round play" id="play" title="Play (Space)" aria-label="Play" disabled><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-play"/></svg></button>
+   <button class="ghost round" id="next" title="Next (N)" aria-label="Next" disabled><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-next"/></svg></button>
   </div>
   <div class="now-playing">
    <div class="track-head"><span class="filename" id="filename">No audio file</span><span class="status"><span class="dot" id="sound-dot"></span><span id="status">Loading WebAssembly…</span></span></div>
    <div class="timebar"><span class="time" id="now">00:00</span><input id="seek" type="range" min="0" max="1000" value="0" aria-label="Position"><span class="time" id="duration">00:00</span></div>
   </div>
   <div class="transport-modes">
-   <button class="ghost round mode" id="shuffle" title="Shuffle" aria-label="Shuffle" aria-pressed="false">🔀</button>
-   <button class="ghost round mode" id="repeat" title="Repeat: off" aria-label="Repeat: off" aria-pressed="false">🔁</button>
+   <button class="ghost round mode" id="shuffle" title="Shuffle" aria-label="Shuffle" aria-pressed="false"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-shuffle"/></svg></button>
+   <button class="ghost round mode" id="repeat" title="Repeat: off" aria-label="Repeat: off" aria-pressed="false"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-repeat"/></svg></button>
   </div>
-  <label class="volume" title="Playback volume (the lamp is not affected)"><span aria-hidden="true">🔊</span><input id="playback-volume" type="range" min="0" max="100" value="100" aria-label="Volume"><b class="value" id="playback-volume-value">100%</b></label>
+  <label class="volume" title="Playback volume (the lamp is not affected)"><span aria-hidden="true"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-volume"/></svg></span><svg class="ico tiny preview-only" role="img" aria-label="Preview only"><title>Preview only — not sent to the lamp</title><use href="#i-eye"/></svg><input id="playback-volume" type="range" min="0" max="100" value="100" aria-label="Volume"><b class="value" id="playback-volume-value">100%</b></label>
  </div>
- <div class="chips"><span class="chip" id="lamp-chip" title="Connected lamps">Lamps: none</span><span class="chip" id="fps">— FPS</span></div>
+ <div class="chips"><button type="button" class="chip" id="lamp-chip" title="Go to lamps">Lamps: none</button><span class="chip" id="fps" hidden>— FPS</span></div>
 </header>
 
-<div class="floating-preview" id="floating-preview" hidden aria-label="Pinned LED preview">
+<div class="floating-preview" id="floating-preview" hidden role="button" tabindex="0" aria-label="Return to LED preview" title="Return to LED preview">
  <div class="floating-matrices">
   <div class="floating-matrix"><canvas id="floating-new" width="96" height="96" aria-label="LED preview"></canvas></div>
  </div>
@@ -34,13 +53,13 @@
 <aside class="card library" id="library" aria-label="Playlist">
  <div class="panelhead"><h2 class="h2">Playlist</h2><span class="muted" id="pl-count"></span></div>
  <div class="sources" role="list">
-  <button class="source" id="demo" role="listitem"><span class="source-icon" aria-hidden="true">♫</span><span class="source-name">Demo beat<small>120 BPM loop</small></span></button>
-  <button class="source" id="mic-source" role="listitem"><span class="source-icon" aria-hidden="true">🎙</span><span class="source-name">Microphone<small>live, not played back</small></span></button>
+  <button class="source" id="demo" role="listitem"><span class="source-icon" aria-hidden="true"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-music"/></svg></span><span class="source-name">Demo beat<small>120 BPM loop</small></span></button>
+  <button class="source" id="mic-source" role="listitem"><span class="source-icon" aria-hidden="true"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-mic"/></svg></span><span class="source-name">Microphone<small>live, not played back</small></span></button>
  </div>
  <div class="library-actions">
-  <button class="secondary" id="folder" title="Open a folder (replaces the list)">📁 Folder…</button>
-  <button class="secondary" id="choose" title="Add files to the list">+ Files…</button>
-  <button class="ghost icon" id="pl-clear" title="Clear the list" aria-label="Clear the list">🗑</button>
+  <button class="secondary" id="folder" title="Open a folder (replaces the list)"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-folder"/></svg> Folder…</button>
+  <button class="secondary" id="choose" title="Add files to the list"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-plus"/></svg> Files…</button>
+  <button class="ghost icon" id="pl-clear" title="Clear the list" aria-label="Clear the list"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-trash"/></svg></button>
   <input class="hide" type="file" id="file" accept="audio/*" multiple>
   <input class="hide" type="file" id="folder-input" webkitdirectory multiple>
  </div>
@@ -54,12 +73,13 @@
  <div class="card main preview-card">
   <div class="panelhead">
    <div><h2 class="h2" id="preview-title">LED matrix</h2><div class="muted" id="matrix-label">16 × 16 · matrix</div></div>
-   <label class="mix" title="Audio reaction strength in the preview (not sent to the lamp)"><span>LED reaction <b class="value" id="mix-value">100%</b></span><input id="mix" type="range" min="0" max="100" value="100"></label>
+   <label class="mix" title="Audio reaction strength in the preview (not sent to the lamp)"><span><span>LED reaction <svg class="ico tiny preview-only" role="img" aria-label="Preview only"><title>Preview only — not sent to the lamp</title><use href="#i-eye"/></svg></span> <b class="value" id="mix-value">100%</b></span><input id="mix" type="range" min="0" max="100" value="100"></label>
   </div>
   <div class="preview-body">
    <div class="matrixstage"><canvas id="canvas-new" width="16" height="16" aria-label="LED preview: what the lamp shows"></canvas></div>
    <div class="preview-info">
-    <div class="inline-spectrum bars new" id="new-mini-bars" title="16 FFT bands"></div>
+    <div class="spectrum-caption" id="spectrum-detail"></div>
+    <div class="inline-spectrum bars new" id="new-mini-bars" aria-label="FFT spectrum, grouped by resolved frequency bins"></div>
     <div class="matrixfoot"><span id="new-label">FFT</span><span id="fft-display">512 / 16 kHz</span></div>
     <div class="events" aria-label="Rhythm">
      <span class="event" id="bass"><b></b>Bass</span><span class="event" id="mid"><b></b>Mid</span><span class="event" id="high"><b></b>High</span>
@@ -83,10 +103,10 @@
    <input type="text" id="remote-address" placeholder="IP or host name, e.g. esp_lamp.local" aria-label="Lamp address" autocomplete="off" spellcheck="false">
    <button class="secondary" id="remote-add" type="submit">Connect</button>
   </form>
-  <div class="lamps-master" id="lamps-master" aria-label="All lamps">
+  <div class="lamps-master" id="lamps-master" hidden aria-label="All lamps">
    <button class="ghost small" id="lamps-connect" title="Connect every lamp in the list">Connect all</button>
-   <div class="power-pair" role="group" aria-label="Power of all connected lamps"><button class="ghost small" id="lamps-on" title="Turn all connected lamps on">⏻ On</button><button class="ghost small" id="lamps-off" title="Turn all connected lamps off">Off</button></div>
-   <label class="master-bright" title="Brightness of all connected lamps (saved on each lamp)"><span aria-hidden="true">☀</span><input id="lamps-brightness" type="range" min="0" max="100" value="50" aria-label="Brightness of all connected lamps"><b class="value" id="lamps-brightness-value">—</b></label>
+   <div class="power-pair" role="group" aria-label="Power of all connected lamps"><button class="ghost small" id="lamps-on" title="Turn all connected lamps on"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-power"/></svg> On</button><button class="ghost small" id="lamps-off" title="Turn all connected lamps off">Off</button></div>
+   <label class="master-bright" title="Brightness of all connected lamps (saved on each lamp)"><span aria-hidden="true"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-sun"/></svg></span><input id="lamps-brightness" type="range" min="0" max="100" value="50" aria-label="Brightness of all connected lamps"><b class="value" id="lamps-brightness-value">—</b></label>
   </div>
   <div id="remote-devices" aria-live="polite"></div>
   <div class="hint" id="remote-state">Streaming off · preview only</div>
@@ -98,8 +118,10 @@
    <label class="toggle"><input type="checkbox" id="remote-autoconnect"> Connect all lamps when the page opens</label>
    <label class="toggle"><input type="checkbox" id="remote-adapt" checked> Adapt to each lamp</label>
    <p class="hint">Each lamp gets the band count that fits its width (about one band per column; “Spectrum bands” is then ignored) and can have its own mode and start point on its card. Off: every lamp gets the same stream and settings.</p>
+   <details class="more"><summary>How it works</summary>
    <p class="hint">On / Off and brightness apply to every connected lamp and are saved on the lamp, like its own controls. Older firmware without the <code>control</code> capability gets them over HTTP (<code>/api/power</code>, <code>/api/brightness</code>) and its state is not shown.</p>
    <p class="hint">Only DSP features are sent, never audio. Lamp endpoint: <code>ws://address/audio</code>. A page served over HTTPS may block <code>ws://</code>; open it from localhost or as a file. “+” delays the light, “−” advances it.</p>
+   </details>
   </details>
  </div>
 
@@ -140,7 +162,7 @@
 <option value="onset">Onsets</option><option value="beat">Beats</option></select></div>
   <div class="field" data-modes="1,2,3,4"><label for="spectrum-shape">Column brightness <span class="value" id="spectrum-shape-value">70%</span></label><input id="spectrum-shape" type="range" min="0" max="100" value="70"></div>
   <div class="field" data-modes="1,2,3,4"><label for="spectrum-onset">Onset flashes <span class="value" id="spectrum-onset-value">30%</span></label><input id="spectrum-onset" type="range" min="0" max="100" value="30"></div>
-  <div class="field" data-modes="6,7,13,15,16,21,22,23,24,25"><label for="line-response">Fast line response <span class="value" id="line-response-value">75%</span></label><input id="line-response" type="range" min="0" max="100" value="75"><p class="hint">Preview only: the lamp draws the line from the signal source.</p></div>
+  <div class="field" data-modes="6,7,13,15,16,21,22,23,24,25"><label for="line-response"><span>Fast line response <svg class="ico tiny preview-only" role="img" aria-label="Preview only"><title>Preview only — not sent to the lamp</title><use href="#i-eye"/></svg></span> <span class="value" id="line-response-value">75%</span></label><input id="line-response" type="range" min="0" max="100" value="75"></div>
   <div class="block" data-modes="13,14,15,16,17,18,19,20,21,22,23,24,25">
    <div class="block-head"><span>Visualization</span><button class="ghost small" id="viz-reset" type="button">Reset</button></div>
    <div class="field"><label for="viz-color">Colors</label><select id="viz-color"><option value="0" selected>Palette</option><option value="1">Color effect (audio as a mask)</option></select></div>
@@ -163,8 +185,10 @@
    </div>
    <div class="field"><label for="input-curve">Curve <span class="value" id="input-curve-value">linear</span></label><input id="input-curve" type="range" min="-100" max="100" value="0"></div>
    <label class="toggle"><input type="checkbox" id="input-gate"> Signal below “from” turns off (0)</label>
+   <details class="more"><summary>How it works</summary>
    <p class="hint">The signal window “from–to” is stretched onto the reaction “from–to”. Above “to” the reaction is always at maximum; below “from” it stays at the minimum, or 0. Example: signal 0–60% → reaction 150–250.</p>
    <p class="hint">Curve bends the stretch: LED brightness looks logarithmic (50% → 100% barely changes), so a curve of ×2–×2.5 keeps quiet and mid signals dim and makes the reaction look even. Below linear it lifts quiet signals.</p>
+   </details>
   </div>
   <div class="block" data-modes="1,2,3,4,6,7,11,12,13,14,15,16,18,19,20,21,22,23,24,25">
    <div class="block-head"><span>Start and direction</span><button class="ghost small" id="origin-reset" type="button">Reset</button></div>
@@ -176,7 +200,7 @@
    <p class="hint" id="origin-hint"></p>
   </div>
   <details class="more"><summary>How it works</summary>
-   <p class="hint">Spectrum and Wave do not draw on top of the picture; they scale the brightness of the running effect per column. Speed / Scale / Light Control change the preset parameter before rendering, as in the firmware. The preview uses the same DSP whose features the lamp receives. Everything on this tab except “Fast line response” and “LED reaction” is sent to the lamp.</p>
+   <p class="hint">Spectrum and Wave do not draw on top of the picture; they scale the brightness of the running effect per column. Speed / Scale / Light Control change the preset parameter before rendering, as in the firmware. The preview uses the same DSP whose features the lamp receives.</p>
   </details>
  </section>
 
@@ -187,13 +211,13 @@
   <div class="geometry-custom" id="geometry-custom" hidden><label>Width<input type="number" id="geom-w" min="1" max="1024" value="60"></label><span>×</span><label>Height<input type="number" id="geom-h" min="1" max="128" value="1"></label></div>
   <p class="hint" id="geometry-note"></p>
   <div class="toggles">
-   <label class="toggle"><input type="checkbox" id="led-dots" checked> Draw as LEDs</label>
-   <label class="toggle"><input type="checkbox" id="invert-y" checked> Flip vertically</label>
-   <label class="toggle"><input type="checkbox" id="xy-test"> Orientation test (corners)</label>
-   <label class="toggle"><input type="checkbox" id="simulate-led"> Simulate LED output</label>
+   <label class="toggle"><input type="checkbox" id="led-dots" checked> <span>Draw as LEDs <svg class="ico tiny preview-only" role="img" aria-label="Preview only"><title>Preview only — not sent to the lamp</title><use href="#i-eye"/></svg></span></label>
+   <label class="toggle"><input type="checkbox" id="invert-y" checked> <span>Flip vertically <svg class="ico tiny preview-only" role="img" aria-label="Preview only"><title>Preview only — not sent to the lamp</title><use href="#i-eye"/></svg></span></label>
+   <label class="toggle"><input type="checkbox" id="xy-test"> <span>Orientation test (corners) <svg class="ico tiny preview-only" role="img" aria-label="Preview only"><title>Preview only — not sent to the lamp</title><use href="#i-eye"/></svg></span></label>
+   <label class="toggle"><input type="checkbox" id="simulate-led"> <span>Simulate LED output <svg class="ico tiny preview-only" role="img" aria-label="Preview only"><title>Preview only — not sent to the lamp</title><use href="#i-eye"/></svg></span></label>
   </div>
-  <div class="field" data-requires="simulate-led"><label for="master-brightness">LED output brightness <span class="value" id="master-brightness-value">128</span></label><input id="master-brightness" type="range" min="0" max="255" value="128"></div>
-  <div class="field"><label for="gamma">Palette gamma <span class="value" id="gamma-value">2.20</span></label><input id="gamma" type="range" min="0" max="255" value="128"></div>
+  <div class="field" data-requires="simulate-led"><label for="master-brightness"><span>LED output brightness <svg class="ico tiny preview-only" role="img" aria-label="Preview only"><title>Preview only — not sent to the lamp</title><use href="#i-eye"/></svg></span> <span class="value" id="master-brightness-value">128</span></label><input id="master-brightness" type="range" min="0" max="255" value="128"></div>
+  <div class="field"><label for="gamma"><span>Palette gamma <svg class="ico tiny preview-only" role="img" aria-label="Preview only"><title>Preview only — not sent to the lamp</title><use href="#i-eye"/></svg></span> <span class="value" id="gamma-value">2.20</span></label><input id="gamma" type="range" min="0" max="255" value="128"></div>
   <details class="more"><summary>Orientation and accuracy</summary>
    <p class="hint">Orientation test: red (0,0), green (W−1,0), blue (0,H−1), white (W−1,H−1) in firmware coordinates. Flipping only changes the display. Addressing is serpentine, like <code>Led::get_index</code>; long strips wrap onto several display lines.</p>
    <p class="hint">Effects are hand-ported to C++/WASM; an exact match with the firmware is not proven (FastLED version, frame timing, physical LEDs). LED output simulation is approximate: brightness and TypicalLEDStrip correction, without current limiting or dithering.</p>
@@ -202,7 +226,8 @@
 
  <section class="tabpanel" data-panel="dsp" role="tabpanel" hidden>
   <div class="split"><p class="hint">Audio analyzer settings. They affect both the preview and what the lamp receives.</p><button class="ghost small" id="defaults">Reset ↺</button></div>
-  <div class="field"><label for="fft">FFT size</label><select id="fft"><option value="256">256 · 16 ms</option><option value="512" selected>512 · 32 ms</option><option value="1024">1024 · 64 ms</option><option value="2048">2048 · 128 ms</option><option value="4096">4096 · 256 ms</option><option value="8192">8192 · 512 ms</option></select><p class="hint" id="fft-hint"></p></div>
+  <div class="field"><label for="fft">FFT size</label><select id="fft"><option value="64">64 · 4 ms</option><option value="128">128 · 8 ms</option><option value="256">256 · 16 ms</option><option value="512" selected>512 · 32 ms</option><option value="1024">1024 · 64 ms</option><option value="2048">2048 · 128 ms</option><option value="4096">4096 · 256 ms</option><option value="8192">8192 · 512 ms</option></select><p class="hint" id="fft-hint"></p></div>
+  <div class="field"><label for="sample-rate">Analysis sample rate</label><select id="sample-rate"><option value="8000">8 kHz</option><option value="16000" selected>16 kHz</option><option value="32000">32 kHz</option><option value="48000">48 kHz</option></select><p class="hint" id="sample-rate-hint"></p></div>
   <div class="field-pair">
    <div class="field"><label for="freq-min">Frequencies from <span class="value" id="freq-min-value">40 Hz</span></label><input id="freq-min" type="range" min="0" max="1000" value="116"></div>
    <div class="field"><label for="freq-max">to <span class="value" id="freq-max-value">8 kHz</span></label><input id="freq-max" type="range" min="0" max="1000" value="1000"></div>
@@ -221,15 +246,17 @@
    <div class="field"><label for="adaptive-floor">Adaptive floor <span class="value" id="adaptive-floor-value">0%</span></label><input id="adaptive-floor" type="range" min="0" max="100" value="0"></div>
   </div>
   <details class="more"><summary>Details</summary>
-   <p class="hint">Hann-windowed FFT at 16 kHz (so the top frequency is 8 kHz), 16 logarithmic bands for the classic preview modes (16/32/64 for the lamp and the lab-preview modes), envelope attack/release, adaptive noise floor, spectral-flux onset detector and an experimental tempo estimate (may be wrong on complex music).</p>
+   <p class="hint">Hann-windowed FFT at the selected analysis rate (the top frequency is half that rate), 16 logarithmic bands for the classic preview modes (16/32/64 for the lamp and the lab-preview modes), envelope attack/release, adaptive noise floor, spectral-flux onset detector and an experimental tempo estimate (may be wrong on complex music).</p>
   </details>
  </section>
  </div>
 </aside>
 </div>
-<footer class="footer">Everything is processed locally in the browser · only audio features are sent to the lamp</footer>
+<footer class="footer">Everything is processed locally in the browser · only audio features are sent to the lamp<br><svg class="ico tiny preview-only" role="img" aria-label="Preview only"><title>Preview only — not sent to the lamp</title><use href="#i-eye"/></svg> — Preview only, not sent to the lamp</footer>
 </main>
+<script src="vendor/audio-metadata.js"></script>
 <script src="js/state.js"></script>
+<script src="js/analysis.js"></script>
 <script src="js/geometry.js"></script>
 <script src="js/tuning.js"></script>
 <script src="js/remote.js"></script>

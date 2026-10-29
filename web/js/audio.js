@@ -1,18 +1,47 @@
 'use strict';
 // Audio sources (file, demo loop, microphone) and the DSP feed.
-function bufferToPCM(audio){const targetLength=Math.floor(audio.duration*fs);const pcm=new Float32Array(targetLength);const ratio=audio.sampleRate/fs;const channels=[];for(let c=0;c<Math.min(audio.numberOfChannels,2);c++)channels.push(audio.getChannelData(c));for(let i=0;i<targetLength;i++){const t=i*ratio,index=Math.floor(t),fraction=t-index;let val=0;for(const chan of channels){const a=chan[Math.min(index,chan.length-1)]||0,b=chan[Math.min(index+1,chan.length-1)]||a;val+=a+(b-a)*fraction;}pcm[i]=val/channels.length;}return pcm;}
+function bufferToPCM(audio,rate=fs){const targetLength=Math.floor(audio.duration*rate);const pcm=new Float32Array(targetLength);const ratio=audio.sampleRate/rate;const channels=[];for(let c=0;c<Math.min(audio.numberOfChannels,2);c++)channels.push(audio.getChannelData(c));for(let i=0;i<targetLength;i++){const t=i*ratio,index=Math.floor(t),fraction=t-index;let val=0;for(const chan of channels){const a=chan[Math.min(index,chan.length-1)]||0,b=chan[Math.min(index+1,chan.length-1)]||a;val+=a+(b-a)*fraction;}pcm[i]=val/channels.length;}return pcm;}
 // Browser OfflineAudioContext uses anti-aliased sample-rate conversion. Plain linear
 // interpolation (below) aliases high-frequency MP3/WAV energy into FFT bands.
-async function resamplePCM(audio){
+async function resamplePCM(audio,rate=fs){
  try{
-  const count=Math.max(1,Math.floor(audio.duration*fs));
-  const offline=new OfflineAudioContext(1,count,fs);
+  const count=Math.max(1,Math.floor(audio.duration*rate));
+  const offline=new OfflineAudioContext(1,count,rate);
   const src=offline.createBufferSource();src.buffer=audio;src.connect(offline.destination);src.start(0);
   const rendered=await offline.startRendering();
   return Float32Array.from(rendered.getChannelData(0));
- }catch(e){console.warn('OfflineAudioContext resampling unavailable, using linear fallback:',e);return bufferToPCM(audio);}
+ }catch(e){console.warn('OfflineAudioContext resampling unavailable, using linear fallback:',e);return bufferToPCM(audio,rate);}
 }
-function demoAudio(){const rate=16000,len=16,ns=rate*len,data=new Float32Array(ns);let rand=39929;const noise=()=>{rand^=rand<<13;rand^=rand>>>17;rand^=rand<<5;return ((rand>>>0)/4294967295)*2-1;};const notes=[220,261.63,329.63,392,329.63,293.66,261.63,196];
+async function changeAnalysisRate(requestedRate){
+ const ticket=++STATE.analysisGeneration;
+ $('sample-rate').setAttribute('aria-busy','true');
+ try{
+  for(;;){
+   const buffer=STATE.buffer,mode=STATE.inputMode;
+   const rate=Math.round(Math.max(8000,Math.min(sourceAnalysisLimit(),Number(requestedRate)||16000)));
+   if(rate===fs&&!(mode==='file'&&buffer&&STATE.pcmRate!==rate))return;
+   const pcm=buffer&&mode==='file'?await resamplePCM(buffer,rate):null;
+   if(ticket!==STATE.analysisGeneration)return;
+   if(buffer!==STATE.buffer||mode!==STATE.inputMode)continue;
+   let position=STATE.playing&&mode==='file'?Math.max(0,STATE.context.currentTime-STATE.playStart):STATE.pausedAt;
+   if(STATE.loopDemo&&!remoteEnabled()&&buffer)position%=buffer.duration;
+   applyAnalysisRate(rate);
+   if(pcm){STATE.pcm=pcm;STATE.pcmRate=rate;}
+   if(mode==='microphone'&&STATE.mic){
+    const mic=STATE.mic;
+    mic.ring=new Float32Array(fs*12);mic.written=mic.nativeCount=mic.nextOutput=0;mic.previous=0;
+    for(const lp of [mic.lowpass1,mic.lowpass2])lp.frequency.setValueAtTime(Math.min(fs*.4375,mic.nativeRate*.45),STATE.context.currentTime);
+    position=0;$('status').textContent=`Live · ${formatSampleRate(mic.sourceRate)} → ${formatSampleRate(fs)}`;
+   }
+   refreshLabels();
+   if(STATE.ready)resetDSP(Math.max(0,Math.floor(position*fs)));
+   return;
+  }
+ }catch(err){
+  if(ticket===STATE.analysisGeneration){$('sample-rate').value=fs;$('status').textContent='Analysis rate error: '+err.message;}
+ }finally{if(ticket===STATE.analysisGeneration){$('sample-rate').removeAttribute('aria-busy');refreshAnalysisUi();}}
+}
+function demoAudio(){const rate=fs,len=16,ns=rate*len,data=new Float32Array(ns);let rand=39929;const noise=()=>{rand^=rand<<13;rand^=rand>>>17;rand^=rand<<5;return ((rand>>>0)/4294967295)*2-1;};const notes=[220,261.63,329.63,392,329.63,293.66,261.63,196];
 for(let i=0;i<ns;i++){let t=i/rate,bar=t%2,beat=t%0.5,eighth=t%0.25;let value=0;
 let kick=Math.exp(-beat*24)*Math.sin(2*Math.PI*(59*beat+28*beat*Math.exp(-beat*22)));value+=.47*kick;
 if(Math.floor(t/.5)%4===1||Math.floor(t/.5)%4===3){let b=beat;value+=.22*Math.exp(-b*27)*noise();}
@@ -20,8 +49,15 @@ value+=.14*Math.exp(-eighth*82)*noise();
 let note=notes[Math.floor(t/.5)%notes.length];value+=.12*Math.sin(2*Math.PI*note*t)*Math.exp(-beat*2.7);value+=.06*Math.sin(2*Math.PI*(note*.5)*t)*Math.exp(-beat*1.4);data[i]=Math.max(-.85,Math.min(.85,value));}
 const b=STATE.context.createBuffer(1,ns,rate);b.getChannelData(0).set(data);return {buffer:b,pcm:data};}
 function resetDSP(startSample=0,preserveRemote=false){
- if(!preserveRemote)remoteInvalidate();
  const n=+($('fft')?.value||512);
+ if(!preserveRemote){
+  remoteInvalidate();
+  if(STATE.loopDemo&&STATE.pcm?.length){
+   RS.loopEpoch=Math.floor(Math.max(0,startSample-n)/STATE.pcm.length);
+   RS.lastRenderedEpoch=Math.floor(startSample/STATE.pcm.length);
+  }
+ }
+ STATE.displaySpectrum=[];
  STATE.nextSample=Math.max(n,Math.ceil(startSample/hop)*hop);
  STATE.lastPlaybackSample=startSample;STATE.silenceFrom=Infinity;STATE.tailUntil=-1;
  STATE.newParam=0;STATE.newLoudness=0;STATE.newLine=0;STATE.levels.fill(0);STATE.bpm=STATE.beatConfidence=STATE.beatPhase=STATE.beatPulse=0;STATE.newSpectrum.fill(0);STATE.pulses.fill(0);STATE.events.fill(0);STATE.modules.dsp.exports.reset_dsp();if(!preserveRemote)STATE.modules.new.exports.reset_render();}
@@ -35,24 +71,32 @@ function startSilenceTail(){
  STATE.tailUntil=STATE.tailPos+Math.round(fs*Math.min(6,Math.max(2.5,release*6/1000)));
 }
 // The header play button is an icon; its label and tooltip carry the words.
-function playLabel(icon,label){const b=$('play');b.textContent=icon;b.title=label;b.setAttribute('aria-label',label);}
-function loadBuffer(buffer,pcm,name,isDemo=false){
+function playLabel(icon,label){const b=$('play');b.innerHTML='<svg class="ico" aria-hidden="true" focusable="false"><use href="#i-'+icon+'"/></svg>';b.title=label;b.setAttribute('aria-label',label);}
+function loadBuffer(buffer,pcm,name,isDemo=false,sourceRate=buffer.sampleRate,rate=fs){
+ const previous={range:frequencyRange(),full:+$('freq-max').value===1000};
  pauseAudio();STATE.inputMode='file';STATE.loopDemo=isDemo;
- STATE.buffer=buffer;STATE.pcm=pcm;STATE.audioLen=buffer.duration;STATE.fileName=name;STATE.pausedAt=0;resetDSP();
+ STATE.buffer=buffer;STATE.pcm=pcm;STATE.fileSampleRate=sourceRate;STATE.pcmRate=rate;STATE.audioLen=buffer.duration;STATE.fileName=name;STATE.pausedAt=0;
+ applyAnalysisRate(rate,previous);refreshLabels();resetDSP();
  if(+$('audio-mode').value===0){$('audio-mode').value=3;refreshLabels();}
  $('filename').textContent=name;$('duration').textContent=asTime(buffer.duration);$('now').textContent='00:00';$('seek').value=0;$('seek').disabled=false;
- $('play').disabled=false;playLabel('▶','Play (Space)');$('status').textContent='Ready to play';
+ $('play').disabled=false;playLabel('play','Play (Space)');$('status').textContent='Ready to play';
 }
 // Decode → 20-minute limit → loadBuffer → play. `current()` says whether this
 // load is still wanted (a newer track or source may have been picked meanwhile).
 async function loadFile(file,name=file.name,current=()=>true){
  await ensureAudio();$('status').textContent='Decoding…';
- const buf=await STATE.context.decodeAudioData(await file.arrayBuffer());
+ const data=await file.arrayBuffer();
+ const sourceRate=await AudioMetadata.sampleRate(file);
+ // Decode independently of the playback hardware, preserving all frequencies
+ // the analyzer can use. Web Audio otherwise silently resamples to the device.
+ let decoder=STATE.context;
+ try{decoder=new OfflineAudioContext(1,1,Math.max(8000,Math.min(48000,sourceRate||STATE.context.sampleRate)));}catch(_){}
+ const buf=await decoder.decodeAudioData(data);
  if(!current())return false;
  if(buf.duration>1200)throw new Error('Files longer than 20 minutes are not supported yet');
- const pcm=await resamplePCM(buf);
- if(!current())return false;
- loadBuffer(buf,pcm,name);await playAudio();return true;
+ let pcm,rate,before;
+ do{before=fs;rate=Math.max(8000,Math.min(fs,sourceRate||buf.sampleRate,buf.sampleRate));pcm=await resamplePCM(buf,rate);if(!current())return false;}while(before!==fs);
+ loadBuffer(buf,pcm,name,false,sourceRate,rate);await playAudio();return true;
 }
 async function ensureAudio(){
  if(!STATE.context)STATE.context=new (window.AudioContext||window.webkitAudioContext)();
@@ -80,11 +124,11 @@ async function playAudio(){
  source.onended=()=>{
   if(STATE.source!==source)return;
   STATE.playing=false;STATE.source=null;STATE.pausedAt=0;remoteInvalidate();startSilenceTail();
-  playLabel('▶','Play again (Space)');$('now').textContent='00:00';$('seek').value=0;
+  playLabel('play','Play again (Space)');$('now').textContent='00:00';$('seek').value=0;
   $('status').textContent='Finished';
   if(typeof onTrackEnded==='function')onTrackEnded(); // playlist: next track or repeat
  };
- source.start(0,offset);playLabel('Ⅱ','Pause (Space)');$('status').textContent='Playing';
+ source.start(0,offset);playLabel('pause','Pause (Space)');$('status').textContent='Playing';
 }
 function stopMicrophone(){
  remoteInvalidate();
@@ -98,7 +142,7 @@ function stopMicrophone(){
  }
  if(STATE.playing)startSilenceTail();
  STATE.playing=false;STATE.source=null;
- playLabel('🎙','Start microphone (Space)');
+ playLabel('mic','Start microphone (Space)');
 }
 function pauseAudio(){
  remoteInvalidate();
@@ -108,11 +152,11 @@ function pauseAudio(){
   const src=STATE.source;STATE.source=null;STATE.playing=false;try{src?.stop();}catch(_){}
   startSilenceTail();
  }
- playLabel('▶','Play (Space)');
+ playLabel('play','Play (Space)');
 }
 function receiveMicSamples(samples,mic){
  if(STATE.mic!==mic||STATE.inputMode!=='microphone')return;
- // Continuous linear 16k resampling, no per-chunk phase discontinuities.
+ // Continuous resampling to the selected analysis rate, no per-chunk phase discontinuities.
  const step=mic.nativeRate/fs;
  for(let i=0;i<samples.length;i++){
   const x=samples[i];const k=mic.nativeCount++;
@@ -151,16 +195,17 @@ async function startMicrophone(){
  $('status').textContent='Requesting microphone access…';
  const stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:false,noiseSuppression:false,autoGainControl:false},video:false});
  if(ticket!==STATE.micGeneration||STATE.inputMode!=='microphone'){stream.getTracks().forEach(t=>t.stop());return;}
- const mic={stream,nativeRate:STATE.context.sampleRate,ring:new Float32Array(fs*12),written:0,nativeCount:0,nextOutput:0,previous:0,input:null,worklet:null,processor:null,silent:null};
+ const sourceRate=stream.getAudioTracks()[0]?.getSettings()?.sampleRate||STATE.context.sampleRate;
+ if(fs>sourceRate)applyAnalysisRate(Math.max(8000,sourceRate));
+ const mic={stream,sourceRate,nativeRate:STATE.context.sampleRate,ring:new Float32Array(fs*12),written:0,nativeCount:0,nextOutput:0,previous:0,input:null,worklet:null,processor:null,silent:null};
  STATE.mic=mic;
  try{
   mic.input=STATE.context.createMediaStreamSource(stream);
-  // Browser audio hardware often delivers 44.1/48 kHz. Apply two native
-  // lowpass sections before 16 kHz downsampling to suppress aliasing.
+  // Anti-alias filters track the selected analysis rate, including live changes.
   let micOutput=mic.input;
-  if(mic.nativeRate>fs*1.25){
+  {
    mic.lowpass1=STATE.context.createBiquadFilter();mic.lowpass2=STATE.context.createBiquadFilter();
-   for(const lp of [mic.lowpass1,mic.lowpass2]){lp.type='lowpass';lp.frequency.value=7000;lp.Q.value=0.707;}
+   for(const lp of [mic.lowpass1,mic.lowpass2]){lp.type='lowpass';lp.frequency.value=Math.min(fs*.4375,mic.nativeRate*.45);lp.Q.value=0.707;}
    mic.input.connect(mic.lowpass1);mic.lowpass1.connect(mic.lowpass2);micOutput=mic.lowpass2;
   }
   mic.silent=STATE.context.createGain();mic.silent.gain.value=0;mic.silent.connect(STATE.context.destination);
@@ -180,10 +225,10 @@ async function startMicrophone(){
    mic.processor.onaudioprocess=e=>{for(const ch of Array.from({length:e.outputBuffer.numberOfChannels},(_,i)=>e.outputBuffer.getChannelData(i)))ch.fill(0);receiveMicSamples(e.inputBuffer.getChannelData(0),mic);};
    micOutput.connect(mic.processor);mic.processor.connect(mic.silent);
   }
-  resetDSP(0);STATE.playing=true;STATE.pausedAt=0;
+  refreshLabels();resetDSP(0);STATE.playing=true;STATE.pausedAt=0;
   $('filename').textContent='Microphone · LIVE';$('duration').textContent='LIVE';$('now').textContent='00:00';$('seek').value=0;$('seek').disabled=true;
-  $('play').disabled=false;playLabel('■','Stop microphone (Space)');
-  $('status').textContent=`Live · ${mic.nativeRate} Hz → 16 kHz`;
+  $('play').disabled=false;playLabel('stop','Stop microphone (Space)');
+  $('status').textContent=`Live · ${formatSampleRate(mic.sourceRate)} → ${formatSampleRate(fs)}`;
  }catch(err){stopMicrophone();throw err;}
 }
 function sampleAt(index){
@@ -198,6 +243,7 @@ function sampleAt(index){
 function processAudio(nowSample){const d=STATE.modules.dsp.exports,s=settings(),n=s.fft,inbuf=new Float32Array(d.memory.buffer,d.new_input_ptr(),d.max_fft_size());
 for(let j=0;j<n;j++)inbuf[j]=sampleAt(nowSample-n+j);
 d.new_process(n,hop/fs,s.attack,s.release,s.noise/1000,s.transient/10,s.gain/10,s.compression/100,s.agc,s['adaptive-floor']/100);STATE.newParam=d.new_param_value();STATE.newLoudness=d.new_loudness_value();STATE.newLine=d.new_line_value();
+readDisplaySpectrum(d,s);
 const stats=new Float32Array(d.memory.buffer,d.new_metrics_ptr(),10);
 STATE.bpm=stats[6];STATE.beatConfidence=stats[7];STATE.beatPhase=stats[8];STATE.beatPulse=stats[9];
 const levels=new Float32Array(d.memory.buffer,d.new_levels_ptr(),3);

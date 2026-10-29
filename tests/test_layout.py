@@ -62,7 +62,7 @@ with sync_playwright() as p:
             assert state['page'] == 0 and abs(state['tabs']-tabs_before) < 1 and not state['dock'], (width,state)
             assert state['panel'] > 0 or not state['panelScrollable'], (width,'settings panel did not scroll',state)
             # Advanced lamp settings scroll inside the lamps card.
-            page.locator('#remote-panel summary').click()
+            page.locator('#remote-panel > details > summary').click()
             page.wait_for_timeout(100)
             assert page.evaluate("document.documentElement.scrollHeight") <= height + 1, (width,'advanced lamps grew the page')
             assert page.evaluate("document.querySelector('#remote-add').getBoundingClientRect().top < innerHeight"),(width,'connection control hidden')

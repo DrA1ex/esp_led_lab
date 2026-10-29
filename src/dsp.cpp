@@ -2,9 +2,10 @@
 // Does not depend on browser APIs or Arduino. Designed for subsequent ESP32-C3 port.
 #include "tables.h"
 
-// FFT sizes 256..8192 at 16 kHz (16 ms .. 512 ms windows).
+// FFT sizes 64..8192 at a host-selected analysis rate (default 16 kHz).
 static constexpr int MAX_N = 8192;
 static constexpr int BANDS = 16;
+static float sample_rate=16000.f;
 static float input_pcm[MAX_N];
 static float real_fft[MAX_N];
 static float imag_fft[MAX_N];
@@ -28,6 +29,8 @@ static float raw_group[3], pulse[3], events[3], flux_avg[3], flux_dev[3], refrac
 static float metrics[10]; // flux x3, RMS, activity, AGC ref, BPM, beat confidence, phase, beat pulse
 static float novelty_ring[256];
 static int novelty_pos=0,novelty_filled=0,novelty_updates=0;
+static float novelty_elapsed=0,novelty_sum=0;
+static constexpr float NOVELTY_STEP=.016f;
 static float bpm=0.f,bpm_confidence=0.f,beat_phase=0.f,beat_pulse=0.f;
 static float new_wave_elapsed=0.f;
 static float level_ref = 0.04f;
@@ -55,13 +58,14 @@ static inline float clamp(float x,float lo,float hi){return minf(hi,maxf(lo,x));
 static inline float sqrt_fast(float x){return __builtin_sqrtf(maxf(0.0f,x));}
 static inline int absi(int x){return x<0?-x:x;}
 // Level of the band between two frequencies: RMS of the FFT magnitudes,
-// scaled by sqrt(n / 512) so tones and noise read the same at every FFT size
+// scaled by sqrt((n / sample_rate) / (512 / 16000)) so tone levels remain
+// comparable across FFT sizes and analysis rates
 // (a wider FFT spreads a band over more, individually weaker bins).
 // Fractional overlap with FFT bins avoids empty logarithmic bands at small FFT
 // sizes or narrow ranges; neighboring narrow bands still cannot be considered
 // independently resolved.
 static float band_magnitude(float lo_hz,float hi_hz,int n){
-    const float hz=16000.f/n,lo=lo_hz/hz,hi=hi_hz/hz,scale=(float)n/512.f;
+    const float hz=sample_rate/n,lo=lo_hz/hz,hi=hi_hz/hz,scale=(float)n/512.f*16000.f/sample_rate;
     float sum=0.f,weight=0.f;
     int first=(int)lo-1,last=(int)hi+2;
     if(first<1)first=1;
@@ -120,15 +124,21 @@ static void ensure_tables(){if(!tables_ready){compute_twiddles();compute_edges()
 
 extern "C" {
 // Analysed frequency range in Hz; bands are spread logarithmically inside it.
-// Clamped to 20 Hz .. 8 kHz (Nyquist at 16 kHz), at least half an octave wide.
+// Clamped to 20 Hz .. Nyquist, at least half an octave wide.
 __attribute__((visibility("default"))) void set_frequency_range(float lo_hz,float hi_hz){
-    double lo=clamp(lo_hz,20.f,7000.f),hi=clamp(hi_hz,20.f,8000.f);
+    const float nyquist=sample_rate*.5f;
+    double lo=clamp(lo_hz,20.f,nyquist),hi=clamp(hi_hz,20.f,nyquist);
     if(hi<lo*1.5)hi=lo*1.5;
-    if(hi>8000.0){hi=8000.0;lo=hi/1.5;}
+    if(hi>nyquist){hi=nyquist;lo=hi/1.5;}
     ensure_tables();range_lo=lo;range_hi=hi;compute_edges();
+}
+__attribute__((visibility("default"))) void set_sample_rate(int rate){
+    if(rate<8000||rate>48000)return;
+    sample_rate=(float)rate;set_frequency_range((float)range_lo,(float)range_hi);
 }
 __attribute__((visibility("default"))) int max_fft_size(){return MAX_N;}
 __attribute__((visibility("default"))) float* new_input_ptr(){return input_pcm;}
+__attribute__((visibility("default"))) float* new_spectrum_ptr(){return spectrum;}
 __attribute__((visibility("default"))) float* new_bands_ptr(){return bands;}
 __attribute__((visibility("default"))) float* new_remote32_ptr(){return remote32;}
 __attribute__((visibility("default"))) float* new_remote64_ptr(){return remote64;}
@@ -157,7 +167,7 @@ __attribute__((visibility("default"))) void reset_dsp() {
     for(int i=0;i<3;i++){pulse[i]=events[i]=flux_avg[i]=flux_dev[i]=refractory[i]=raw_group[i]=group_levels[i]=0;}
     for(int i=0;i<10;i++)metrics[i]=0;
     for(int i=0;i<256;i++)novelty_ring[i]=0;
-    novelty_pos=novelty_filled=novelty_updates=0;
+    novelty_pos=novelty_filled=novelty_updates=0;novelty_elapsed=novelty_sum=0;
     bpm=bpm_confidence=beat_phase=beat_pulse=new_wave_elapsed=0;
     for(int i=0;i<64;i++){old_now[i]=old_prev[i]=0;}
     for(int i=0;i<50;i++){old_min_hist[i]=65535;old_max_hist[i]=0;}
@@ -168,11 +178,11 @@ __attribute__((visibility("default"))) void reset_dsp() {
     for(int i=0;i<151;i++)param_min_hist[i]=65535,param_max_hist[i]=0;
 }
 
-// Host supplies N = 256..8192 (power of two) PCM values sampled at 16 kHz.
+// Host supplies N = 64..8192 (power of two) PCM values at set_sample_rate().
 // All state is separate from hardware acquisition and framebuffer rendering.
 __attribute__((visibility("default"))) void new_process(int n,float hop_seconds,float attack_ms,float release_ms,
                     float noise_gate,float sensitivity,float user_gain,float compression,float agc_ms,float adaptive_floor) {
-    if (n < 256 || n > MAX_N || (n & (n - 1))) return;
+    if (n < 64 || n > MAX_N || (n & (n - 1))) return;
     ensure_tables();
     // Frame-local DC removal; a continuous high-pass filter is a future alternative.
     float mean=0;
@@ -302,36 +312,41 @@ __attribute__((visibility("default"))) void new_process(int n,float hop_seconds,
     // Optional experimental tempo tracker: normalized spectral-flux autocorrelation
     // over 3-4 s. 30-50k multiplications/s at 16kHz/hop256, no allocation.
     float novelty=clamp(0.55f*metrics[0]+0.45f*metrics[1],0.f,5.f);
-    novelty_ring[novelty_pos]=novelty;
-    novelty_pos=(novelty_pos+1)&255;
-    if(novelty_filled<256)novelty_filled++;
-    novelty_updates++;
-    if(novelty_filled>=192 && (novelty_updates&15)==0){
-        float mean=0,variance=0;
-        for(int i=0;i<192;i++)mean+=novelty_ring[(novelty_pos-1-i)&255];
-        mean/=192.f;
-        for(int i=0;i<192;i++){float v=novelty_ring[(novelty_pos-1-i)&255]-mean;variance+=v*v;}
-        float best=-1.f;int best_lag=0;
-        const int minlag=(int)(60.f/(180.f*hop_seconds)+0.5f);
-        const int maxlag=(int)(60.f/(65.f*hop_seconds)+0.5f);
-        for(int lag=minlag;lag<=maxlag;lag++){
-            float dot=0;
-            for(int i=0;i<192-lag;i++){
-                float a=novelty_ring[(novelty_pos-1-i)&255]-mean;
-                float b=novelty_ring[(novelty_pos-1-i-lag)&255]-mean;
-                dot+=a*b;
+    // Short, overlapping FFTs must not shorten the tempo tracker's time window.
+    novelty_elapsed+=hop_seconds;novelty_sum+=novelty;
+    if(novelty_elapsed+0.000001f>=NOVELTY_STEP){
+        novelty_elapsed=maxf(0.f,novelty_elapsed-NOVELTY_STEP);
+        novelty_ring[novelty_pos]=novelty_sum;novelty_sum=0;
+        novelty_pos=(novelty_pos+1)&255;
+        if(novelty_filled<256)novelty_filled++;
+        novelty_updates++;
+        if(novelty_filled>=192 && (novelty_updates&15)==0){
+            float mean=0,variance=0;
+            for(int i=0;i<192;i++)mean+=novelty_ring[(novelty_pos-1-i)&255];
+            mean/=192.f;
+            for(int i=0;i<192;i++){float v=novelty_ring[(novelty_pos-1-i)&255]-mean;variance+=v*v;}
+            float best=-1.f;int best_lag=0;
+            const int minlag=(int)(60.f/(180.f*NOVELTY_STEP)+0.5f);
+            const int maxlag=(int)(60.f/(65.f*NOVELTY_STEP)+0.5f);
+            for(int lag=minlag;lag<=maxlag;lag++){
+                float dot=0;
+                for(int i=0;i<192-lag;i++){
+                    float a=novelty_ring[(novelty_pos-1-i)&255]-mean;
+                    float b=novelty_ring[(novelty_pos-1-i-lag)&255]-mean;
+                    dot+=a*b;
+                }
+                float score=dot/maxf(0.00001f,variance)*(192.f/(192-lag));
+                if(score>best){best=score;best_lag=lag;}
             }
-            float score=dot/maxf(0.00001f,variance)*(192.f/(192-lag));
-            if(score>best){best=score;best_lag=lag;}
-        }
-        float observed=best_lag>0?60.f/(best_lag*hop_seconds):0;
-        if(best>0.17f && observed>60.f && observed<190.f){
-            if(bpm==0 || absf(bpm-observed)>45.f)bpm=observed;
-            else bpm+=(observed-bpm)*0.20f;
-            bpm_confidence=clamp(best*1.7f,0.f,1.f);
-        }else{
-            bpm_confidence*=0.85f;
-            if(bpm_confidence<0.08f)bpm=0.f;
+            float observed=best_lag>0?60.f/(best_lag*NOVELTY_STEP):0;
+            if(best>0.17f && observed>60.f && observed<190.f){
+                if(bpm==0 || absf(bpm-observed)>45.f)bpm=observed;
+                else bpm+=(observed-bpm)*0.20f;
+                bpm_confidence=clamp(best*1.7f,0.f,1.f);
+            }else{
+                bpm_confidence*=0.85f;
+                if(bpm_confidence<0.08f)bpm=0.f;
+            }
         }
     }
     beat_pulse=maxf(0.f,beat_pulse-hop_seconds/0.23f);

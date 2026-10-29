@@ -15,6 +15,8 @@ with sync_playwright() as p:
     page.on('pageerror',lambda e:errors.append(str(e)))
     page.set_content((ROOT/'dist'/'standalone.html').read_text(),wait_until='load')
     page.wait_for_function('STATE.ready === true')
+    # Test the local DSP loop; streaming keeps a separate continuous timeline.
+    page.locator('#remote-enable').uncheck(force=True)
     # An untouched page renders the original effect, not a silent Spectrum mask.
     assert page.locator('#audio-mode').input_value() == '0'
     page.locator('#demo').click()

@@ -3,7 +3,7 @@
  color-scheme:dark;
  --bg:#0d1017;--surface:#161b25;--surface-2:#1c2330;--inset:#0b0f16;
  --line:#2b3442;--line-strong:#3a4658;
- --text:#eef2f8;--muted:#95a2b5;--faint:#6f7c90;
+ --text:#eef2f8;--muted:#95a2b5;--faint:#8794a8;
  --accent:#7aa8f7;--accent-ink:#0b1730;--mint:#6fdcbc;--amber:#e8a95e;--red:#ef7a7a;
  --radius:14px;--radius-sm:9px;
 }
@@ -18,6 +18,12 @@ code{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;color:#c8d6ec}
 
 .app{max-width:1680px;margin:auto;padding:20px 22px 40px}
 
+/* Offline SVG icons shared by static markup and dynamic controls. */
+.ico{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none;vertical-align:middle}
+.round.play .ico{width:18px;height:18px}
+.ico.tiny{width:12px;height:12px;color:var(--faint);vertical-align:-1px}
+.library-actions button,.power-pair button,.lamp-power{display:inline-flex;align-items:center;justify-content:center;gap:5px}
+
 /* Header */
 .topbar{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:16px}
 .brand{display:flex;align-items:center;gap:12px;min-width:0}
@@ -26,13 +32,14 @@ code{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;color:#c8d6ec}
 .subtitle{font-size:12px;color:var(--muted)}
 .chips{flex:none;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 
-/* Transport in the header: ⏮ ▶ ⏭ · title, status and seek · shuffle / repeat · volume */
+/* Transport in the header: playback, title, status and seek, modes and volume. */
 .transport{flex:1;min-width:0;display:flex;align-items:center;gap:12px;padding:6px 12px 6px 8px;border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(150deg,#181e29,#141922)}
 .transport-buttons,.transport-modes{flex:none;display:flex;align-items:center;gap:5px}
 .round{width:34px;height:34px;padding:0;border-radius:50%;display:grid;place-items:center;font-size:14px;line-height:1}
 .round.play{width:42px;height:42px;font-size:16px}
-.round.mode{width:30px;height:30px;font-size:13px;opacity:.55}
-.round.mode[aria-pressed=true]{opacity:1;border-color:#3f6fae;background:#1b2a42}
+.transport .round{padding:0}
+.transport .round.mode{width:30px;height:30px;font-size:13px;color:var(--faint)}
+.transport .round.mode[aria-pressed=true]{color:var(--accent);border-color:#3f6fae;background:#1b2a42}
 .now-playing{flex:1;min-width:0}
 .track-head{display:flex;align-items:baseline;gap:10px;min-width:0}
 .filename{min-width:0;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:620;font-size:13px}
@@ -46,6 +53,9 @@ code{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;color:#c8d6ec}
 .volume input[type=range]{width:86px}
 .volume .value{min-width:34px;text-align:right;font-size:11px}
 .chip{padding:4px 10px;border:1px solid var(--line-strong);border-radius:99px;background:#18212e;color:#a9bfdd;font-size:11px;font-weight:600;white-space:nowrap}
+button.chip{cursor:pointer}
+button.chip:hover{border-color:var(--accent)}
+.chip.live::before{content:"";display:inline-block;width:6px;height:6px;margin-right:6px;border-radius:50%;background:currentColor;box-shadow:0 0 6px currentColor}
 .chip.on{border-color:#2f6656;background:#15302a;color:#86e2c6}
 
 /* Layout */
@@ -57,7 +67,7 @@ code{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;color:#c8d6ec}
 .panelhead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
 .h2{font-size:15px;font-weight:680;margin:0}
 .muted{color:var(--muted);font-size:12px}
-.hint{font-size:11.5px;line-height:1.5;color:var(--faint);margin:6px 0 0}
+.hint{font-size:12px;line-height:1.5;color:var(--faint);margin:6px 0 0}
 .hint:empty{display:none}
 
 /* Buttons and inputs */
@@ -98,6 +108,7 @@ select:focus,input[type=text]:focus,input[type=number]:focus,input[type=search]:
 .bars{display:flex;align-items:flex-end;gap:2px}
 .bars .bar{background:linear-gradient(0deg,#4a6f9c,#86b5f8);border-radius:2px 2px 0 0;flex:1;min-height:2px;transition:height .08s linear}
 .bars.new .bar{background:linear-gradient(0deg,#327670,#7fdcbf)}
+.spectrum-caption{font-size:11px;color:var(--faint);margin-bottom:4px}
 .inline-spectrum{height:30px;border-bottom:1px solid #2a3443}
 .strip-layout .matrixstage{aspect-ratio:auto;width:100%;padding:6px}
 .strip-layout .matrixstage canvas{height:auto}
@@ -214,7 +225,7 @@ details.more[open] summary{margin-bottom:8px}
 .footer{text-align:center;margin-top:18px;color:var(--faint);font-size:11px}
 
 /* Floating mirror while the preview is scrolled away on stacked layouts. */
-.floating-preview{position:fixed;z-index:30;top:8px;left:50%;transform:translateX(-50%);width:min(440px,calc(100vw - 20px));padding:8px 12px;background:#171c27f2;border:1px solid #4b586d;border-radius:14px;box-shadow:0 8px 30px #000b;backdrop-filter:blur(12px);pointer-events:none}
+.floating-preview{position:fixed;z-index:30;top:8px;left:50%;transform:translateX(-50%);width:min(440px,calc(100vw - 20px));padding:8px 12px;background:#171c27f2;border:1px solid #4b586d;border-radius:14px;box-shadow:0 8px 30px #000b;backdrop-filter:blur(12px);pointer-events:auto;cursor:pointer}
 .floating-matrices{display:flex;gap:12px;justify-content:center}
 .floating-matrix{display:flex;align-items:center;justify-content:center;gap:8px;min-width:0;flex:1}
 .floating-matrix canvas{width:88px;height:88px;border:1px solid #384357;border-radius:7px;background:#030508}
@@ -243,7 +254,8 @@ details.more[open] summary{margin-bottom:8px}
  body:not(.strip-layout) .preview-body{flex-direction:row;gap:14px}
  body:not(.strip-layout) .matrixstage{--stage:clamp(170px,calc(100dvh - 480px),380px);height:var(--stage);width:auto;max-width:min(var(--stage)*2,62%);flex:none;margin:0}
  body:not(.strip-layout) .preview-info{flex:1}
- body:not(.strip-layout) .inline-spectrum{flex:1;height:auto;min-height:48px}
+ body:not(.strip-layout) .spectrum-caption{font-size:11px;color:var(--faint);margin-bottom:4px}
+.inline-spectrum{flex:1;height:auto;min-height:48px}
 }
 @media(min-width:1200px) and (max-width:1499px){.subtitle{display:none}}
 /* Stacked: preview → playlist → lamps → settings; the transport wraps onto its own row. */
@@ -267,11 +279,13 @@ details.more[open] summary{margin-bottom:8px}
  .title{font-size:17px}
  .subtitle{display:none}
  .tabpanel{padding:14px}
+ .floating-preview{left:auto;right:8px;top:8px;transform:none;width:auto;padding:4px}
+ .floating-matrix canvas{width:64px;height:64px}
+ .strip-layout .floating-preview{left:8px;right:8px;width:auto;padding:4px;border:0;border-radius:0;background:none;box-shadow:none;backdrop-filter:none}
 }
 @media(max-width:420px){
  .field-pair,.more-grid{grid-template-columns:1fr}
  .volume input[type=range]{width:64px}
  .mix{width:100%}
  .panelhead{flex-wrap:wrap}
- .floating-matrix canvas{width:72px;height:72px}
 }

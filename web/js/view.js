@@ -2,6 +2,7 @@
 // Settings → WASM renderers, canvas painting and live meters.
 function refreshLabels(){
  const s=settings(),g=currentGeometry();
+ updateAnalysisHop();spectrumPlan();
  for(const id of ['speed','scale','light'])$(id+'-value').textContent=s[id];
  $('mix-value').textContent=s.mix+'%';
  for(const id of ['spectrum-shape','spectrum-onset','line-response'])$(id+'-value').textContent=s[id]+'%';
@@ -14,9 +15,11 @@ function refreshLabels(){
  $('gamma-value').textContent=s.gamma===0?'off':(2.2+(s.gamma-128)/128).toFixed(2);
  $('master-brightness-value').textContent=s['master-brightness'];const range=frequencyRange(s);
  $('freq-min-value').textContent=formatHz(range.lo);$('freq-max-value').textContent=formatHz(range.hi);
- $('fft-display').textContent=`FFT ${s.fft} · ${formatHz(range.lo)}–${formatHz(range.hi)}`;
- $('fft-hint').textContent=`${(16000/s.fft).toFixed(1)} Hz per bin. Larger sizes separate bass notes better but react more slowly.`;
- if(STATE.ready)STATE.modules.dsp.exports.set_frequency_range(range.lo,range.hi);
+ $('fft-display').textContent=`FFT ${s.fft} / ${formatHz(fs)} · ${formatHz(range.lo)}–${formatHz(range.hi)}`;
+ for(const o of $('fft').options)o.textContent=`${o.value} · ${+(+o.value*1000/fs).toFixed(2)} ms`;
+ $('fft-hint').textContent=`${(fs/s.fft).toFixed(1)} Hz per bin · ${(s.fft*1000/fs).toFixed(2)} ms window. Larger FFTs separate nearby frequencies better; smaller FFTs react faster.`;
+ refreshAnalysisUi();
+ if(STATE.ready){STATE.modules.dsp.exports.set_sample_rate(fs);STATE.modules.dsp.exports.set_frequency_range(range.lo,range.hi);}
  refreshGeometryUi(g);
  if(STATE.ready){
   const m=STATE.modules.new.exports;
@@ -193,11 +196,14 @@ function updateFloatingPreview(){
  const r=panel.getBoundingClientRect();
  dock.hidden=!(stacked && r.bottom<0 && window.scrollY>0);
 }
+const returnToPreview=()=>document.querySelector('.main').scrollIntoView({behavior:'smooth'});
+$('floating-preview').onclick=returnToPreview;
+$('floating-preview').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();returnToPreview();}};
 window.addEventListener('scroll',updateFloatingPreview,{passive:true});
 window.addEventListener('resize',updateFloatingPreview,{passive:true});
 function meters(){
- const vals=STATE.newSpectrum,wrap=$('new-mini-bars');
- for(let j=0;j<16;j++)wrap.children[j].style.height=`${Math.max(2,Math.min(100,vals[j]*100))}%`;
+ const vals=STATE.newSpectrum;
+ renderSpectrum();
  const mode=+($('audio-mode').value),isWave=[1,2].includes(mode),isParam=[5,6,7,8,9,10,13,15,16,18,21,22,23,24,25].includes(mode);
  const strength=isParam?newControlSource():(isWave?STATE.newLoudness:Math.max(...vals));
  $('new-label').textContent=`FFT: ${Math.round(strength*100)}% · RGB: ${Math.round(STATE.output.new*100)}%`;

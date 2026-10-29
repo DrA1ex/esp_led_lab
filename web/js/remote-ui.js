@@ -23,7 +23,7 @@ function captureFeatureSnapshot(sample){
  const d=STATE.modules.dsp.exports;
  const copy=(ptr,n)=>Array.from(new Float32Array(d.memory.buffer,ptr,n));
  const metrics=copy(d.new_metrics_ptr(),10);
- return {sample,newer:STATE.newSpectrum.slice(),
+ return {sample,newer:STATE.newSpectrum.slice(),display:STATE.displaySpectrum.slice(),displayKey:SPECTRUM.key,
   r16:STATE.newSpectrum.slice(),r32:copy(d.new_remote32_ptr(),32),r64:copy(d.new_remote64_ptr(),64),
   levels:STATE.levels.slice(),pulses:STATE.pulses.slice(),events:STATE.events.slice(),
   metrics, bpm:STATE.bpm,beatConfidence:STATE.beatConfidence,beatPhase:STATE.beatPhase,beatPulse:STATE.beatPulse,
@@ -33,6 +33,7 @@ function captureFeatureSnapshot(sample){
 function showFeatureSnapshot(f){
  if(!f)return;
  RS.visual=f;STATE.newSpectrum=f.newer.slice();
+ STATE.displaySpectrum=f.displayKey===SPECTRUM.key?f.display.slice():[];
  STATE.levels=f.levels.slice();STATE.pulses=f.pulses.slice();STATE.events=f.events.slice();
  STATE.bpm=f.bpm;STATE.beatConfidence=f.beatConfidence;STATE.beatPhase=f.beatPhase;STATE.beatPulse=f.beatPulse;
  STATE.newParam=f.newParam;STATE.newLoudness=f.newLoudness;STATE.newLine=f.newLine;
@@ -97,7 +98,7 @@ function remoteTick(){
   processAudio(at);RS.frames.push(captureFeatureSnapshot(at));STATE.nextSample+=hop;
  }
  // Keep only a bounded history for the local presentation consumer.
- while(RS.frames.length>160||RS.frames.length>1&&RS.frames[1].sample<pos-fs*.4)RS.frames.shift();
+ while(RS.frames.length>Math.max(160,Math.ceil(fs*.75/hop))||RS.frames.length>1&&RS.frames[1].sample<pos-fs*.4)RS.frames.shift();
  let visible=null;
  for(let i=RS.frames.length-1;i>=0;i--){if(RS.frames[i].sample<=pos){visible=RS.frames[i];break;}}
  if(!visible&&RS.frames.length)visible=RS.frames[0];
@@ -174,12 +175,12 @@ function lampCard(d){
  card=document.createElement('div');card.className='lamp';
  card.innerHTML='<div class="lamp-row"><input type="checkbox" title="Send audio to this lamp"><span class="lamp-name"></span><span class="lamp-badge"></span>'+
   '<div class="lamp-actions"><button class="ghost lamp-geo" title="Use this lamp\'s size for the preview" hidden></button>'+
-  '<button class="ghost lamp-power" hidden>⏻</button><button class="ghost lamp-connect"></button>'+
+  '<button class="ghost lamp-power" hidden><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-power"/></svg></button><button class="ghost lamp-connect"></button>'+
   '<button class="ghost lamp-remove" title="Remove lamp" aria-label="Remove lamp">×</button></div></div>'+
   '<div class="lamp-tune"><label>Mode<select class="lamp-mode"></select></label><label>Bands<select class="lamp-bands">'+
   '<option value="">Auto</option><option>16</option><option>32</option><option>64</option></select></label>'+
   '<label>Start, LED<input class="lamp-shift" type="number" step="1" placeholder="lab"></label></div>'+
-  '<label class="lamp-ctl" hidden><span aria-hidden="true">☀</span><input class="lamp-bright" type="range" min="0" max="100" aria-label="Lamp brightness"><b class="value"></b></label>'+
+  '<label class="lamp-ctl" hidden><span aria-hidden="true"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-sun"/></svg></span><input class="lamp-bright" type="range" min="0" max="100" aria-label="Lamp brightness"><b class="value"></b></label>'+
   '<div class="lamp-stats"></div>';
  const q=sel=>card.querySelector(sel);
  q('input').onchange=e=>{d.selected=e.target.checked;d.stop();};
@@ -241,6 +242,7 @@ const HELD=new WeakMap();
 const held=el=>HELD.set(el,performance.now()),isHeld=el=>document.activeElement===el&&performance.now()-(HELD.get(el)||0)<1500;
 function renderLampsMaster(){
  const all=REMOTE.devices,ctl=REMOTE.controllable,offline=all.filter(d=>!d.socket);
+ $('lamps-master').hidden=!all.length;
  const connect=$('lamps-connect');if(!connect)return;
  connect.disabled=!all.length;
  connect.textContent=!all.length||offline.length===all.length?'Connect all':offline.length?`Connect ${offline.length} more`:'Disconnect all';
@@ -283,11 +285,12 @@ function renderRemoteDevices(){
  if(chip){
   chip.textContent=REMOTE.devices.length?`Lamps: ${ready.length} of ${REMOTE.devices.length}`:'Lamps: none';
   chip.classList.toggle('on',ready.length>0);
+  chip.classList.toggle('live',Boolean(remoteEnabled()&&STATE.playing&&ready.length));
  }
  const text=$('remote-state');if(!text)return;
  if(!remoteEnabled()){text.textContent='Streaming off · preview only';return;}
  const bands=+$('remote-bands').value,parts=[];
- if(!REMOTE.devices.length)parts.push('Add a lamp by IP or host name');
+ if(!REMOTE.devices.length)parts.push("No lamps yet — enter the address from the lamp's web page");
  else parts.push(`${STATE.playing?'Audio running':'Audio stopped'} · lamps ready: ${ready.length}`);
  if(RS.late)parts.push(`skipped frames: ${RS.late}`);
  const unsupported=ready.filter(d=>!d.supported.includes(lampBands(d)));
@@ -295,6 +298,10 @@ function renderRemoteDevices(){
  text.textContent=parts.join(' · ');
 }
 function initRemote(){
+ $('lamp-chip').onclick=()=>{
+  $('remote-panel').scrollIntoView({block:'nearest',behavior:'smooth'});
+  if(!REMOTE.devices.length)$('remote-address').focus({preventScroll:true});
+ };
  $('remote-add').onclick=()=>{try{const d=REMOTE.add($('remote-address').value);d.connect();$('remote-address').value='';saveLamps();renderRemoteDevices();}
  catch(err){$('remote-state').textContent=err.message;}};
  // Remembered lamps come back disconnected unless "Connect all lamps when the page opens" is on.
@@ -307,5 +314,6 @@ function initRemote(){
  $('remote-bands').onchange=()=>{remoteInvalidate();renderRemoteDevices();};
  $('remote-adapt').onchange=()=>{remoteInvalidate();renderRemoteDevices();};
  $('remote-latency').oninput=()=>{$('remote-latency-value').textContent=$('remote-latency').value+' ms';};
+ renderRemoteDevices();
  setInterval(remoteTick,10);setInterval(renderRemoteDevices,500);
 }

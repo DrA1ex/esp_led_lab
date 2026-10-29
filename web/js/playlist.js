@@ -61,7 +61,7 @@ function nextTrack(){
  const n=PL.active?stepTrack(PL.current,1):PL.current>=0?PL.current:stepTrack(-1,1);
  if(n>=0)playTrack(n,1);else $('status').textContent='End of the playlist';
 }
-// ⏮ restarts the track after 3 s, otherwise goes to the previous one.
+// Previous restarts the track after 3 s, otherwise goes to the previous one.
 function prevTrack(){
  const restart=()=>seekTo(0);
  if(!PL.active||playPosition()>3)return restart();
@@ -221,7 +221,7 @@ document.addEventListener('drop',async e=>{
  autoplay(addTracks(items,false));
 });
 
-// Transport: ⏮ ⏭, shuffle, repeat off → all → one.
+// Transport: previous / next, shuffle, repeat off → all → one.
 $('prev').onclick=prevTrack;$('next').onclick=nextTrack;
 $('shuffle').onclick=()=>{
  PL.shuffle=!PL.shuffle;PL.history=[];shuffleOrder();
@@ -230,7 +230,7 @@ $('shuffle').onclick=()=>{
 $('repeat').onclick=()=>{
  PL.repeat={off:'all',all:'one',one:'off'}[PL.repeat];
  const b=$('repeat'),label={off:'Repeat: off',all:'Repeat: all',one:'Repeat: one track'}[PL.repeat];
- b.textContent=PL.repeat==='one'?'🔂':'🔁';b.title=label;b.setAttribute('aria-label',label);b.setAttribute('aria-pressed',String(PL.repeat!=='off'));
+ b.querySelector('use').setAttribute('href',PL.repeat==='one'?'#i-repeat-one':'#i-repeat');b.title=label;b.setAttribute('aria-label',label);b.setAttribute('aria-pressed',String(PL.repeat!=='off'));
 };
 
 // Hotkeys: Space play/pause, ←/→ seek ±5 s, N/P next/previous. Not while typing.
