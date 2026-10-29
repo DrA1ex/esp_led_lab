@@ -1,7 +1,7 @@
 'use strict';
 // Optional, LAN-only audio feature transport. No PCM is transmitted.
-// The 16/32/64 layout is 38 + count*2 bytes; only 32 (102 bytes) is defined
-// in the original RFC. Other counts require explicit receiver capabilities.
+// The 16/32/64 layout is 38 + count*2 bytes; a count is sent only when the
+// receiver lists it in band_counts (current firmware: 16, 32 and 64).
 const RemoteAudio = (() => {
  const COUNTS=[16,32,64], MAGIC=[69,76,65,70];
  // Clock sync: a short burst at connect, then a refresh every few seconds

@@ -4,7 +4,9 @@
 // curve, mode-dependent visibility and picking the origin on the preview.
 // The rules mirror firmware audioTransfer() and RemoteReactive::OriginMap.
 
-const ORIGIN_MODES=[1,2,3,4,6,7,11,12];
+const ORIGIN_MODES=[1,2,3,4,6,7,11,12,13,14,15,16,18,19,20];
+// Lab-only visualizations (render.cpp render_viz); the lamp gets Off for them.
+const LAB_MODES=[13,14,15,16,17,18,19,20];
 const CENTERED_MODES=[2,4,7,12];
 const MODE_HINTS={
  0:'Audio does not affect the picture.',
@@ -19,7 +21,15 @@ const MODE_HINTS={
  9:'The signal drives the effect scale (Scale).',
  10:'The signal drives the Light parameter (effect brightness / tint).',
  11:'Upper half follows bass, lower half mids; a strip blends both. Experimental.',
- 12:'Band lighting plus a ring on each beat. Experimental.'
+ 12:'Band lighting plus a ring on each beat. Experimental.',
+ 13:'Level meter with a falling peak dot. Strip: fills from the start (or both ways from the center). Matrix: rises from the bottom, from the middle row, or as a circle with the 2D center.',
+ 14:'Strip: all bands spread smoothly along the LEDs, bass to treble. Matrix: a bar per column with falling peaks. Uses the band count sent to the lamp.',
+ 15:'Strip: a river of loudness flowing from the start, colored by tone (bass → treble). Matrix: a scrolling spectrogram, newest row at the top (or in the middle).',
+ 16:'Each onset launches a comet along the strip (bass, mid and treble in their own colors); on a matrix it is a ring growing from the center.',
+ 17:'Treble and onsets sprinkle sparks, bass is a soft glow. Looks the same on any geometry.',
+ 18:'The whole lamp breathes with the level, the color follows the tone. Good for short strips and small lamps.',
+ 19:'Strip: the loudness history in palette colors. Matrix: the history as bars, or a mirrored waveform.',
+ 20:'Three meters for bass, mid and treble: three parts of a strip (or ring), three bars on a matrix.'
 };
 
 // Origin shift: the slider counts LEDs (columns); the wire format and the
@@ -80,7 +90,13 @@ function refreshTuningUi(s,g){
  $('input-max-value').textContent=Math.round(s['input-max']/2.55)+'%';
  const curve=curveExponent(s);
  $('input-curve-value').textContent=curve===100?'linear':`×${(curve/100).toFixed(2)}`;
- const centered=CENTERED_MODES.includes(mode),at=originColumn(s,g,centered),unit=isStrip(g)?'LED':'column';
+ const strip=g.h<4;
+ $('viz-mirror-label').textContent=strip?'From the center, both ways':'Mirror vertically (from the middle row)';
+ $('viz-decay-value').textContent=s['viz-decay']+'%';$('viz-speed-value').textContent=s['viz-speed']+'%';
+ $('viz-hint').textContent=(strip?`Strip (${g.w}×${g.h}): every row shows the same.`:`Matrix (${g.w}×${g.h}).`)+
+  ` Spectrum uses ${$('remote-bands').value} bands, the count sent to the lamp (Lamps over Wi-Fi → Advanced).`+
+  ' Lab preview only: the lamp is sent Off until the mode is added to the firmware.';
+ const centered=CENTERED_MODES.includes(mode)||(strip&&LAB_MODES.includes(mode)&&s['viz-mirror']),at=originColumn(s,g,centered),unit=isStrip(g)?'LED':'column';
  const where=at<0?'off the edge':`${unit} ${at+1} of ${g.w}`;
  $('origin-hint').textContent=(centered?`Center: ${where}. `:`Start: ${where}, running ${s['origin-reverse']?'left':'right'}. `)+
   (s['origin-ring']?'On a ring the effect continues past the end of the strip. ':'Without a ring, the part shifted past the edge stays dark. ')+
@@ -155,6 +171,9 @@ function initTuning(){
  $('range-reset').onclick=()=>{
   Object.entries({'input-min':0,'input-max':255,'input-curve':0,'audio-min':0,'audio-max':255}).forEach(([k,v])=>$(k).value=v);
   $('input-gate').checked=false;refreshLabels();
+ };
+ $('viz-reset').onclick=()=>{
+  $('viz-color').value=0;$('viz-auto').checked=true;$('viz-mirror').checked=false;$('viz-decay').value=50;$('viz-speed').value=50;refreshLabels();
  };
  $('origin-reset').onclick=()=>{
   $('origin-shift').value=0;$('origin-y').value=500;

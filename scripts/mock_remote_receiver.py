@@ -66,7 +66,7 @@ def receiver(ws):
         if op == 'hello':
             print('hello', msg)
             ws.send(json.dumps(dict(type='hello_ack', version=1, session=1, width=ARGS.width,
-                                    height=ARGS.height, bands=32, band_counts=[32], fps=60,
+                                    height=ARGS.height, bands=32, band_counts=[16, 32, 64], fps=60,
                                     capabilities=['sync', 'clock', 'config', 'status', 'tuning'])))
         elif op == 'sync':
             t1 = millis()

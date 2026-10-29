@@ -51,7 +51,8 @@ const PARAM_SOURCES=['loudness','spectral','bass','mid','high','peak','onset','b
 // Firmware ignores unknown fields, so the lab tuning below is safe for older
 // receivers; receivers advertising "tuning" apply it like the new-FFT preview.
 function remoteRuntimeConfig(){const s=settings();return {
-  color_effect:s.color,brightness_effect:s.brightness,audio_effect:s['audio-mode'],
+  // Lab-only visualizations are not in the firmware yet: the lamp gets Off.
+  color_effect:s.color,brightness_effect:s.brightness,audio_effect:LAB_MODES.includes(s['audio-mode'])?0:s['audio-mode'],
   audio_min:s['audio-min'],audio_max:s['audio-max'],palette:s.palette,
   speed:s.speed,scale:s.scale,light:s.light,
   param_source:Math.max(0,PARAM_SOURCES.indexOf(s['param-source'])),

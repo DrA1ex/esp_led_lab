@@ -157,3 +157,23 @@ Changes made together with the firmware (`esp_led_lamp`, `feature/remote-audio-d
   without protocol changes. Band levels are the RMS of the FFT bins scaled
   by `sqrt(n / 512)`, which keeps tones from fading at large FFT sizes.
 
+
+## Lab-preview visualizations and 16/32/64 bands (2026-10-29)
+
+- **Bands**: the firmware now accepts 16, 32 and 64 bands (`band_counts:
+  [16,32,64]`, frame size 38 + 2 × count). *Spectrum bands* under *Lamps
+  over Wi-Fi → Advanced* picks the count for the lamp and for the new
+  preview modes below.
+- **Lab preview (not on the lamp yet)**, audio modes 13–20: VU Meter,
+  Spectrum Bars, Flow, Pulses, Sparkles, Mood, Waveform, Bass · Mid · Treble
+  Meters (`render_viz()` in `src/render.cpp`). They adapt to the geometry:
+  on strips (HEIGHT < 4, every row the same) they run along the LEDs from the
+  start point, or out from the center with *From the center*; on matrices
+  they use the height (bars from the bottom, a spectrogram, rings from the
+  center) and *Mirror vertically* starts them from the middle row.
+  *Colors* draws palette colors or masks the color effect; *Fall-off* and
+  *Motion speed* set the meters' release and how fast Flow / Pulses move;
+  *Auto-level* stretches each band's and meter's own recent range so quiet
+  treble moves like the bass. The reaction range and curve apply to every
+  level. While one of these modes is selected the lamp is sent Off; the
+  modes that work out get ported to the firmware, the rest are removed.

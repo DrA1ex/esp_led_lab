@@ -27,7 +27,8 @@ function refreshLabels(){
   m.set_reaction_tuning(s['spectrum-shape']/100,s['spectrum-onset']/100,s['line-response']/100,0);
   m.set_effects(s.color,s.brightness,s['audio-mode']);m.set_parameters(s.speed,s.scale,s.light,s.mix/100);m.set_audio_range(s['audio-min'],s['audio-max']);
   const curve=curveExponent(s);fillCurveTable(m,curve);
-  m.set_audio_window(s['input-min'],s['input-max'],s['input-gate']?1:0,curve);m.set_origin(...originArgs(s,g.w));
+  m.set_audio_window(s['input-min'],s['input-max'],s['input-gate']?1:0,curve);
+  m.set_visualization(+s['viz-color'],s['viz-mirror']?1:0,s['viz-decay']/100,s['viz-speed']/100,s['viz-auto']?1:0);m.set_origin(...originArgs(s,g.w));
  }
  refreshTuningUi(s,g);
  refreshEffective();
@@ -47,7 +48,7 @@ function newControlSource(s=settings()){
  }
 }
 function feedRender(m){
- const s=settings(),d=STATE.modules.dsp.exports,features=new Float32Array(m.memory.buffer,m.audio_features_ptr(),160);
+ const s=settings(),d=STATE.modules.dsp.exports,features=new Float32Array(m.memory.buffer,m.audio_features_ptr(),225);
  features.fill(0);
  for(let j=0;j<16;j++)features[j]=STATE.newSpectrum[j];
  for(let j=0;j<3;j++){features[16+j]=STATE.pulses[j];features[19+j]=STATE.events[j];}
@@ -59,6 +60,16 @@ function feedRender(m){
  features[152]=STATE.bpm;features[153]=STATE.beatConfidence;features[154]=STATE.beatPhase;features[155]=STATE.beatPulse;
  for(let j=0;j<3;j++)features[156+j]=STATE.levels[j];
  features[159]=STATE.newLine;
+ // The bands the lamp receives (Remote Output band count) for the lab-only modes.
+ const count=+$('remote-bands').value,bands=remoteBands(count);
+ for(let j=0;j<count;j++)features[160+j]=bands[j];
+ features[224]=count;
+}
+function remoteBands(count){
+ if(remoteEnabled()&&RS.visual)return RS.visual['r'+count];
+ if(count===16)return STATE.newSpectrum;
+ const d=STATE.modules.dsp.exports;
+ return new Float32Array(d.memory.buffer,count===32?d.new_remote32_ptr():d.new_remote64_ptr(),count);
 }
 // Mirrors render.cpp: Brightness and Speed/Scale/Light read features[23]
 // (the selected control source) through the reaction range (transferValue);
@@ -187,7 +198,7 @@ window.addEventListener('resize',updateFloatingPreview,{passive:true});
 function meters(){
  const vals=STATE.newSpectrum,wrap=$('new-mini-bars');
  for(let j=0;j<16;j++)wrap.children[j].style.height=`${Math.max(2,Math.min(100,vals[j]*100))}%`;
- const mode=+($('audio-mode').value),isWave=[1,2].includes(mode),isParam=[5,6,7,8,9,10].includes(mode);
+ const mode=+($('audio-mode').value),isWave=[1,2].includes(mode),isParam=[5,6,7,8,9,10,13,15,16,18].includes(mode);
  const strength=isParam?newControlSource():(isWave?STATE.newLoudness:Math.max(...vals));
  $('new-label').textContent=`FFT: ${Math.round(strength*100)}% · RGB: ${Math.round(STATE.output.new*100)}%`;
  drawTransfer(mode?strength:NaN);
