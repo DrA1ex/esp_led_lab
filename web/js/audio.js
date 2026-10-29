@@ -60,7 +60,7 @@ function resetDSP(startSample=0,preserveRemote=false){
  STATE.displaySpectrum=[];
  STATE.nextSample=Math.max(n,Math.ceil(startSample/hop)*hop);
  STATE.lastPlaybackSample=startSample;STATE.silenceFrom=Infinity;STATE.tailUntil=-1;
- STATE.newParam=0;STATE.newLoudness=0;STATE.newLine=0;STATE.levels.fill(0);STATE.bpm=STATE.beatConfidence=STATE.beatPhase=STATE.beatPulse=0;STATE.newSpectrum.fill(0);STATE.pulses.fill(0);STATE.events.fill(0);STATE.modules.dsp.exports.reset_dsp();if(!preserveRemote)STATE.modules.new.exports.reset_render();}
+ STATE.newParam=0;STATE.newLoudness=0;STATE.newLine=0;STATE.levels.fill(0);STATE.bpm=STATE.beatConfidence=STATE.beatPhase=STATE.beatPulse=0;STATE.newSpectrum.fill(0);STATE.pulses.fill(0);STATE.events.fill(0);STATE.modules.dsp.exports.reset_dsp();resetCompare();if(!preserveRemote)STATE.modules.new.exports.reset_render();}
 // After a pause, stop or the end of a file the DSP keeps running on silence in
 // real time (see animate), so the spectrum and envelopes release as they would
 // on a quiet input instead of freezing on the last frame.
@@ -250,6 +250,6 @@ const levels=new Float32Array(d.memory.buffer,d.new_levels_ptr(),3);
 for(let j=0;j<3;j++)STATE.levels[j]=levels[j];
 const newer=new Float32Array(d.memory.buffer,d.new_bands_ptr(),16),p=new Float32Array(d.memory.buffer,d.new_pulses_ptr(),3),e=new Float32Array(d.memory.buffer,d.new_events_ptr(),3);
 for(let j=0;j<16;j++)STATE.newSpectrum[j]=newer[j];for(let j=0;j<3;j++){STATE.pulses[j]=p[j];STATE.events[j]=e[j];}
-recordDsp(d,hop/fs);
+recordDsp(d,hop/fs,s,nowSample);
 }
 function seekTo(pos){if(!STATE.buffer||STATE.inputMode!=='file')return;let wasPlaying=STATE.playing;pauseAudio();STATE.pausedAt=Math.min(STATE.buffer.duration-.01,Math.max(0,pos));const start=Math.floor(STATE.pausedAt*fs);resetDSP(start);$('now').textContent=asTime(STATE.pausedAt);setSeek(Math.floor(STATE.pausedAt/STATE.buffer.duration*1000));if(wasPlaying)playAudio();}

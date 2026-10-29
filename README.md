@@ -176,6 +176,15 @@ and the live traces come from the running DSP:
 | Onsets | Onset threshold | the group's energy rise (flux) against its adaptive threshold, the hits with their refractory time and the flash they trigger |
 | Noise | Noise floor, Adaptive floor | each band's level against the noise floor, the background each band has learned and what the adaptive floor removes |
 
+Three more views look across all the settings; they stay open while the
+settings are changed:
+
+| View | Shows |
+|---|---|
+| Chain | one band group after every stage on one time axis: input with the noise floor, after the level curve, after the envelope (what the LEDs show), hits and flash; beside each stage, the range it uses (5–95 % of the time) |
+| Map | all 16 bands over the last 5 s before the analyzer (dB) and as the LEDs get them, and a histogram of how often each LED level occurs (dark / bright share, median) |
+| A/B | **Pin as A** copies the running analyzer into a second DSP instance that keeps the pinned settings while the sliders change B; both run on the same audio. Shows the changed settings, both outputs of a group, their hits and all bands now |
+
 The DSP exports the intermediate values for it (`new_targets_ptr`: band levels
 before the envelope, `new_thresholds_ptr`: onset thresholds, `new_floor_ptr`:
 learned noise floors); nothing sent to the lamps changes.

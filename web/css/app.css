@@ -254,6 +254,10 @@ body.dsp-stage .stage-view{display:flex;place-items:stretch;background:var(--ins
 .dsp-panels button,.dsp-groups button{height:26px;padding:0 10px;border:1px solid transparent;border-radius:var(--r-sm);background:none;color:var(--text-2);font-size:12px;font-weight:550;white-space:nowrap}
 .dsp-panels button:hover,.dsp-groups button:hover{color:var(--text)}
 .dsp-panels [aria-selected=true],.dsp-groups [aria-pressed=true]{background:var(--raised-2);border-color:var(--line-3);color:var(--text)}
+.dsp-panels{flex-wrap:wrap}
+.dsp-sep{width:1px;margin:4px 3px;background:var(--line-2)}
+.dsp-ab{display:flex;gap:6px}
+.dsp-ab .btn{height:30px;padding:0 12px;font-size:12px}
 .dsp-groups [data-group="0"][aria-pressed=true]{color:var(--bass)}
 .dsp-groups [data-group="1"][aria-pressed=true]{color:var(--mid)}
 .dsp-groups [data-group="2"][aria-pressed=true]{color:var(--high)}
@@ -522,6 +526,10 @@ label.mini input,label.mini select{height:30px;font-size:12.5px}
  body.dsp-stage .dsp-view{padding:8px}
  .dsp-panels,.dsp-groups{flex:1 1 100%}
  .dsp-panels button,.dsp-groups button{flex:1;padding:0 6px}
+ .dsp-sep{flex-basis:100%;height:0;margin:0}
+ .dsp-ab{flex:1 1 40%}
+ .dsp-ab:not([hidden])~.dsp-groups{flex:1 1 50%}
+ .dsp-ab .btn{flex:1;padding:0 6px}
  .dsp-caption{max-height:6em;overflow-y:auto;font-size:11.5px}
  body.stage-compact.dsp-stage .stage-view{height:min(36vh,90vw)}
  body.stage-compact .dsp-caption{display:none}

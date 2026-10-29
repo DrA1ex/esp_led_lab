@@ -88,8 +88,9 @@
   <div class="dsp-view" id="dsp-view" hidden>
    <div class="dsp-bar">
     <div class="dsp-panels" id="dsp-panels" role="tablist" aria-label="What the analyzer settings do">
-     <button type="button" role="tab" data-dsp="resolution">Resolution</button><button type="button" role="tab" data-dsp="level">Level</button><button type="button" role="tab" data-dsp="envelope">Envelope</button><button type="button" role="tab" data-dsp="onsets">Onsets</button><button type="button" role="tab" data-dsp="noise">Noise</button>
+     <button type="button" role="tab" data-dsp="resolution">Resolution</button><button type="button" role="tab" data-dsp="level">Level</button><button type="button" role="tab" data-dsp="envelope">Envelope</button><button type="button" role="tab" data-dsp="onsets">Onsets</button><button type="button" role="tab" data-dsp="noise">Noise</button><span class="dsp-sep" aria-hidden="true"></span><button type="button" role="tab" data-dsp="chain" title="One band group through every stage">Chain</button><button type="button" role="tab" data-dsp="map" title="All bands over time and how often each LED level occurs">Map</button><button type="button" role="tab" data-dsp="ab" title="Pinned settings against the current ones on the same audio">A/B</button>
     </div>
+    <div class="dsp-ab" id="dsp-ab" hidden><button type="button" class="btn" id="dsp-pin">Pin as A</button><button type="button" class="btn" id="dsp-unpin" hidden>Clear A</button></div>
     <div class="dsp-groups" id="dsp-groups" role="group" aria-label="Band group"><button type="button" data-group="0">Bass</button><button type="button" data-group="1">Mid</button><button type="button" data-group="2">High</button></div>
    </div>
    <div class="dsp-plot"><canvas id="dsp-canvas" aria-label="DSP view"></canvas></div>

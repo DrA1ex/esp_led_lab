@@ -20,7 +20,9 @@ async function init(){
   // A second renderer draws the palette swatches and color-effect thumbnails.
   STATE.modules.thumb=await WebAssembly.instantiate(module);
   STATE.canvases.new={off:document.createElement('canvas')};
-  STATE.modules.dsp=(await WebAssembly.instantiate(dsp)).instance;
+  const dspCode=await WebAssembly.instantiate(dsp);
+  // The module is kept for the DSP view's A/B instance.
+  STATE.modules.dsp=dspCode.instance;STATE.modules.dspModule=dspCode.module;
   STATE.ready=true;
   STATE.modules.new.exports.set_palette(3);
   initPickers();refreshLabels();resetDSP();

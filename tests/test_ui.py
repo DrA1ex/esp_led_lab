@@ -138,6 +138,31 @@ with sync_playwright() as p:
     assert page.locator('#stage-mode').is_hidden() and page.locator('#canvas-new').is_visible()
     print('PASS DSP view: stage switch on the Analyzer tab, panel follows the touched control, curve drawn')
 
+    # Views across settings stay while tuning; A/B runs the pinned settings on the same audio.
+    page.locator('#tab-analyzer').click()
+    page.locator('[data-dsp="chain"]').click()
+    page.locator('#attack').focus()
+    assert page.locator('[data-dsp="chain"]').get_attribute('aria-selected') == 'true' and page.locator('#dsp-groups').is_visible()
+    page.locator('[data-dsp="map"]').click()
+    page.locator('[data-dsp="ab"]').click()
+    assert page.locator('#dsp-pin').is_visible() and page.locator('#dsp-unpin').is_hidden()
+    page.locator('#empty-demo').click()
+    page.wait_for_function('STATE.playing && DSP_HIST.filled > 60', timeout=10000)
+    page.locator('#dsp-pin').click()
+    page.wait_for_timeout(1000)
+    same = "(()=>{const H=DSP_HIST,n=40;let d=0;for(let j=H.filled-n;j<H.filled;j++)for(let g=0;g<3;g++)d=Math.max(d,Math.abs(histAt(H.output[g],j)-histAt(H.abOutput[g],j)));return d;})()"
+    assert page.evaluate(same) < 1e-6, page.evaluate(same)
+    page.evaluate("$('release').value=700;$('release').dispatchEvent(new Event('input',{bubbles:true}))")
+    page.wait_for_timeout(1200)
+    assert page.evaluate(same) > .02, page.evaluate(same)
+    assert page.locator('[data-dsp="ab"]').get_attribute('aria-selected') == 'true'
+    assert page.evaluate("abDiffs(settings())") == ['Release 210 ms → 700 ms']
+    page.locator('#dsp-unpin').click()
+    assert page.evaluate('DSP.ab') is None
+    page.locator('#play').click()
+    page.evaluate("resetControls(['release']);refreshLabels()")
+    print('PASS DSP views: Chain / Map stay while tuning, A/B matches until a setting changes, then differs')
+
     if stored:
         # Remembered: effect, mode, layout, volume; the music column state. Reset all forgets them.
         page.evaluate("$('speed').value=40;$('speed').dispatchEvent(new Event('input',{bubbles:true}))")
