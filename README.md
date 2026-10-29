@@ -14,8 +14,8 @@ built with.
 
 ## Quick start
 
-- **Offline:** open `dist/standalone.html` in a recent browser. Everything,
-  including WASM, is inlined.
+- **Offline:** `make`, then open `dist/standalone.html` in a recent browser.
+  Everything, including WASM, is inlined.
 - **Development:** `make serve`, then open <http://localhost:8000/>. The
   microphone needs `localhost` or HTTPS.
 
@@ -27,7 +27,9 @@ browser.
 
 The player sits in the header: ⏮ (restarts the track after 3 s, otherwise
 previous), play/pause, ⏭, shuffle, repeat off / all / one, volume. Hotkeys:
-Space play/pause, ←/→ seek ±5 s, N / P next / previous. **📁 Folder…** replaces
+Space play/pause, ←/→ seek ±5 s, N / P next / previous. Headphone buttons,
+keyboard media keys and the OS media controls drive the player too (Media
+Session; a silent looped `<audio>` keeps the browser routing them to the page). **📁 Folder…** replaces
 the list with a folder's audio files (recursive, natural sort; Chrome/Edge
 remember it between reloads, other browsers use a folder upload), **+ Files…**
 and drag-and-drop of files or folders append.
@@ -136,8 +138,8 @@ web/                 development page (served as-is)
   js/audio.js        file / demo / microphone input and DSP feed
   js/playlist.js     playlist, folder / files / drop, next / previous, repeat, shuffle, hotkeys
   js/main.js         bootstrap, animation loop, UI wiring
-  wasm/              built render.wasm, dsp.wasm (committed)
-dist/standalone.html single-file build (committed)
+  wasm/              built render.wasm, dsp.wasm (make wasm, not committed)
+dist/standalone.html single-file build (make standalone, not committed)
 scripts/             build_wasm.sh, build_standalone.py, mock_remote_receiver.py
 tests/               Node/WASM unit tests (test_*.js), Chromium tests (test_*.py)
 docs/                accuracy notes, Remote Output protocol notes, history
@@ -158,7 +160,8 @@ make standalone # only dist/standalone.html
 WASM needs an LLVM with the `wasm32` target and `wasm-ld` (`brew install llvm lld`;
 Apple's `/usr/bin/clang` has no WebAssembly backend). `scripts/build_wasm.sh`
 finds Homebrew LLVM automatically; set `CXX=` to override. No Emscripten.
-Commit the rebuilt `web/wasm/` and `dist/` together with source changes.
+`web/wasm/` and `dist/` are build outputs and are ignored by git; `make serve`,
+`make test` and `make standalone` build the WASM first when it is missing or stale.
 
 ## Tests
 

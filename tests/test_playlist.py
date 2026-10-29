@@ -12,6 +12,9 @@ ROOT=Path(__file__).resolve().parents[1]
 errors=[]
 FAKES='''() => {
   window.__control=[];window.__http=[];window.__lamps={};
+  // Keep the Media Session handlers so the test can press "headphone buttons".
+  window.__media={};const setAction=navigator.mediaSession.setActionHandler.bind(navigator.mediaSession);
+  navigator.mediaSession.setActionHandler=(a,fn)=>{__media[a]=fn;setAction(a,fn);};
   const realFetch=window.fetch;
   window.fetch=(url,opts)=>{if(String(url).includes('/api/')){__http.push(String(url));return Promise.resolve(new Response(''));}return realFetch(url,opts);};
   window.WebSocket=class FakeSocket {
@@ -93,6 +96,25 @@ with sync_playwright() as p:
     page.keyboard.press('p')
     page.wait_for_function('STATE.playing && PL.current===1',timeout=10000)
     print('PASS next / previous / restart after 3 s / fast next / P hotkey')
+
+    # Headphones / media keys: a silent <audio> plays with the track so the browser
+    # routes them to the page; the Media Session actions drive the player.
+    page.wait_for_function('!MEDIA_KEEPALIVE.paused && navigator.mediaSession.playbackState==="playing"',timeout=5000)
+    page.evaluate('__media.pause()')
+    page.wait_for_function('!STATE.playing && MEDIA_KEEPALIVE.paused && navigator.mediaSession.playbackState==="paused"',timeout=5000)
+    page.evaluate('__media.play()')
+    page.wait_for_function('STATE.playing && !MEDIA_KEEPALIVE.paused && PL.current===1',timeout=5000)
+    page.evaluate('__media.nexttrack()')
+    page.wait_for_function('STATE.playing && PL.current===3',timeout=10000)
+    page.evaluate('__media.seekto({seekTime:3})')
+    page.wait_for_function('STATE.playing && STATE.context.currentTime-STATE.playStart>=2.9',timeout=5000)
+    page.evaluate('__media.previoustrack()') # after 3 s: restart
+    page.wait_for_function('STATE.playing && PL.current===3 && STATE.context.currentTime-STATE.playStart<1.5',timeout=5000)
+    page.keyboard.press('MediaPlayPause')
+    page.wait_for_function('!STATE.playing && MEDIA_KEEPALIVE.paused',timeout=5000)
+    page.keyboard.press('MediaPlayPause')
+    page.wait_for_function('STATE.playing && !MEDIA_KEEPALIVE.paused',timeout=5000)
+    print('PASS media session: silent keep-alive element, play / pause / next / previous / seek, keyboard media keys')
 
     # Repeat one: the same track starts again at its end.
     page.evaluate(TRACKS,0.8)

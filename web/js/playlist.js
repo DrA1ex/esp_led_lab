@@ -234,13 +234,17 @@ $('repeat').onclick=()=>{
 };
 
 // Hotkeys: Space play/pause, ←/→ seek ±5 s, N/P next/previous. Not while typing.
+// Keyboard media keys arrive here only while no Media Session claims them.
+function togglePlay(){if(STATE.playing)pauseAudio();else if(STATE.buffer||STATE.inputMode==='microphone')playAudio();}
+const MEDIA_KEYS={MediaPlayPause:togglePlay,MediaPlay:()=>playAudio(),MediaPause:()=>pauseAudio(),MediaStop:()=>pauseAudio(),MediaTrackNext:()=>nextTrack(),MediaTrackPrevious:()=>prevTrack()};
 document.addEventListener('keydown',e=>{
+ if(MEDIA_KEYS[e.key]){e.preventDefault();MEDIA_KEYS[e.key]();return;}
  if(e.ctrlKey||e.metaKey||e.altKey)return;
  const tag=document.activeElement?.tagName;
  if(['INPUT','SELECT','TEXTAREA'].includes(tag)||document.activeElement?.isContentEditable)return;
  if(e.code==='Space'){
   if(tag==='BUTTON')return; // the focused button handles Space itself
-  e.preventDefault();if(STATE.playing)pauseAudio();else if(STATE.buffer||STATE.inputMode==='microphone')playAudio();
+  e.preventDefault();togglePlay();
  }else if(e.key==='ArrowLeft'||e.key==='ArrowRight'){
   if(!STATE.buffer||STATE.inputMode!=='file')return;
   e.preventDefault();seekTo(playPosition()+(e.key==='ArrowRight'?5:-5));
@@ -248,20 +252,54 @@ document.addEventListener('keydown',e=>{
  else if(e.key==='p'||e.key==='P'){prevTrack();}
 });
 
-// Media Session: hardware media keys and the browser's media controls.
+// Media Session: headphone buttons, hardware media keys and the browser's media
+// controls. Browsers route those only to a page that plays a media element, and
+// Web Audio alone does not count, so a silent looped <audio> plays alongside.
+// Chrome ignores elements shorter than 5 s, hence 8 s of 8 kHz 8-bit silence.
+const MEDIA_KEEPALIVE=(()=>{
+ const rate=8000,n=rate*8,b=new ArrayBuffer(44+n),v=new DataView(b);
+ const w=(o,s)=>[...s].forEach((c,i)=>v.setUint8(o+i,c.charCodeAt(0)));
+ w(0,'RIFF');v.setUint32(4,36+n,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
+ v.setUint32(24,rate,true);v.setUint32(28,rate,true);v.setUint16(32,1,true);v.setUint16(34,8,true);w(36,'data');v.setUint32(40,n,true);
+ new Uint8Array(b,44).fill(128); // unsigned 8-bit: 128 is silence
+ const a=document.createElement('audio');a.src=URL.createObjectURL(new Blob([b],{type:'audio/wav'}));a.loop=true;a.preload='auto';
+ a.setAttribute('aria-hidden','true');
+ return a;
+})();
+function syncKeepAlive(){
+ const a=MEDIA_KEEPALIVE;
+ if(STATE.playing){if(a.paused)a.play().catch(()=>{});}
+ else if(!a.paused)a.pause();
+}
+// Safari lets an element play from a timer only after it has played once in a gesture.
+for(const ev of ['pointerdown','keydown'])document.addEventListener(ev,function unlock(){
+ for(const e of ['pointerdown','keydown'])document.removeEventListener(e,unlock,true);
+ if(!MEDIA_KEEPALIVE.paused)return;
+ MEDIA_KEEPALIVE.play().then(()=>{if(!STATE.playing)MEDIA_KEEPALIVE.pause();}).catch(()=>{});
+},true);
 function mediaSession(){
+ syncKeepAlive();
  const ms=navigator.mediaSession;if(!ms)return;
  try{
   const title=STATE.inputMode==='microphone'?'Microphone':STATE.fileName||'ESP LED Music Lab';
   if(ms.metadata?.title!==title&&typeof MediaMetadata==='function')ms.metadata=new MediaMetadata({title,artist:'ESP LED Music Lab'});
-  ms.playbackState=STATE.playing?'playing':STATE.buffer?'paused':'none';
+  ms.playbackState=STATE.playing?'playing':STATE.buffer||STATE.inputMode==='microphone'?'paused':'none';
+  if(ms.setPositionState){
+   const d=STATE.buffer?.duration;
+   if(STATE.inputMode==='file'&&d&&!STATE.loopDemo)ms.setPositionState({duration:d,playbackRate:1,position:Math.min(d,Math.max(0,playPosition()))});
+   else ms.setPositionState();
+  }
  }catch(_){}
 }
 try{
  const ms=navigator.mediaSession;
  if(ms){
-  const actions={play:()=>playAudio(),pause:()=>pauseAudio(),previoustrack:prevTrack,nexttrack:nextTrack,
+  // Each action updates the session at once rather than on the next poll.
+  const after=fn=>async d=>{try{await fn(d);}catch(err){console.error(err);}mediaSession();};
+  const seekBy=s=>d=>{if(STATE.buffer&&STATE.inputMode==='file')seekTo(playPosition()+s*(d?.seekOffset||5));};
+  const actions={play:()=>playAudio(),pause:()=>pauseAudio(),stop:()=>pauseAudio(),previoustrack:prevTrack,nexttrack:nextTrack,
+   seekbackward:seekBy(-1),seekforward:seekBy(1),
    seekto:d=>{if(Number.isFinite(d.seekTime))seekTo(d.seekTime);}};
-  for(const [a,fn] of Object.entries(actions))try{ms.setActionHandler(a,fn);}catch(_){}
+  for(const [a,fn] of Object.entries(actions))try{ms.setActionHandler(a,after(fn));}catch(_){}
  }
 }catch(_){}
