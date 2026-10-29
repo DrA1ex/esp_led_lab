@@ -126,8 +126,10 @@
     <div class="field"><label for="audio-min">Reaction from <span class="value" id="audio-min-value">0</span></label><input id="audio-min" type="range" min="0" max="255" value="0"></div>
     <div class="field"><label for="audio-max">Reaction to <span class="value" id="audio-max-value">255</span></label><input id="audio-max" type="range" min="0" max="255" value="255"></div>
    </div>
+   <div class="field"><label for="input-curve">Curve <span class="value" id="input-curve-value">linear</span></label><input id="input-curve" type="range" min="-100" max="100" value="0"></div>
    <label class="toggle"><input type="checkbox" id="input-gate"> Signal below “from” turns off (0)</label>
    <p class="hint">The signal window “from–to” is stretched onto the reaction “from–to”. Above “to” the reaction is always at maximum; below “from” it stays at the minimum, or 0. Example: signal 0–60% → reaction 150–250.</p>
+   <p class="hint">Curve bends the stretch: LED brightness looks logarithmic (50% → 100% barely changes), so a curve of ×2–×2.5 keeps quiet and mid signals dim and makes the reaction look even. Below linear it lifts quiet signals.</p>
   </div>
   <div class="block" data-modes="1,2,3,4,6,7,11,12">
    <div class="block-head"><span>Start and direction</span><button class="ghost small" id="origin-reset" type="button">Reset</button></div>

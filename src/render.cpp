@@ -26,8 +26,12 @@ static float spectrum_expression=0.f,spectrum_onset=0.f,line_expression=0.f;
 static int speed_floor=0;
 // Signal window: input range [in_min,in_max] (of 255) is stretched onto
 // audio_min..audio_max; below in_min gives the minimum (or 0 with in_gate),
-// above in_max the maximum. Defaults reproduce the firmware mapping.
-static int in_min=0,in_max=255;static bool in_gate=false;
+// above in_max the maximum. In between, the window position t goes through
+// t^(in_curve/100) via a 257-entry table filled by the host (curve_table_ptr)
+// with round(65535 * (i/256)^gamma), like firmware TransferCurve.
+// Defaults reproduce the firmware mapping.
+static int in_min=0,in_max=255,in_curve=100;static bool in_gate=false;
+static uint16_t curve_table[257];
 // Origin of every spatial audio mode (firmware RemoteReactive::Origin): the
 // start/centre shift in permille of W, reverse direction, ring wrap, and a
 // radial centre at row origin_y (permille of H-1) for matrices. Defaults ==
@@ -91,11 +95,16 @@ static inline int scaled_audio(float normalized,int count){
  int lo=mini(audio_min,audio_max),hi=audio_max;
  int count_min=lo*count/255,count_max=hi*count/255;
  float v=source_value(normalized);
- if(in_min!=0||in_max!=255||in_gate){
+ if(in_min!=0||in_max!=255||in_gate||in_curve!=100){
   // Same rule as firmware audioTransfer() (src/audio/transfer.h).
   if(v*255.f<in_min)return in_gate?0:count_min;
   if(v*255.f>=in_max)return count_max;
   v=(v*255.f-in_min)/(in_max-in_min);
+  if(in_curve!=100){
+   const int t16=(int)(v*65535.f);
+   if(t16>=65535)v=1.f;
+   else{const int i=t16>>8,frac=t16&255;v=(curve_table[i]+(int(curve_table[i+1])-int(curve_table[i]))*frac/256)/65535.f;}
+  }
  }
  return count_min+(int)(v*(count_max-count_min));
 }
@@ -274,7 +283,9 @@ __attribute__((visibility("default"))) void set_reaction_tuning(float spectrum_s
  line_expression=clampf(line_response,0.f,1.f);
  speed_floor=maxi(0,mini(255,floor_speed));
 }
-__attribute__((visibility("default"))) void set_audio_window(int lo,int hi,int gate){in_min=maxi(0,mini(lo,255));in_max=maxi(0,mini(hi,255));in_gate=gate!=0;}
+// curve: exponent x 100 (25..400); 0 (omitted) means linear. Fill curve_table first.
+__attribute__((visibility("default"))) void set_audio_window(int lo,int hi,int gate,int curve){in_min=maxi(0,mini(lo,255));in_max=maxi(0,mini(hi,255));in_gate=gate!=0;in_curve=curve<=0?100:maxi(25,mini(curve,400));}
+__attribute__((visibility("default"))) uint16_t* curve_table_ptr(){return curve_table;}
 __attribute__((visibility("default"))) void set_origin(int shift,int y,int reverse,int ring,int radial){origin_shift=maxi(-500,mini(shift,500));origin_y=maxi(0,mini(y,1000));origin_reverse=reverse!=0;origin_ring=ring!=0;origin_radial=radial!=0;}
 __attribute__((visibility("default"))) void reset_render(){time_ms=phase_color=phase_bright=0;fastled_seed=1337;for(int i=0;i<100;i++)particles[i].brightness=0;for(int i=0;i<MAX_PIX*4;i++)rgba[i]=0;}
 __attribute__((visibility("default"))) void render_frame(float dt){

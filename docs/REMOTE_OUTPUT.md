@@ -133,6 +133,12 @@ Changes made together with the firmware (`esp_led_lamp`, `feature/remote-audio-d
 - **Signal window** (`input_min`, `input_max`, `input_gate`): the *Reaction
   range* block stretches a chosen input range onto the reaction range and can
   cut everything below it to 0. Same rule as firmware `audioTransfer()`.
+- **Curve** (`input_curve`, exponent × 100, 25–400, 100 = linear): bends the
+  stretch inside the window to `t^(curve / 100)`. LED brightness looks
+  logarithmic, so ×2–×2.5 keeps quiet and mid signals dim and makes the
+  reaction look even; below ×1 lifts quiet signals. The slider is
+  logarithmic (centre = linear); the renderer uses the same 257-entry table
+  as firmware `TransferCurve`, filled by the page.
 - **Origin** (`origin_shift` in ‰ of WIDTH, `origin_reverse`, `origin_ring`,
   `origin_radial`, `origin_y`): the *Start and direction* block moves the
   start of every spatial mode and the center of the Center modes. The slider

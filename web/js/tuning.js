@@ -28,9 +28,17 @@ const originPermille=(s,w)=>Math.max(-500,Math.min(500,Math.round((+s['origin-sh
 function originArgs(s,w){
  return [originPermille(s,w),s['origin-y'],s['origin-reverse']?1:0,s['origin-ring']?1:0,s['origin-radial']?1:0];
 }
+// Curve slider -100..100 -> exponent x 100 on a log scale (25..400, 0 = linear),
+// the input_curve wire value.
+const curveExponent=s=>Math.max(25,Math.min(400,Math.round(100*Math.pow(4,(+s['input-curve']||0)/100))));
+// Fill the renderer's table like firmware TransferCurve: round(65535 * (i/256)^gamma).
+function fillCurveTable(m,curve){
+ const table=new Uint16Array(m.memory.buffer,m.curve_table_ptr(),257),gamma=curve/100;
+ for(let i=0;i<=256;i++)table[i]=Math.round(65535*Math.pow(i/256,gamma));
+}
 // Fields for config (docs/REMOTE_AUDIO_PROTOCOL.md, "Tuning").
 function tuningConfig(s,w){
- return {input_min:s['input-min'],input_max:s['input-max'],input_gate:s['input-gate'],
+ return {input_min:s['input-min'],input_max:s['input-max'],input_gate:s['input-gate'],input_curve:curveExponent(s),
   origin_shift:originPermille(s,w),origin_y:s['origin-y'],origin_reverse:s['origin-reverse'],
   origin_ring:s['origin-ring'],origin_radial:s['origin-radial']};
 }
@@ -40,7 +48,7 @@ function transferValue(v,s){
  const inMin=s['input-min'],inMax=s['input-max'],x=Math.max(0,Math.min(1,v))*255;
  if(x<inMin)return s['input-gate']?0:lo;
  if(x>=inMax)return hi;
- return lo+(x-inMin)/(inMax-inMin)*(hi-lo);
+ return lo+Math.pow((x-inMin)/(inMax-inMin),curveExponent(s)/100)*(hi-lo);
 }
 
 // Column where the effect starts (normal modes) or is centred (Center modes).
@@ -70,6 +78,8 @@ function refreshTuningUi(s,g){
  $('origin-y-value').textContent=Math.round(s['origin-y']/10)+'%';
  $('input-min-value').textContent=Math.round(s['input-min']/2.55)+'%';
  $('input-max-value').textContent=Math.round(s['input-max']/2.55)+'%';
+ const curve=curveExponent(s);
+ $('input-curve-value').textContent=curve===100?'linear':`×${(curve/100).toFixed(2)}`;
  const centered=CENTERED_MODES.includes(mode),at=originColumn(s,g,centered),unit=isStrip(g)?'LED':'column';
  const where=at<0?'off the edge':`${unit} ${at+1} of ${g.w}`;
  $('origin-hint').textContent=(centered?`Center: ${where}. `:`Start: ${where}, running ${s['origin-reverse']?'left':'right'}. `)+
@@ -143,7 +153,7 @@ function pickOrigin(ev){
 function initTuning(){
  for(const id of ['input-min','input-max'])$(id).addEventListener('input',()=>keepWindow(id));
  $('range-reset').onclick=()=>{
-  Object.entries({'input-min':0,'input-max':255,'audio-min':0,'audio-max':255}).forEach(([k,v])=>$(k).value=v);
+  Object.entries({'input-min':0,'input-max':255,'input-curve':0,'audio-min':0,'audio-max':255}).forEach(([k,v])=>$(k).value=v);
   $('input-gate').checked=false;refreshLabels();
  };
  $('origin-reset').onclick=()=>{

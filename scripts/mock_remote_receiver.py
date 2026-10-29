@@ -77,7 +77,8 @@ def receiver(ws):
             print('clock', msg)
             ws.send(json.dumps(dict(type='clock_ack', session=1)))
         elif op == 'config':
-            ok = msg.get('input_min', 0) < msg.get('input_max', 255)
+            ok = (msg.get('input_min', 0) < msg.get('input_max', 255)
+                  and 25 <= msg.get('input_curve', 100) <= 400)
             print('config', msg)
             ws.send(json.dumps(dict(type='config_ack', session=1) if ok
                                else dict(type='error', reason='invalid_config')))

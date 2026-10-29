@@ -26,7 +26,8 @@ function refreshLabels(){
   m.apply_palette_gamma();
   m.set_reaction_tuning(s['spectrum-shape']/100,s['spectrum-onset']/100,s['line-response']/100,0);
   m.set_effects(s.color,s.brightness,s['audio-mode']);m.set_parameters(s.speed,s.scale,s.light,s.mix/100);m.set_audio_range(s['audio-min'],s['audio-max']);
-  m.set_audio_window(s['input-min'],s['input-max'],s['input-gate']?1:0);m.set_origin(...originArgs(s,g.w));
+  const curve=curveExponent(s);fillCurveTable(m,curve);
+  m.set_audio_window(s['input-min'],s['input-max'],s['input-gate']?1:0,curve);m.set_origin(...originArgs(s,g.w));
  }
  refreshTuningUi(s,g);
  refreshEffective();

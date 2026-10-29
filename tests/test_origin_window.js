@@ -33,6 +33,16 @@ assert.equal(lineAt(40/255,m=>{m.set_audio_range(100,200);m.set_audio_window(50,
 assert.equal(lineAt(40/255,m=>{m.set_audio_range(100,200);m.set_audio_window(50,100,1);}),0,'gate -> 0');
 assert.equal(lineAt(.9,m=>{m.set_audio_range(100,200);m.set_audio_window(50,100,1);}),Math.floor(200*100/255),'above window -> output max');
 
+// Curve: the host fills the table like firmware TransferCurve; 100 (or 0) is
+// linear, x2 squares the window position, the ends stay fixed.
+const curved=c=>m=>{const t=new Uint16Array(m.memory.buffer,m.curve_table_ptr(),257);
+ for(let i=0;i<=256;i++)t[i]=Math.round(65535*Math.pow(i/256,c/100));m.set_audio_window(0,255,0,c);};
+for(const v of [0,.2,.5,.8])assert.equal(lineAt(v,curved(100)),lineAt(v),'curve 100 == linear');
+const near=(a,b,msg)=>assert(Math.abs(a-b)<=1,`${msg}: ${a} vs ${b}`);
+near(lineAt(.5,curved(200)),25,'x2: half signal -> quarter line');
+near(lineAt(.25,curved(50)),50,'x0.5: quarter signal -> half line');
+assert.equal(lineAt(1,curved(200)),100);assert.equal(lineAt(0,curved(200)),0);
+
 // Line shifted by 25 %: starts at LED 25; without ring the first 25 stay dark.
 const shifted=frame(100,1,6,loud(.5),m=>m.set_origin(250,500,0,0,0));
 assert(!shifted(24)&&shifted(25)&&shifted(25+48)&&!shifted(25+51));
