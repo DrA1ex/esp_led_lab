@@ -174,29 +174,31 @@ struct VizHost {
  int height()const{return H;}
  int originX(int x)const{return origin_x(x);}
  bool radial()const{return origin_is_radial();}
- float radialRow()const{return origin_row();}
- float transfer(float v)const{return scaled_audio(v,1000)/1000.f;}
- float control()const{return features[23];}
+ // The engine is integer only (Q12 levels, like the lamp gets them on the wire).
+ static int q12(float v){return (int)(clampf(v,0.f,1.f)*4096.f+.5f);}
+ int radialRow()const{return (int)(origin_row()*256.f);}
+ int transfer(int v)const{return scaled_audio(v/4096.f,4096);}
+ int control()const{return q12(features[23]);}
  // VU, Flow, Pulses...: the control source blended with the fast line envelope (Fast line response).
- float lineSource()const{return (1.f-line_expression)*features[23]+line_expression*features[159];}
- float level(int g)const{return features[156+g];}
- float pulse(int g)const{return features[16+g];}
+ int lineSource()const{return q12((1.f-line_expression)*features[23]+line_expression*features[159]);}
+ int level(int g)const{return q12(features[156+g]);}
+ int pulse(int g)const{return q12(features[16+g]);}
  int bandCount()const{const int n=band_count();return n?n:16;}
- float band(int i)const{return band_count()?features[160+i]:features[i];}
- float wave(int index,int span)const{return wave_value(index,span);}
+ int band(int i)const{return q12(band_count()?features[160+i]:features[i]);}
+ int wave(int index,int span)const{return q12(wave_value(index,span));}
  uint8_t random8(){return fl_random8(fastled_seed);}
  int16_t sin16(uint16_t t)const{return fl_sin16(t);}
  uint16_t noise(uint32_t x,uint32_t y)const{return fl_inoise16(x,y);}
  uint16_t noise(uint32_t x,uint32_t y,uint32_t z)const{return fl_inoise16(x,y,z);}
- void put(int x,int y,float v,int hue){
-  if(viz_color){multiply_pixel(x,y,1.f-audio_mix+audio_mix*v);return;}
-  const unsigned c=pal(unsigned(hue)*15,u8((int)(v*255.f)));
+ void put(int x,int y,uint8_t v,uint8_t hue){
+  if(viz_color){multiply_pixel(x,y,1.f-audio_mix+audio_mix*v/255.f);return;}
+  const unsigned c=pal(unsigned(hue)*15,v);
   if(audio_mix>=1.f)pixel(x,y,c);else rgb_lerp_pixel(x,y,c,u8((int)(audio_mix*255.f)));
  }
 };
 static VizHost viz_host;
 static Viz::Engine<VizHost,MAX_PIX> viz;
-static void render_viz(float dt){viz.render(viz_host,uint8_t(audio_fx-VIZ_FIRST),dt);}
+static void render_viz(float dt_ms){viz.render(viz_host,uint8_t(audio_fx-VIZ_FIRST),uint16_t(clampf(dt_ms,1.f,1000.f)+.5f));}
 
 // Authentic preset stop colors copied from src/fx/palette_def.h; interpolation uses src/utils/palette.cpp approach.
 // All firmware PaletteEnum entries in the exact source order, Custom last.
@@ -326,7 +328,7 @@ __attribute__((visibility("default"))) void set_reaction_tuning(float spectrum_s
 __attribute__((visibility("default"))) void set_audio_window(int lo,int hi,int gate,int curve){in_min=maxi(0,mini(lo,255));in_max=maxi(0,mini(hi,255));in_gate=gate!=0;in_curve=curve<=0?100:maxi(25,mini(curve,400));}
 __attribute__((visibility("default"))) uint16_t* curve_table_ptr(){return curve_table;}
 // Lab-only modes 13..20: palette (0) or effect (1) colours, mirror, decay and speed 0..1, auto-level.
-__attribute__((visibility("default"))) void set_visualization(int color,int mirror,float decay,float motion,int autolevel_on){viz_color=color!=0;viz.settings.mirror=mirror!=0;viz.settings.autolevel=autolevel_on!=0;viz.settings.decay=clampf(decay,0.f,1.f);viz.settings.speed=clampf(motion,0.f,1.f);}
+__attribute__((visibility("default"))) void set_visualization(int color,int mirror,float decay,float motion,int autolevel_on){viz_color=color!=0;viz.settings.mirror=mirror!=0;viz.settings.autolevel=autolevel_on!=0;viz.settings.decay=uint8_t(clampf(decay,0.f,1.f)*100.f+.5f);viz.settings.speed=uint8_t(clampf(motion,0.f,1.f)*100.f+.5f);}
 __attribute__((visibility("default"))) void set_origin(int shift,int y,int reverse,int ring,int radial){origin_shift=maxi(-500,mini(shift,500));origin_y=maxi(0,mini(y,1000));origin_reverse=reverse!=0;origin_ring=ring!=0;origin_radial=radial!=0;}
 __attribute__((visibility("default"))) void reset_render(){time_ms=phase_color=phase_bright=0;fastled_seed=1337;viz.invalidate();for(int i=0;i<100;i++)particles[i].brightness=0;for(int i=0;i<MAX_PIX*4;i++)rgba[i]=0;}
 __attribute__((visibility("default"))) void render_frame(float dt){
@@ -488,7 +490,7 @@ __attribute__((visibility("default"))) void render_frame(float dt){
    float bright=clampf(.30f+features[mini(15,xp*16/W)]*.6f+ripple*.6f,0,1);
    multiply_pixel(x,y,1-audio_mix+audio_mix*bright);
  }}
- if(audio_fx>=VIZ_FIRST)render_viz(dt/1000.f);
+ if(audio_fx>=VIZ_FIRST)render_viz(dt);
  speed=preset_speed;scale=preset_scale;light=preset_light;
  }
 }

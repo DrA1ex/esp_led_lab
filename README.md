@@ -80,7 +80,7 @@ lamp only receives bands, so neither setting needs firmware support.
 ```
 src/                 C++ sources compiled to WebAssembly
   render.cpp         effect renderer (ported color/brightness/audio effects)
-  viz_engine.h       visualizations 13..25, shared byte-for-byte with the firmware
+  viz_engine.h       visualizations 13..25 (integer only), shared byte-for-byte with the firmware
   dsp.cpp            FFT/onset/BPM DSP (+ the firmware's original analyzers, used by tests)
   fastled_compat.h   FastLED 3.6.0 fixed-point math port
   tables.h           lookup tables

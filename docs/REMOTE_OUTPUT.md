@@ -183,6 +183,8 @@ Changes made together with the firmware (`esp_led_lamp`, `feature/remote-audio-d
 (`esp_led_lamp/src/remote_audio/viz_engine.h`, effect ids 12–24 = lab modes
 13–25). `render.cpp` and the firmware only supply the inputs and the pixel
 output, so the lamp draws what the preview shows (random sparks aside).
+The engine is integer only (Q12 levels, ms, 1/16-LED positions), because the
+ESP8266 has no FPU; the lab host converts its float features to Q12.
 Firmware with them lists the ids in `hello_ack.visualizations`; the lab sends
 the mode and `viz_color`, `viz_mirror`, `viz_auto`, `viz_decay`,
 `viz_motion` (percent) to those lamps and Off to older ones (the lamp card
