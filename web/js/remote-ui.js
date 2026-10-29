@@ -60,11 +60,11 @@ function remoteRuntimeConfig(){const s=settings();return {
   speed_floor:0,spectrum_shape:s['spectrum-shape'],spectrum_onset:s['spectrum-onset'],
   ...tuningConfig(s,currentGeometry().w)
  };}
-function remoteFrame(snapshot,timestamp,mask){
- const count=+($('remote-bands').value);
+// One frame per band count; all counts of a moment share the sequence number.
+function remoteFrame(snapshot,timestamp,mask,count,seq){
  const bands=(count===16?snapshot.r16:count===32?snapshot.r32:snapshot.r64);
  const norm=n=>Math.round(Math.max(0,Math.min(1,Number.isFinite(n)?n:0))*4096);
- return {session:RS.session,seq:RS.seq++,timestamp:timestamp,live:STATE.inputMode==='microphone',
+ return {session:RS.session,seq,timestamp:timestamp,live:STATE.inputMode==='microphone',
   // rms carries the AGC-normalised loudness envelope (the new-FFT default control
   // source and wave history), not the raw frame RMS: raw RMS depended on track
   // mastering level and rarely exceeded ~40% of the range on the lamp.
@@ -119,8 +119,37 @@ function remoteTick(){
  for(const f of RS.frames)if(f.sample>RS.lastSentSample&&f.sample<=pick.sample)
   for(let i=0;i<3;i++)if(f.events[i]>0)mask|=(1<<i);
  RS.lastSentSample=pick.sample;
- REMOTE.stream(remoteFrame(pick,timestamp,mask),remoteRuntimeConfig());
+ const seq=RS.seq++,frames={},base=remoteRuntimeConfig();
+ REMOTE.stream(d=>{const n=lampBands(d);return frames[n]||=remoteFrame(pick,timestamp,mask,n,seq);},d=>lampConfig(d,base));
 }
+
+// Per-lamp adaptation ("Adapt to each lamp"): band count from the lamp's
+// width, and optional mode / start-point overrides kept per lamp URL.
+const PROFILES_KEY='esp-led-lab.lamp-profiles';
+let LAMP_PROFILES={};
+try{LAMP_PROFILES=JSON.parse(localStorage.getItem(PROFILES_KEY)||'{}')||{};}catch(_){}
+const lampAdapt=()=>Boolean($('remote-adapt')?.checked);
+const lampProfile=d=>LAMP_PROFILES[d.url]||{mode:'',bands:'',shift:''};
+function setLampProfile(d,key,value){
+ LAMP_PROFILES[d.url]={...lampProfile(d),[key]:value};
+ try{localStorage.setItem(PROFILES_KEY,JSON.stringify(LAMP_PROFILES));}catch(_){}
+ d.stop(); // the next frame restarts the session with the new config / band count
+}
+function lampBands(d){
+ if(!lampAdapt())return +$('remote-bands').value;
+ const p=lampProfile(d);
+ if(p.bands&&d.supported.includes(+p.bands))return +p.bands;
+ return RemoteAudio.pickBands(d.width||currentGeometry().w,d.supported);
+}
+function lampConfig(d,base){
+ if(!lampAdapt())return base;
+ const p=lampProfile(d),c={...base};
+ if(p.mode!=='')c.audio_effect=+p.mode;
+ // Start offset in this lamp's own LEDs; otherwise the lab's offset as a share of the width.
+ if(p.shift!==''&&d.width>0)c.origin_shift=Math.max(-500,Math.min(500,Math.round(+p.shift*1000/d.width)));
+ return c;
+}
+const modeName=v=>[...$('audio-mode').options].find(o=>+o.value===+v)?.textContent||String(v);
 // Lamp cards are keyed by device and updated in place every 500 ms, so
 // buttons keep focus and hover state.
 const LAMP_CARDS=new Map();
@@ -139,13 +168,24 @@ function lampCard(d){
  card=document.createElement('div');card.className='lamp';
  card.innerHTML='<div class="lamp-row"><input type="checkbox" title="Send audio to this lamp"><span class="lamp-name"></span><span class="lamp-badge"></span>'+
   '<div class="lamp-actions"><button class="ghost lamp-geo" title="Use this lamp\'s size for the preview" hidden></button><button class="ghost lamp-connect"></button>'+
-  '<button class="ghost lamp-remove" title="Remove lamp" aria-label="Remove lamp">×</button></div></div><div class="lamp-stats"></div>';
+  '<button class="ghost lamp-remove" title="Remove lamp" aria-label="Remove lamp">×</button></div></div>'+
+  '<div class="lamp-tune"><label>Mode<select class="lamp-mode"></select></label><label>Bands<select class="lamp-bands">'+
+  '<option value="">Auto</option><option>16</option><option>32</option><option>64</option></select></label>'+
+  '<label>Start, LED<input class="lamp-shift" type="number" step="1" placeholder="lab"></label></div><div class="lamp-stats"></div>';
  const q=sel=>card.querySelector(sel);
  q('input').onchange=e=>{d.selected=e.target.checked;d.stop();};
  q('.lamp-geo').onclick=()=>applyGeometry(d.width,d.height);
  q('.lamp-connect').onclick=()=>d.socket?d.disconnect():d.connect();
  q('.lamp-remove').onclick=()=>{REMOTE.remove(d);saveLamps();};
  q('.lamp-name').textContent=d.address;
+ // Firmware modes only: the lab-preview modes do not exist on the lamp.
+ q('.lamp-mode').innerHTML='<option value="">Same as the lab</option>'+[...$('audio-mode').options]
+  .filter(o=>!LAB_MODES.includes(+o.value)).map(o=>`<option value="${o.value}">${o.textContent}</option>`).join('');
+ const p=lampProfile(d);
+ q('.lamp-mode').value=p.mode;q('.lamp-bands').value=p.bands;q('.lamp-shift').value=p.shift;
+ q('.lamp-mode').onchange=e=>setLampProfile(d,'mode',e.target.value);
+ q('.lamp-bands').onchange=e=>setLampProfile(d,'bands',e.target.value);
+ q('.lamp-shift').onchange=e=>setLampProfile(d,'shift',e.target.value===''?'':String(Math.round(+e.target.value)||0));
  LAMP_CARDS.set(d,card);
  return card;
 }
@@ -156,11 +196,14 @@ function updateLampCard(d){
  const geo=q('.lamp-geo');geo.hidden=!(d.width>0&&d.height>0);
  if(!geo.hidden)geo.textContent=geometryLabel(clampGeometry(d.width,d.height));
  q('.lamp-connect').textContent=d.socket?'Disconnect':'Connect';
+ q('.lamp-tune').hidden=!lampAdapt();
  const stats=[];
  if(d.socket&&d.status==='ready'){
   stats.push(`RTT ${Number.isFinite(d.rtt)?d.rtt.toFixed(1)+' ms':'—'}`,`sent ${d.sent}`,`received ${d.received}`,`buffer ${d.buffered}`);
   if(d.dropped||d.receiverDropped)stats.push(`<span class="warn">dropped ${d.dropped} / ${d.receiverDropped}</span>`);
   if(!d.capabilities.includes('tuning'))stats.push('<span class="warn">older firmware: no reaction tuning</span>');
+  const mode=lampConfig(d,remoteRuntimeConfig()).audio_effect;
+  stats.push(`sends ${lampBands(d)} bands · ${mode?modeName(mode):'audio off'}`);
  }
  if(d.lastError)stats.push(`<span class="err">${d.lastError.replace(/[<>&]/g,'')}</span>`);
  const html=stats.join('<span>·</span>');
@@ -190,7 +233,7 @@ function renderRemoteDevices(){
  if(!REMOTE.devices.length)parts.push('Add a lamp by IP or host name');
  else parts.push(`${STATE.playing?'Audio running':'Audio stopped'} · lamps ready: ${ready.length}`);
  if(RS.late)parts.push(`skipped frames: ${RS.late}`);
- const unsupported=ready.filter(d=>!d.supported.includes(bands));
+ const unsupported=ready.filter(d=>!d.supported.includes(lampBands(d)));
  if(unsupported.length)parts.push(`lamp accepts only ${unsupported.map(d=>d.supported.join('/')).join(', ')} bands`);
  text.textContent=parts.join(' · ');
 }
@@ -204,6 +247,7 @@ function initRemote(){
   else remoteInvalidate();renderRemoteDevices();
  };
  $('remote-bands').onchange=()=>{remoteInvalidate();renderRemoteDevices();};
+ $('remote-adapt').onchange=()=>{remoteInvalidate();renderRemoteDevices();};
  $('remote-latency').oninput=()=>{$('remote-latency-value').textContent=$('remote-latency').value+' ms';};
  setInterval(remoteTick,10);setInterval(renderRemoteDevices,500);
 }

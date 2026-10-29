@@ -40,4 +40,19 @@ for(const size of [256,512,1024]){
  }
  assert(nonzero.every(Boolean),`no bands for FFT ${size}: ${nonzero}`);
 }
+// Per-lamp adaptation: about one band per column, limited to what the lamp accepts.
+{
+ const pick=RemoteAudio.pickBands;
+ assert.equal(pick(7),16);assert.equal(pick(24),16);assert.equal(pick(34),32);assert.equal(pick(48),32);
+ assert.equal(pick(60),64);assert.equal(pick(153),64);assert.equal(pick(16),16);assert.equal(pick(72),64);
+ assert.equal(pick(7,[32]),32,'32-only firmware');assert.equal(pick(153,[16,32]),32,'largest accepted');
+ assert.equal(pick(7,[32,64]),32,'next larger accepted');assert.equal(pick(7,[]),32);
+ // Hub.stream takes per-device frame / config functions.
+ const hub=new RemoteAudio.Hub(),got=[];
+ for(const width of [7,153])hub.devices.push({width,stream:(frame,config)=>got.push([width,frame,config])});
+ hub.stream(d=>({bands:pick(d.width)}),d=>({audio_effect:d.width>100?3:5}));
+ assert.deepEqual(got,[[7,{bands:16},{audio_effect:5}],[153,{bands:64},{audio_effect:3}]]);
+ got.length=0;hub.stream({bands:32},{audio_effect:1});
+ assert.deepEqual(got.map(g=>g[1].bands),[32,32],'plain values still go to every lamp');
+}
 console.log('PASS remote v1 16/32/64 binary vectors + C++/WASM single-FFT spectra (256/512/1024)');

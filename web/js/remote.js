@@ -25,6 +25,16 @@ const RemoteAudio = (() => {
   for(let i=0;i<count;i++)view.setUint16(38+i*2,u16(f.bands[i]),true);
   return buffer;
  };
+ // Band count for a lamp of `width` columns: about one band per column (fewer
+ // bands than columns are interpolated, more are averaged), as the nearest
+ // count the lamp accepts, preferring the larger one.
+ function pickBands(width,supported=COUNTS){
+  const want=width<=24?16:width<=48?32:64;
+  const ok=COUNTS.filter(n=>supported.includes(n));
+  if(!ok.length)return 32;
+  if(ok.includes(want))return want;
+  return ok.find(n=>n>want)??ok[ok.length-1];
+ }
  function addressToUrl(address){
   const v=address.trim();if(!v)throw new Error('Specify device address');
   if(v.includes('://')&&!/^wss?:\/\//i.test(v))throw new Error('Only ws:// or wss:// addresses are supported');
@@ -165,9 +175,10 @@ const RemoteAudio = (() => {
   remove(d){d.disconnect();this.devices=this.devices.filter(x=>x!==d);this.onChange();}
   tick(){const t=now();for(const d of this.devices)d.tick(t);}
   stop(){for(const d of this.devices)d.stop();this.onChange();}
-  stream(frame,config){for(const d of this.devices)d.stream(frame,config);}
+  // frame / config may be functions of the device (per-lamp adaptation).
+  stream(frame,config){for(const d of this.devices)d.stream(typeof frame==='function'?frame(d):frame,typeof config==='function'?config(d):config);}
   get available(){return this.devices.some(d=>d.selected&&d.status==='ready'&&d.synced);}
  }
- return {serialize,addressToUrl,Hub,Device,newId};
+ return {serialize,addressToUrl,pickBands,Hub,Device,newId};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=RemoteAudio;

@@ -75,6 +75,8 @@
     <label>Spectrum bands<select id="remote-bands"><option value="16">16</option><option value="32" selected>32</option><option value="64">64</option></select></label>
     <label>Light offset, ms <span class="value" id="remote-latency-value">0 ms</span><input type="number" min="-100" max="500" step="5" value="0" id="remote-latency"></label>
    </div>
+   <label class="toggle"><input type="checkbox" id="remote-adapt" checked> Adapt to each lamp</label>
+   <p class="hint">Each lamp gets the band count that fits its width (about one band per column; “Spectrum bands” is then ignored) and can have its own mode and start point on its card. Off: every lamp gets the same stream and settings.</p>
    <p class="hint">Only DSP features are sent, never audio. Lamp endpoint: <code>ws://address/audio</code>. A page served over HTTPS may block <code>ws://</code>; open it from localhost or as a file. “+” delays the light, “−” advances it.</p>
   </details>
  </div>

@@ -137,6 +137,10 @@ select:focus,input[type=text]:focus,input[type=number]:focus{border-color:#7095d
 .lamp-stats{margin-top:5px;font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums;display:flex;flex-wrap:wrap;gap:3px 10px}
 .lamp-stats .warn{color:#e7b56e}
 .lamp-stats .err{color:#f1a2a2}
+.lamp-tune{margin-top:6px;display:grid;grid-template-columns:2fr 1fr 1fr;gap:6px}
+.lamp-tune label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--faint);min-width:0}
+.lamp-tune select,.lamp-tune input{padding:4px 8px;font-size:12px}
+.lamp-tune select{padding-right:24px}
 
 details.more{margin-top:10px}
 details.more summary{cursor:pointer;color:#a9bad6;font-size:12px;user-select:none}

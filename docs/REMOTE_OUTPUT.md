@@ -177,3 +177,23 @@ Changes made together with the firmware (`esp_led_lamp`, `feature/remote-audio-d
   treble moves like the bass. The reaction range and curve apply to every
   level. While one of these modes is selected the lamp is sent Off; the
   modes that work out get ported to the firmware, the rest are removed.
+
+## Adapt to each lamp (2026-10-29)
+
+*Lamps over Wi-Fi → Advanced → Adapt to each lamp* (on by default) streams
+per lamp instead of one stream for all:
+
+- **Bands** follow the lamp's `hello_ack.width`: up to 24 columns → 16,
+  up to 48 → 32, wider → 64 (the nearest count the lamp accepts). The global
+  *Spectrum bands* is then ignored for lamps; it still sets the bands of the
+  lab-preview modes. Frames for each count are built once per moment and
+  share the sequence number.
+- **Card overrides** (shown on each lamp card): *Mode* (firmware modes only;
+  the lab-preview modes do not exist on the lamp, so with one selected a lamp
+  without its own mode gets Off), *Bands* (Auto / 16 / 32 / 64) and
+  *Start, LED* (the start offset in that lamp's LEDs; empty = the lab's
+  offset as a share of the width). They are remembered per lamp URL and
+  restart that lamp's session when changed. The card shows what is sent.
+
+Geometry itself stays in the firmware: the stream carries audio features, not
+pixels, and every lamp maps them onto its own WIDTH × HEIGHT.
