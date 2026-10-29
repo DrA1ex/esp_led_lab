@@ -96,17 +96,19 @@ function renderPlaylist(){
  $('mic-source').classList.toggle('current',mic);
  $('demo').setAttribute('aria-current',String(!mic&&STATE.loopDemo&&!!STATE.buffer));
  $('mic-source').setAttribute('aria-current',String(mic));
+ $('source-icon').setAttribute('href',mic?'#i-mic':'#i-music');
+ $('mic-hint').textContent=mic?'on · click to stop':'live input, not played back';
  const rows=[];
  PL.tracks.forEach((t,i)=>{
   if(q&&!(t.name+' '+t.dir).toLowerCase().includes(q))return;
   const cur=PL.active&&i===PL.current&&!mic;
-  rows.push(`<li class="track${cur?' current':''}${t.failed?' failed':''}" data-i="${i}"${cur?' aria-current="true"':''} title="${esc(t.path)}"><span class="track-n">${cur&&STATE.playing?'▶':i+1}</span><span class="track-name">${esc(t.name)}${t.dir?`<small>${esc(t.dir)}</small>`:''}</span>${t.failed?'<span class="track-err" title="Could not decode">!</span>':''}</li>`);
+  rows.push(`<li class="track${cur?' current':''}${t.failed?' failed':''}" data-i="${i}"${cur?' aria-current="true"':''} title="${esc(t.path)}"><span class="track-n">${cur&&STATE.playing?'<span class="eq" aria-label="Playing"><i></i><i></i><i></i></span>':i+1}</span><span class="track-name">${esc(t.name)}${t.dir?`<small>${esc(t.dir)}</small>`:''}</span>${t.failed?'<span class="track-err" title="Could not decode">!</span>':''}</li>`);
  });
  const html=rows.join('');
  if(list.dataset.html!==html){list.innerHTML=html;list.dataset.html=html;list.querySelector('.current')?.scrollIntoView?.({block:'nearest'});}
  const n=PL.tracks.length;
  $('pl-count').textContent=n?(q?`${rows.length} of ${n}`:`${n} track${n===1?'':'s'}`):'';
- $('pl-empty').hidden=n>0;$('pl-search').hidden=n<8&&!q;$('pl-clear').disabled=!n&&!PL.folder;
+ $('pl-empty').hidden=n>0;$('pl-search-box').hidden=n<8&&!q;$('pl-clear').disabled=!n&&!PL.folder;
  $('next').disabled=!n;
 }
 let lastPlaying=null;
@@ -154,8 +156,8 @@ $('file').onchange=ev=>{
 $('pl-clear').onclick=()=>{PL.tracks=[];PL.current=-1;PL.active=false;PL.history=[];PL.folder=null;PL.filter='';$('pl-search').value='';forgetFolder();showReopen(null);shuffleOrder();renderPlaylist();};
 $('pl-search').oninput=e=>{PL.filter=e.target.value;renderPlaylist();};
 $('playlist').onclick=e=>{const row=e.target.closest('.track');if(row)playTrack(+row.dataset.i);};
-$('demo').onclick=playDemo;
-$('mic-source').onclick=toggleMicrophone;
+$('demo').onclick=$('empty-demo').onclick=playDemo;
+$('mic-source').onclick=$('empty-mic').onclick=toggleMicrophone;
 
 // Remember the picked folder between reloads (Chrome / Edge: handles can be
 // stored in IndexedDB). Storage may be unavailable; everything is optional.
@@ -175,7 +177,7 @@ function rememberFolder(dir){idb('readwrite',s=>s.put(dir,FOLDER_KEY)).catch(()=
 function forgetFolder(){idb('readwrite',s=>s.delete(FOLDER_KEY)).catch(()=>{});}
 function showReopen(dir){
  const b=$('pl-reopen');b.hidden=!dir;if(!dir)return;
- b.textContent=`↻ Reopen «${dir.name}»`;
+ b.innerHTML='<svg class="ico" aria-hidden="true"><use href="#i-reset"/></svg>';b.append(`Reopen «${dir.name}»`);
  b.onclick=async()=>{
   try{if(await dir.requestPermission({mode:'read'})!=='granted')return;if(await openDirectory(dir))autoplay(0);}
   catch(err){console.warn(err);showReopen(null);$('status').textContent='The folder is no longer available';}

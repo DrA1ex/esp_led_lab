@@ -95,7 +95,7 @@ with sync_playwright() as p:
  page.wait_for_function('STATE.mic===null && fs===22050 && STATE.pcmRate===22050')
  assert page.evaluate('STATE.pcm.length===88200')
  print('PASS microphone 44.1 kHz cap, live rate/filter changes preserve capture, returning to file reconverts PCM')
- page.locator('.tabs [data-tab="dsp"]').click()
+ page.locator('.tabs [data-tab="analyzer"]').click()
  page.screenshot(path=str(ROOT/'tests'/'analyzer_dsp.png'))
  # A low-rate playback device must not discard a high-rate file's data
  # before the analyzer chooses its own rate.

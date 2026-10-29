@@ -75,7 +75,7 @@ try:
       osc.frequency.value=183;osc.connect(out);osc.start();return out.stream;
     }}});
   }''')
-  page.locator('#mic-source').click()
+  page.locator('#sources-button').click();page.locator('#mic-source').click()
   page.wait_for_function('STATE.mic && STATE.mic.written>4096',timeout=20000)
   mic=page.evaluate('''() => ({mode:STATE.inputMode, rate:STATE.mic.nativeRate,
     samples:STATE.mic.written, playing:STATE.playing, bands:STATE.newSpectrum.slice(),
@@ -88,7 +88,7 @@ try:
   page.wait_for_function('STATE.playing && STATE.mic && STATE.mic.written>4096',timeout=20000)
   assert page.evaluate('STATE.newSpectrum.some(x=>x>0.001)')
   print('PASS microphone stop/restart: DSP resumes after capture is stopped')
-  page.locator('#mic-source').click()  # second click: back to the file side
+  page.locator('#sources-button').click();page.locator('#mic-source').click()  # second click: back to the file side
   page.wait_for_function('!STATE.mic && STATE.inputMode==="file"')
   assert page.locator('#seek').is_enabled()
   assert not errors,errors

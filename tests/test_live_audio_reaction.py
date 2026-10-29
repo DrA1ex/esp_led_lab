@@ -16,10 +16,12 @@ with sync_playwright() as p:
     page.set_content((ROOT/'dist'/'standalone.html').read_text(),wait_until='load')
     page.wait_for_function('STATE.ready === true')
     # Test the local DSP loop; streaming keeps a separate continuous timeline.
+    page.locator('#tab-lamps').click()
     page.locator('#remote-enable').uncheck(force=True)
+    page.locator('#tab-effect').click()
     # An untouched page renders the original effect, not a silent Spectrum mask.
     assert page.locator('#audio-mode').input_value() == '0'
-    page.locator('#demo').click()
+    page.locator('#sources-button').click();page.locator('#demo').click()
     page.wait_for_function('STATE.newParam > 0.15',timeout=10000)
     page.wait_for_timeout(450)
     assert page.locator('#audio-mode').input_value() == '3'

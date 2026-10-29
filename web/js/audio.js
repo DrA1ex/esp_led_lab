@@ -78,7 +78,7 @@ function loadBuffer(buffer,pcm,name,isDemo=false,sourceRate=buffer.sampleRate,ra
  STATE.buffer=buffer;STATE.pcm=pcm;STATE.fileSampleRate=sourceRate;STATE.pcmRate=rate;STATE.audioLen=buffer.duration;STATE.fileName=name;STATE.pausedAt=0;
  applyAnalysisRate(rate,previous);refreshLabels();resetDSP();
  if(+$('audio-mode').value===0){$('audio-mode').value=3;refreshLabels();}
- $('filename').textContent=name;$('duration').textContent=asTime(buffer.duration);$('now').textContent='00:00';$('seek').value=0;$('seek').disabled=false;
+ $('filename').textContent=name;$('duration').textContent=asTime(buffer.duration);$('now').textContent='00:00';setSeek(0);$('seek').disabled=false;
  $('play').disabled=false;playLabel('play','Play (Space)');$('status').textContent='Ready to play';
 }
 // Decode → 20-minute limit → loadBuffer → play. `current()` says whether this
@@ -124,7 +124,7 @@ async function playAudio(){
  source.onended=()=>{
   if(STATE.source!==source)return;
   STATE.playing=false;STATE.source=null;STATE.pausedAt=0;remoteInvalidate();startSilenceTail();
-  playLabel('play','Play again (Space)');$('now').textContent='00:00';$('seek').value=0;
+  playLabel('play','Play again (Space)');$('now').textContent='00:00';setSeek(0);
   $('status').textContent='Finished';
   if(typeof onTrackEnded==='function')onTrackEnded(); // playlist: next track or repeat
  };
@@ -226,7 +226,7 @@ async function startMicrophone(){
    micOutput.connect(mic.processor);mic.processor.connect(mic.silent);
   }
   refreshLabels();resetDSP(0);STATE.playing=true;STATE.pausedAt=0;
-  $('filename').textContent='Microphone · LIVE';$('duration').textContent='LIVE';$('now').textContent='00:00';$('seek').value=0;$('seek').disabled=true;
+  $('filename').textContent='Microphone · LIVE';$('duration').textContent='LIVE';$('now').textContent='00:00';setSeek(0);$('seek').disabled=true;
   $('play').disabled=false;playLabel('stop','Stop microphone (Space)');
   $('status').textContent=`Live · ${formatSampleRate(mic.sourceRate)} → ${formatSampleRate(fs)}`;
  }catch(err){stopMicrophone();throw err;}
@@ -251,4 +251,4 @@ for(let j=0;j<3;j++)STATE.levels[j]=levels[j];
 const newer=new Float32Array(d.memory.buffer,d.new_bands_ptr(),16),p=new Float32Array(d.memory.buffer,d.new_pulses_ptr(),3),e=new Float32Array(d.memory.buffer,d.new_events_ptr(),3);
 for(let j=0;j<16;j++)STATE.newSpectrum[j]=newer[j];for(let j=0;j<3;j++){STATE.pulses[j]=p[j];STATE.events[j]=e[j];}
 }
-function seekTo(pos){if(!STATE.buffer||STATE.inputMode!=='file')return;let wasPlaying=STATE.playing;pauseAudio();STATE.pausedAt=Math.min(STATE.buffer.duration-.01,Math.max(0,pos));const start=Math.floor(STATE.pausedAt*fs);resetDSP(start);$('now').textContent=asTime(STATE.pausedAt);$('seek').value=Math.floor(STATE.pausedAt/STATE.buffer.duration*1000);if(wasPlaying)playAudio();}
+function seekTo(pos){if(!STATE.buffer||STATE.inputMode!=='file')return;let wasPlaying=STATE.playing;pauseAudio();STATE.pausedAt=Math.min(STATE.buffer.duration-.01,Math.max(0,pos));const start=Math.floor(STATE.pausedAt*fs);resetDSP(start);$('now').textContent=asTime(STATE.pausedAt);setSeek(Math.floor(STATE.pausedAt/STATE.buffer.duration*1000));if(wasPlaying)playAudio();}

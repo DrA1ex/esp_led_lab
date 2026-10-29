@@ -1,5 +1,10 @@
 'use strict';
 // Settings → WASM renderers, canvas painting and live meters.
+// Palette gamma setting (128 = 2.2, 0 = off) → the renderer's 256-entry LUT.
+function writeGammaLut(m,setting){
+ const lut=new Uint8Array(m.memory.buffer,m.gamma_lut_ptr(),256),gamma=2.2+(setting-128)/128;
+ for(let k=0;k<256;k++){const v=setting===0?k:Math.floor(255*Math.pow(k/255,gamma));lut[k]=k>0&&v===0?1:v;}
+}
 function refreshLabels(){
  const s=settings(),g=currentGeometry();
  updateAnalysisHop();spectrumPlan();
@@ -24,9 +29,7 @@ function refreshLabels(){
  if(STATE.ready){
   const m=STATE.modules.new.exports;
   m.set_dimensions(g.w,g.h);m.set_palette(s.palette);
-  const lut=new Uint8Array(m.memory.buffer,m.gamma_lut_ptr(),256),gamma=2.2+(s.gamma-128)/128;
-  for(let k=0;k<256;k++){const v=s.gamma===0?k:Math.floor(255*Math.pow(k/255,gamma));lut[k]=k>0&&v===0?1:v;}
-  m.apply_palette_gamma();
+  writeGammaLut(m,s.gamma);m.apply_palette_gamma();
   m.set_reaction_tuning(s['spectrum-shape']/100,s['spectrum-onset']/100,s['line-response']/100,0);
   m.set_effects(s.color,s.brightness,s['audio-mode']);m.set_parameters(s.speed,s.scale,s.light,s.mix/100);m.set_audio_range(s['audio-min'],s['audio-max']);
   const curve=curveExponent(s);fillCurveTable(m,curve);
@@ -34,6 +37,8 @@ function refreshLabels(){
   m.set_visualization(+s['viz-color'],s['viz-mirror']?1:0,s['viz-decay']/100,s['viz-speed']/100,s['viz-auto']?1:0);m.set_origin(...originArgs(s,g.w));
  }
  refreshTuningUi(s,g);
+ commitEditor(settings()); // after refreshTuningUi, which may narrow the start offset
+ syncChoices();paintRanges();scheduleThumbs(s);scheduleSave();
  refreshEffective();
 }
 // Control source for parameter modes; the same source is sent to the ESP as
@@ -63,8 +68,8 @@ function feedRender(m){
  features[152]=STATE.bpm;features[153]=STATE.beatConfidence;features[154]=STATE.beatPhase;features[155]=STATE.beatPulse;
  for(let j=0;j<3;j++)features[156+j]=STATE.levels[j];
  features[159]=STATE.newLine;
- // The bands the lamp receives (Remote Output band count) for the lab-only modes.
- const count=+$('remote-bands').value,bands=remoteBands(count);
+ // The bands the edited lamp receives (Remote Output band count) for the lab-only modes.
+ const count=previewBands(),bands=remoteBands(count);
  for(let j=0;j<count;j++)features[160+j]=bands[j];
  features[224]=count;
 }
@@ -126,12 +131,11 @@ function paint(m,canvas,side,dots){
  STATE.output[side]=sum/(samples*3*255);
  if(isStrip({w:n,h}))drawStrip(canvas,img.data,n,h,dots);
  else drawMatrix(canvas,off,img.data,n,h,dots);
- const mirror=$('floating-'+side);
- if(mirror&&!$('floating-preview').hidden)drawMirror(mirror,canvas);
 }
 function drawMatrix(canvas,off,data,n,h,dots){
- const stage=canvas.parentElement;
- if(stage.style.aspectRatio!==`${n} / ${h}`)stage.style.aspectRatio=`${n} / ${h}`;
+ // The frame is sized by CSS (container units) from --ar, the matrix aspect ratio.
+ const stage=canvas.parentElement,ar=String(+(n/h).toFixed(4));
+ if(stage.style.getPropertyValue('--ar')!==ar)stage.style.setProperty('--ar',ar);
  const dpi=displayScale(),view=canvas.clientWidth||canvas.width;
  const cw=Math.max(64,Math.round(view*dpi)),ch=Math.max(16,Math.round(cw*h/n));
  if(canvas.width!==cw||canvas.height!==ch){canvas.width=cw;canvas.height=ch;}
@@ -149,26 +153,30 @@ function drawMatrix(canvas,off,data,n,h,dots){
  }else{ctx.imageSmoothingEnabled=false;ctx.drawImage(off,0,0,cw,ch);}
 }
 // Strips are wrapped onto display lines (see stripLayout) so each LED keeps a
-// readable size; a soft halo is drawn instead of shadowBlur to stay cheap at
-// 1024 LEDs x 2 renderers x 60 FPS.
+// readable size, as large as the stage allows; a soft halo is drawn instead of
+// shadowBlur to stay cheap at 1024 LEDs x 60 FPS.
+const PHONE_LAYOUT=matchMedia('(max-width:759px)');
+function stripMaxHeight(canvas){
+ if(PHONE_LAYOUT.matches)return Math.round(innerHeight*(document.body.classList.contains('stage-compact')?.12:.26));
+ const view=canvas.closest('.stage-view');
+ return view?Math.max(24,view.clientHeight-24):0;
+}
 function drawStrip(canvas,data,n,h,dots){
- const stage=canvas.parentElement;
- if(stage.style.aspectRatio)stage.style.aspectRatio='';
- const cssW=Math.max(120,canvas.clientWidth||stage.clientWidth||300),dpi=displayScale();
- const L=stripLayout(n,h,cssW);
+ const cssW=Math.max(120,canvas.clientWidth||canvas.parentElement.clientWidth||300),dpi=displayScale();
+ const L=stripLayout(n,h,cssW,stripMaxHeight(canvas));STATE.stripLayout=L;
  const cw=Math.round(cssW*dpi),ch=Math.max(1,Math.round(L.height*dpi));
  if(canvas.width!==cw||canvas.height!==ch){canvas.width=cw;canvas.height=ch;}
  const ctx=canvas.getContext('2d');
  ctx.setTransform(dpi,0,0,dpi,0,0);
- ctx.fillStyle='#030508';ctx.fillRect(0,0,cssW,L.height);
- const p=L.pitch,core=Math.max(.8,p*.34);
+ ctx.clearRect(0,0,cssW,L.height);
+ const p=L.pitch,core=Math.max(.8,p*.34),left=L.offsetX;
  for(let y=0;y<h;y++){
   const top=y*(L.rowHeight+L.gap);
   for(let x=0;x<n;x++){
    const i=(y*n+x)*4,r=data[i],g=data[i+1],b=data[i+2];
-   const col=x%L.perLine,line=Math.floor(x/L.perLine),cx=(col+.5)*p,cy=top+(line+.5)*p;
-   if(!dots){ctx.fillStyle=`rgb(${r},${g},${b})`;ctx.fillRect(col*p+.5,top+line*p+.5,Math.max(1,p-1),Math.max(1,p-1));continue;}
-   ctx.fillStyle='#0d131c';ctx.beginPath();ctx.arc(cx,cy,core,0,Math.PI*2);ctx.fill();
+   const col=x%L.perLine,line=Math.floor(x/L.perLine),cx=left+(col+.5)*p,cy=top+(line+.5)*p;
+   if(!dots){ctx.fillStyle=`rgb(${r},${g},${b})`;ctx.fillRect(left+col*p+.5,top+line*p+.5,Math.max(1,p-1),Math.max(1,p-1));continue;}
+   ctx.fillStyle='#10151e';ctx.beginPath();ctx.arc(cx,cy,core,0,Math.PI*2);ctx.fill();
    const bright=Math.max(r,g,b)/255;
    if(bright<.02)continue;
    if(bright>.2){ctx.fillStyle=`rgba(${r},${g},${b},${(.28*bright).toFixed(3)})`;ctx.beginPath();ctx.arc(cx,cy,p*.5,0,Math.PI*2);ctx.fill();}
@@ -177,37 +185,15 @@ function drawStrip(canvas,data,n,h,dots){
  }
  ctx.setTransform(1,0,0,1,0,0);
 }
-// The compact floating dock copies the rendered canvas, keeping its aspect ratio.
-function drawMirror(mirror,canvas){
- const strip=document.body.classList.contains('strip-layout');
- const mw=strip?Math.max(96,Math.round((mirror.clientWidth||300)*displayScale())):96;
- const mh=strip?Math.max(4,Math.round(mw*canvas.height/Math.max(1,canvas.width))):96;
- if(mirror.width!==mw||mirror.height!==mh){mirror.width=mw;mirror.height=mh;}
- const mc=mirror.getContext('2d'),k=Math.min(mw/canvas.width,mh/canvas.height);
- const w=canvas.width*k,hh=canvas.height*k;
- mc.imageSmoothingEnabled=true;mc.clearRect(0,0,mw,mh);
- mc.drawImage(canvas,(mw-w)/2,(mh-hh)/2,w,hh);
-}
-
-function updateFloatingPreview(){
- const panel=document.querySelector('.main'),dock=$('floating-preview');
- if(!panel||!dock)return;
- const stacked=window.matchMedia('(max-width:1199px)').matches;
- const r=panel.getBoundingClientRect();
- dock.hidden=!(stacked && r.bottom<0 && window.scrollY>0);
-}
-const returnToPreview=()=>document.querySelector('.main').scrollIntoView({behavior:'smooth'});
-$('floating-preview').onclick=returnToPreview;
-$('floating-preview').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();returnToPreview();}};
-window.addEventListener('scroll',updateFloatingPreview,{passive:true});
-window.addEventListener('resize',updateFloatingPreview,{passive:true});
 function meters(){
  const vals=STATE.newSpectrum;
  renderSpectrum();
  const mode=+($('audio-mode').value),isWave=[1,2].includes(mode),isParam=[5,6,7,8,9,10,13,15,16,18,21,22,23,24,25].includes(mode);
  const strength=isParam?newControlSource():(isWave?STATE.newLoudness:Math.max(...vals));
- $('new-label').textContent=`FFT: ${Math.round(strength*100)}% · RGB: ${Math.round(STATE.output.new*100)}%`;
+ $('new-label').textContent=`Signal ${Math.round(strength*100)}% · LEDs ${Math.round(STATE.output.new*100)}%`;
  drawTransfer(mode?strength:NaN);
  for(let j=0;j<3;j++)$(['bass','mid','high'][j]).classList.toggle('active',STATE.pulses[j]>.35);
- $('bpm').textContent=STATE.beatConfidence>.21?`${Math.round(STATE.bpm)} BPM · ${Math.round(STATE.beatConfidence*100)}%`:'BPM —';
+ const sure=STATE.beatConfidence>.21;
+ $('bpm').textContent=sure?Math.round(STATE.bpm):'—';
+ $('bpm-confidence').textContent=sure?Math.round(STATE.beatConfidence*100)+'%':'';
 }

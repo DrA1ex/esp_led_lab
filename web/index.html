@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0d1017"><title>ESP LED Music Lab</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0b0d12"><title>ESP LED Music Lab</title>
 <link rel="stylesheet" href="css/app.css">
 </head><body><svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
  <symbol id="i-play" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7Z" fill="currentColor" stroke="none"/></symbol>
@@ -12,256 +12,356 @@
  <symbol id="i-repeat-one" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4M3 11V8a2 2 0 0 1 2-2h16M7 22l-4-4 4-4m14-1v3a2 2 0 0 1-2 2H3m7-8 2-1v6"/></symbol>
  <symbol id="i-volume" viewBox="0 0 24 24"><path d="m11 5-6 4H2v6h3l6 4Zm4 3a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></symbol>
  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2m-7 9v3m-4 0h8"/></symbol>
- <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13M9 9l12-2"/><ellipse cx="6" cy="18" rx="3" ry="3"/><ellipse cx="18" cy="16" rx="3" ry="3"/></symbol>
+ <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13M9 9l12-2"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></symbol>
  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 20h18a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1H11L9 3H3a1 1 0 0 0-1 1v15a1 1 0 0 0 1 1Z"/></symbol>
  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></symbol>
  <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 2v10m-5-8a9 9 0 1 0 10 0"/></symbol>
  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></symbol>
  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+ <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></symbol>
+ <symbol id="i-strip" viewBox="0 0 24 24"><rect x="2" y="8" width="20" height="8" rx="4"/><path d="M6.5 12h.01M10 12h.01M14 12h.01M17.5 12h.01"/></symbol>
+ <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 6h9m4 0h3M4 12h3m4 0h9M4 18h11m4 0h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></symbol>
+ <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="m11 3 1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9Z"/><path d="m18.5 15 .9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9Z"/></symbol>
+ <symbol id="i-wave" viewBox="0 0 24 24"><path d="M2 12h3l2.5-6 3.5 12 3.5-9 2 5 1.5-2H22"/></symbol>
+ <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6m-5 3h4M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3Z"/></symbol>
+ <symbol id="i-bars" viewBox="0 0 24 24"><path d="M4 20v-6m5 6V6m5 14v-9m5 9V3"/></symbol>
+ <symbol id="i-list" viewBox="0 0 24 24"><path d="M3 6h14M3 12h14M3 18h9m7-6v8m-3-3 3 3 3-3"/></symbol>
+ <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.2a2.5 2.5 0 1 1 3.4 2.4c-.6.3-1 .8-1 1.5v.4m0 3h.01"/></symbol>
+ <symbol id="i-reset" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8m0-5v5h5"/></symbol>
+ <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+ <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+ <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+ <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/><path d="M12 1v3m0 16v3M1 12h3m16 0h3"/></symbol>
+ <symbol id="i-broadcast" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4m-8.4 0a6 6 0 0 1 0-8.4M19 5a10 10 0 0 1 0 14M5 19A10 10 0 0 1 5 5"/></symbol>
+ <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.7" fill="currentColor" stroke="none"/></symbol>
+ <symbol id="i-expand" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></symbol>
 </svg>
-<main class="app">
+<div class="app">
 
 <header class="topbar">
- <div class="brand"><div class="brand-logo" aria-hidden="true">LED</div><div><div class="title">ESP LED Music Lab</div><div class="subtitle">Audio-reactive lamp effects · C++ → WebAssembly</div></div></div>
- <div class="transport" id="transport" aria-label="Player">
-  <div class="transport-buttons">
-   <button class="ghost round" id="prev" title="Previous (P) · restarts the track after 3 s" aria-label="Previous"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-prev"/></svg></button>
-   <button class="primary round play" id="play" title="Play (Space)" aria-label="Play" disabled><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-play"/></svg></button>
-   <button class="ghost round" id="next" title="Next (N)" aria-label="Next" disabled><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-next"/></svg></button>
-  </div>
-  <div class="now-playing">
-   <div class="track-head"><span class="filename" id="filename">No audio file</span><span class="status"><span class="dot" id="sound-dot"></span><span id="status">Loading WebAssembly…</span></span></div>
-   <div class="timebar"><span class="time" id="now">00:00</span><input id="seek" type="range" min="0" max="1000" value="0" aria-label="Position"><span class="time" id="duration">00:00</span></div>
-  </div>
-  <div class="transport-modes">
-   <button class="ghost round mode" id="shuffle" title="Shuffle" aria-label="Shuffle" aria-pressed="false"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-shuffle"/></svg></button>
-   <button class="ghost round mode" id="repeat" title="Repeat: off" aria-label="Repeat: off" aria-pressed="false"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-repeat"/></svg></button>
-  </div>
-  <label class="volume" title="Playback volume (the lamp is not affected)"><span aria-hidden="true"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-volume"/></svg></span><svg class="ico tiny preview-only" role="img" aria-label="Preview only"><title>Preview only — not sent to the lamp</title><use href="#i-eye"/></svg><input id="playback-volume" type="range" min="0" max="100" value="100" aria-label="Volume"><b class="value" id="playback-volume-value">100%</b></label>
+ <div class="brand"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="brand-name">ESP LED <b>Music Lab</b></span></div>
+ <div class="topbar-right">
+  <span class="chip" id="fps" hidden>— FPS</span>
+  <button type="button" class="lamp-pill" id="lamp-chip" title="Lamps over Wi-Fi"><span class="pill-dots" id="lamp-dots" aria-hidden="true"></span><span id="lamp-chip-text">No lamps</span></button>
+  <button type="button" class="icon-btn" id="help-button" popovertarget="help-menu" title="Shortcuts and settings" aria-label="Shortcuts and settings"><svg class="ico" aria-hidden="true"><use href="#i-help"/></svg></button>
  </div>
- <div class="chips"><button type="button" class="chip" id="lamp-chip" title="Go to lamps">Lamps: none</button><span class="chip" id="fps" hidden>— FPS</span></div>
 </header>
 
-<div class="floating-preview" id="floating-preview" hidden role="button" tabindex="0" aria-label="Return to LED preview" title="Return to LED preview">
- <div class="floating-matrices">
-  <div class="floating-matrix"><canvas id="floating-new" width="96" height="96" aria-label="LED preview"></canvas></div>
- </div>
-</div>
+<main class="workspace" id="workspace">
 
-<div class="layout">
-<aside class="card library" id="library" aria-label="Playlist">
- <div class="panelhead"><h2 class="h2">Playlist</h2><span class="muted" id="pl-count"></span></div>
- <div class="sources" role="list">
-  <button class="source" id="demo" role="listitem"><span class="source-icon" aria-hidden="true"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-music"/></svg></span><span class="source-name">Demo beat<small>120 BPM loop</small></span></button>
-  <button class="source" id="mic-source" role="listitem"><span class="source-icon" aria-hidden="true"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-mic"/></svg></span><span class="source-name">Microphone<small>live, not played back</small></span></button>
- </div>
+<!-- Music: a column on wide screens, the Music tab of the inspector otherwise (see placeLibrary). -->
+<div class="library-dock" id="library-dock">
+<section class="library" id="library" aria-labelledby="library-title">
+ <div class="section-head"><h2 class="eyebrow" id="library-title">Music</h2><span class="muted lib-count" id="pl-count"></span>
+  <button type="button" class="icon-btn" id="sources-button" popovertarget="sources-menu" title="Demo beat, microphone, clear the list" aria-label="More sources"><svg class="ico" aria-hidden="true"><use href="#i-more"/></svg></button></div>
  <div class="library-actions">
-  <button class="secondary" id="folder" title="Open a folder (replaces the list)"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-folder"/></svg> Folder…</button>
-  <button class="secondary" id="choose" title="Add files to the list"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-plus"/></svg> Files…</button>
-  <button class="ghost icon" id="pl-clear" title="Clear the list" aria-label="Clear the list"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-trash"/></svg></button>
+  <button class="btn" id="folder" type="button" title="Open a folder (replaces the list)"><svg class="ico" aria-hidden="true"><use href="#i-folder"/></svg>Open folder</button>
+  <button class="btn" id="choose" type="button" title="Add files to the list"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Add files</button>
   <input class="hide" type="file" id="file" accept="audio/*" multiple>
   <input class="hide" type="file" id="folder-input" webkitdirectory multiple>
  </div>
- <button class="ghost reopen" id="pl-reopen" hidden></button>
- <input type="search" id="pl-search" placeholder="Filter" aria-label="Filter the playlist" autocomplete="off" spellcheck="false" hidden>
+ <button class="btn ghost reopen" id="pl-reopen" type="button" hidden></button>
+ <label class="search" id="pl-search-box" hidden><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><input type="search" id="pl-search" placeholder="Filter tracks" aria-label="Filter the playlist" autocomplete="off" spellcheck="false"></label>
  <ol class="playlist" id="playlist" aria-label="Tracks"></ol>
- <p class="hint library-empty" id="pl-empty">Open a folder or add files. You can also drop files or folders anywhere on the page.</p>
-</aside>
-<section class="workspace"><div class="workspace-grid">
+ <div class="dropzone" id="pl-empty"><svg class="ico" aria-hidden="true"><use href="#i-folder"/></svg><p>Drop audio files or a folder anywhere on the page, or open them with the buttons above.</p>
+  <p class="dropzone-alt">No music at hand? Play the <button type="button" class="link" id="empty-demo">demo beat</button> or use the <button type="button" class="link" id="empty-mic">microphone</button>.</p></div>
+</section>
+</div>
 
- <div class="card main preview-card">
-  <div class="panelhead">
-   <div><h2 class="h2" id="preview-title">LED matrix</h2><div class="muted" id="matrix-label">16 × 16 · matrix</div></div>
-   <label class="mix" title="Audio reaction strength in the preview (not sent to the lamp)"><span><span>LED reaction <svg class="ico tiny preview-only" role="img" aria-label="Preview only"><title>Preview only — not sent to the lamp</title><use href="#i-eye"/></svg></span> <b class="value" id="mix-value">100%</b></span><input id="mix" type="range" min="0" max="100" value="100"></label>
-  </div>
-  <div class="preview-body">
-   <div class="matrixstage"><canvas id="canvas-new" width="16" height="16" aria-label="LED preview: what the lamp shows"></canvas></div>
-   <div class="preview-info">
-    <div class="spectrum-caption" id="spectrum-detail"></div>
-    <div class="inline-spectrum bars new" id="new-mini-bars" aria-label="FFT spectrum, grouped by resolved frequency bins"></div>
-    <div class="matrixfoot"><span id="new-label">FFT</span><span id="fft-display">512 / 16 kHz</span></div>
-    <div class="events" aria-label="Rhythm">
-     <span class="event" id="bass"><b></b>Bass</span><span class="event" id="mid"><b></b>Mid</span><span class="event" id="high"><b></b>High</span>
-     <span class="event bpm" id="bpm" title="Experimental tempo estimate">BPM —</span>
-    </div>
-    <div class="control-visual" id="control-visual" hidden>
-     <div class="control-visual-header"><span>Control signal · <strong id="control-source-label">Loudness</strong></span><span id="control-value-label">—</span></div>
-     <div class="control-meter-track"><div class="control-meter-fill" id="control-fill"></div><div class="control-meter-marker" id="control-marker"></div></div>
-     <div class="hint" id="control-hint"></div>
-    </div>
+<section class="stage" id="stage" aria-label="LED preview">
+ <div class="targets" id="targets" role="group" aria-label="Preview and edit: all lamps or one lamp" hidden></div>
+ <div class="stage-head">
+  <button type="button" class="menu-btn" id="geometry-button" popovertarget="geometry-menu" title="LED layout: matrix or strip">
+   <svg class="ico" aria-hidden="true"><use id="geometry-icon" href="#i-grid"/></svg><span class="sr-only" id="preview-title">LED matrix</span><span id="matrix-label">16 × 16 · matrix</span><svg class="ico chev" aria-hidden="true"><use href="#i-chevron"/></svg>
+  </button>
+  <span class="origin-tip" id="origin-tip" hidden><svg class="ico" aria-hidden="true"><use href="#i-target"/></svg><span id="origin-tip-text">Click an LED to set the start</span></span>
+  <button type="button" class="icon-btn" id="stage-size" title="Smaller preview" aria-label="Smaller preview" aria-pressed="false"><svg class="ico" aria-hidden="true"><use href="#i-chevron"/></svg></button>
+  <button type="button" class="menu-btn" id="view-button" popovertarget="view-menu" title="Preview display: not sent to the lamp"><svg class="ico" aria-hidden="true"><use href="#i-eye"/></svg><span class="label">View</span><svg class="ico chev" aria-hidden="true"><use href="#i-chevron"/></svg></button>
+ </div>
+ <div class="stage-view" id="stage-view">
+  <div class="matrixstage"><canvas id="canvas-new" width="16" height="16" aria-label="LED preview: what the lamp shows"></canvas></div>
+ </div>
+ <div class="analyzer" aria-label="Analyzer">
+  <div class="analyzer-main">
+   <div class="spectrum"><div class="bars" id="new-mini-bars" aria-label="FFT spectrum, grouped by resolved frequency bins"></div></div>
+   <div class="rhythm" aria-label="Rhythm">
+    <div class="events"><span class="event" id="bass"><b></b>Bass</span><span class="event" id="mid"><b></b>Mid</span><span class="event" id="high"><b></b>High</span></div>
+    <div class="bpm" title="Experimental tempo estimate"><b id="bpm">—</b><span>BPM</span><small id="bpm-confidence"></small></div>
    </div>
   </div>
- </div>
-
- <div class="card remote-panel" id="remote-panel">
-  <div class="panelhead">
-   <h2 class="h2">Lamps over Wi-Fi</h2>
-   <label class="switch" title="Send audio features to connected lamps"><input id="remote-enable" type="checkbox" checked><span></span>Stream</label>
+  <div class="control-visual" id="control-visual" hidden>
+   <div class="control-visual-header"><span>Control · <strong id="control-source-label">Loudness</strong></span><span id="control-value-label">—</span></div>
+   <div class="control-meter-track"><div class="control-meter-fill" id="control-fill"></div><div class="control-meter-marker" id="control-marker"></div></div>
+   <div class="hint warn-text" id="control-hint"></div>
   </div>
-  <form class="remote-form" id="remote-form" onsubmit="return false">
-   <input type="text" id="remote-address" placeholder="IP or host name, e.g. esp_lamp.local" aria-label="Lamp address" autocomplete="off" spellcheck="false">
-   <button class="secondary" id="remote-add" type="submit">Connect</button>
-  </form>
-  <div class="lamps-master" id="lamps-master" hidden aria-label="All lamps">
-   <button class="ghost small" id="lamps-connect" title="Connect every lamp in the list">Connect all</button>
-   <div class="power-pair" role="group" aria-label="Power of all connected lamps"><button class="ghost small" id="lamps-on" title="Turn all connected lamps on"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-power"/></svg> On</button><button class="ghost small" id="lamps-off" title="Turn all connected lamps off">Off</button></div>
-   <label class="master-bright" title="Brightness of all connected lamps (saved on each lamp)"><span aria-hidden="true"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-sun"/></svg></span><input id="lamps-brightness" type="range" min="0" max="100" value="50" aria-label="Brightness of all connected lamps"><b class="value" id="lamps-brightness-value">—</b></label>
-  </div>
-  <div id="remote-devices" aria-live="polite"></div>
-  <div class="hint" id="remote-state">Streaming off · preview only</div>
-  <details class="more"><summary>Advanced</summary>
-   <div class="more-grid">
-    <label>Spectrum bands<select id="remote-bands"><option value="16">16</option><option value="32" selected>32</option><option value="64">64</option></select></label>
-    <label>Light offset, ms <span class="value" id="remote-latency-value">0 ms</span><input type="number" min="-100" max="500" step="5" value="0" id="remote-latency"></label>
-   </div>
-   <label class="toggle"><input type="checkbox" id="remote-autoconnect"> Connect all lamps when the page opens</label>
-   <label class="toggle"><input type="checkbox" id="remote-adapt" checked> Adapt to each lamp</label>
-   <p class="hint">Each lamp gets the band count that fits its width (about one band per column; “Spectrum bands” is then ignored) and can have its own mode and start point on its card. Off: every lamp gets the same stream and settings.</p>
-   <details class="more"><summary>How it works</summary>
-   <p class="hint">On / Off and brightness apply to every connected lamp and are saved on the lamp, like its own controls. Older firmware without the <code>control</code> capability gets them over HTTP (<code>/api/power</code>, <code>/api/brightness</code>) and its state is not shown.</p>
-   <p class="hint">Only DSP features are sent, never audio. Lamp endpoint: <code>ws://address/audio</code>. A page served over HTTPS may block <code>ws://</code>; open it from localhost or as a file. “+” delays the light, “−” advances it.</p>
-   </details>
-  </details>
+  <div class="analyzer-foot"><span id="fft-display">FFT 512 / 16 kHz</span><span id="spectrum-detail"></span><span id="new-label">Signal 0% · LEDs 0%</span></div>
  </div>
+</section>
 
-</div></section>
-
-<aside class="card settings sidebar">
+<aside class="inspector" id="inspector" aria-label="Settings">
  <nav class="tabs" role="tablist" aria-label="Settings">
-  <button role="tab" data-tab="effect" aria-selected="true">Effect</button>
-  <button role="tab" data-tab="audio">Audio</button>
-  <button role="tab" data-tab="led">LED</button>
-  <button role="tab" data-tab="dsp">DSP</button>
+  <button role="tab" type="button" id="tab-music" data-tab="music" aria-controls="panel-music" aria-selected="false"><svg class="ico" aria-hidden="true"><use href="#i-music"/></svg><span>Music</span></button>
+  <button role="tab" type="button" id="tab-effect" data-tab="effect" aria-controls="panel-effect" aria-selected="true"><svg class="ico" aria-hidden="true"><use href="#i-sparkle"/></svg><span>Effect</span></button>
+  <button role="tab" type="button" id="tab-reaction" data-tab="reaction" aria-controls="panel-reaction" aria-selected="false"><svg class="ico" aria-hidden="true"><use href="#i-wave"/></svg><span>Reaction</span></button>
+  <button role="tab" type="button" id="tab-lamps" data-tab="lamps" aria-controls="panel-lamps" aria-selected="false"><svg class="ico" aria-hidden="true"><use href="#i-bulb"/></svg><span>Lamps</span><b class="tab-badge" id="lamps-badge" hidden></b></button>
+  <button role="tab" type="button" id="tab-analyzer" data-tab="analyzer" aria-controls="panel-analyzer" aria-selected="false"><svg class="ico" aria-hidden="true"><use href="#i-bars"/></svg><span>Analyzer</span></button>
  </nav>
- <div class="tabpanels">
+ <div class="tabpanels" id="tabpanels">
 
- <section class="tabpanel" data-panel="effect" role="tabpanel">
-  <div class="field"><label for="color">Color effect</label><select id="color"><option value="0">Perlin Noise</option><option value="1">Gradient</option><option value="2">Fire</option><option value="3">Aurora</option><option value="4" selected>Plasma</option><option value="5">Ripple</option><option value="6">Velum</option><option value="7">Particles</option><option value="8">Color Change</option><option value="9">Solid Color</option></select></div>
-  <div class="field"><label for="palette">Palette</label><select id="palette"><option value="0">Abyss</option><option value="1">Aquatic</option><option value="2">Autumn</option><option value="3">Azure</option><option value="4" selected>Bloom</option><option value="5">Blossom</option><option value="6">Blue</option><option value="7">Bonfire</option><option value="8">Cherry</option><option value="9">Cinnamon</option><option value="10">Coastal</option><option value="11">Cosmic</option><option value="12">Crimson</option><option value="13">Dawn</option><option value="14">Deep Sea</option><option value="15">Deep</option><option value="16">Dreams</option><option value="17">Dusk</option><option value="18">Earthy</option><option value="19">Electric</option><option value="20">Elegance</option><option value="21">Emerald</option><option value="22">Enchanted</option><option value="23">Enigma</option><option value="24">Ethereal</option><option value="25">Fiery</option><option value="26">Flames</option><option value="27">Forest</option><option value="28">Golden</option><option value="29">Harmony</option><option value="30">Hush</option><option value="31">Infusion</option><option value="32">Jade</option><option value="33">Lavender</option><option value="34">Limeade</option><option value="35">Luminous</option><option value="36">Magic Plum</option><option value="37">Marine</option><option value="38">Meadow</option><option value="39">Midnight</option><option value="40">Minty</option><option value="41">Monochrome</option><option value="42">Moorland</option><option value="43">Mossy</option><option value="44">Mystic</option><option value="45">Neon</option><option value="46">Nightfall</option><option value="47">Nocturnal</option><option value="48">Oasis</option><option value="49">Ocean</option><option value="50">Oceanic</option><option value="51">Pastel</option><option value="52">Rainbow Shadow</option><option value="53">Rainbow</option><option value="54">Raspberry</option><option value="55">Scarlet</option><option value="56">Seaside</option><option value="57">Serenade</option><option value="58">Serene</option><option value="59">Serenity</option><option value="60">Slate</option><option value="61">Spice</option><option value="62">Splash</option><option value="63">Starlight</option><option value="64">Sultry</option><option value="65">Sunny</option><option value="66">Sunrise</option><option value="67">Sunset</option><option value="68">Tender</option><option value="69">Terrain</option><option value="70">Tranquil</option><option value="71">Tropics</option><option value="72">Twilight</option><option value="73">Urban</option><option value="74">Velvet</option><option value="75">Vintage</option><option value="76">Violet</option><option value="77">Woodland</option><option value="78">Custom (Default)</option></select></div>
-  <div class="field"><label for="brightness">Brightness effect</label><select id="brightness"><option value="0">Fixed</option><option value="1">Pulse</option><option value="2">Wave</option><option value="3">Double Wave</option><option value="4">Oscillator</option></select></div>
-  <div class="field"><label for="speed">Speed <span class="value" id="speed-value">82</span></label><input id="speed" type="range" min="0" max="255" value="82"></div>
-  <div class="field"><label for="scale">Scale <span class="value" id="scale-value">190</span></label><input id="scale" type="range" min="0" max="255" value="190"></div>
-  <div class="field"><label for="light">Light <span class="value" id="light-value">180</span></label><input id="light" type="range" min="0" max="255" value="180"></div>
-  <p class="hint">These values are sent to the lamp with the audio and apply only while streaming; the preset saved on the lamp is not changed.</p>
+ <section class="tabpanel" id="panel-music" data-panel="music" role="tabpanel" aria-labelledby="tab-music" hidden></section>
+
+ <section class="tabpanel" id="panel-effect" data-panel="effect" role="tabpanel" aria-labelledby="tab-effect">
+  <div class="target-note" data-shared-note></div>
+  <div class="section">
+   <div class="section-head"><h3 class="eyebrow" id="color-title">Color effect</h3><button class="reset" id="effect-reset" type="button" data-reset="Reset effect, palette and parameters" title="Reset effect, palette and parameters" aria-label="Reset effect settings"><svg class="ico" aria-hidden="true"><use href="#i-reset"/></svg></button></div>
+   <select id="color" hidden><option value="0">Perlin Noise</option><option value="1">Gradient</option><option value="2">Fire</option><option value="3">Aurora</option><option value="4" selected>Plasma</option><option value="5">Ripple</option><option value="6">Velum</option><option value="7">Particles</option><option value="8">Color Change</option><option value="9">Solid Color</option></select>
+   <div class="choices tiles" data-for="color" aria-labelledby="color-title"></div>
+  </div>
+  <div class="section">
+   <div class="section-head"><h3 class="eyebrow" id="palette-title">Palette</h3><span class="section-value" id="palette-name">Bloom</span></div>
+   <select id="palette" hidden><option value="0">Abyss</option><option value="1">Aquatic</option><option value="2">Autumn</option><option value="3">Azure</option><option value="4" selected>Bloom</option><option value="5">Blossom</option><option value="6">Blue</option><option value="7">Bonfire</option><option value="8">Cherry</option><option value="9">Cinnamon</option><option value="10">Coastal</option><option value="11">Cosmic</option><option value="12">Crimson</option><option value="13">Dawn</option><option value="14">Deep Sea</option><option value="15">Deep</option><option value="16">Dreams</option><option value="17">Dusk</option><option value="18">Earthy</option><option value="19">Electric</option><option value="20">Elegance</option><option value="21">Emerald</option><option value="22">Enchanted</option><option value="23">Enigma</option><option value="24">Ethereal</option><option value="25">Fiery</option><option value="26">Flames</option><option value="27">Forest</option><option value="28">Golden</option><option value="29">Harmony</option><option value="30">Hush</option><option value="31">Infusion</option><option value="32">Jade</option><option value="33">Lavender</option><option value="34">Limeade</option><option value="35">Luminous</option><option value="36">Magic Plum</option><option value="37">Marine</option><option value="38">Meadow</option><option value="39">Midnight</option><option value="40">Minty</option><option value="41">Monochrome</option><option value="42">Moorland</option><option value="43">Mossy</option><option value="44">Mystic</option><option value="45">Neon</option><option value="46">Nightfall</option><option value="47">Nocturnal</option><option value="48">Oasis</option><option value="49">Ocean</option><option value="50">Oceanic</option><option value="51">Pastel</option><option value="52">Rainbow Shadow</option><option value="53">Rainbow</option><option value="54">Raspberry</option><option value="55">Scarlet</option><option value="56">Seaside</option><option value="57">Serenade</option><option value="58">Serene</option><option value="59">Serenity</option><option value="60">Slate</option><option value="61">Spice</option><option value="62">Splash</option><option value="63">Starlight</option><option value="64">Sultry</option><option value="65">Sunny</option><option value="66">Sunrise</option><option value="67">Sunset</option><option value="68">Tender</option><option value="69">Terrain</option><option value="70">Tranquil</option><option value="71">Tropics</option><option value="72">Twilight</option><option value="73">Urban</option><option value="74">Velvet</option><option value="75">Vintage</option><option value="76">Violet</option><option value="77">Woodland</option><option value="78">Custom (Default)</option></select>
+   <label class="search"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><input type="search" id="palette-search" placeholder="Find a palette" aria-label="Find a palette" autocomplete="off" spellcheck="false"></label>
+   <div class="choices swatches" data-for="palette" aria-labelledby="palette-title"></div>
+  </div>
+  <div class="section">
+   <div class="section-head"><h3 class="eyebrow" id="brightness-title">Brightness effect</h3></div>
+   <select id="brightness" hidden><option value="0">Fixed</option><option value="1">Pulse</option><option value="2">Wave</option><option value="3">Double Wave</option><option value="4">Oscillator</option></select>
+   <div class="choices chips" data-for="brightness" aria-labelledby="brightness-title"></div>
+  </div>
+  <div class="section">
+   <div class="section-head"><h3 class="eyebrow">Parameters</h3></div>
+   <div class="field"><label for="speed">Speed <span class="val" id="speed-value">82</span></label><input id="speed" type="range" min="0" max="255" value="82"></div>
+   <div class="field"><label for="scale">Scale <span class="val" id="scale-value">190</span></label><input id="scale" type="range" min="0" max="255" value="190"></div>
+   <div class="field"><label for="light">Light <span class="val" id="light-value">180</span></label><input id="light" type="range" min="0" max="255" value="180"></div>
+  </div>
  </section>
 
- <section class="tabpanel" data-panel="audio" role="tabpanel" hidden>
-  <div class="field"><label for="audio-mode">Audio reaction</label><select id="audio-mode">
-   <option value="0" selected>Off</option>
-   <optgroup label="Brightness by frequency"><option value="3">Spectrum</option><option value="4">Spectrum Center</option></optgroup>
-   <optgroup label="By loudness"><option value="1">Wave</option><option value="2">Wave Center</option><option value="5">Brightness</option><option value="6">Line</option><option value="7">Line Center</option></optgroup>
-   <optgroup label="Audio drives a parameter"><option value="8">Speed Control</option><option value="9">Scale Control</option><option value="10">Light Control</option></optgroup>
-   <optgroup label="Experimental"><option value="11">Bass / Mid / High</option><option value="12">Beat-aware</option></optgroup>
-   <optgroup label="Visualizations (strips and matrices)"><option value="13">VU Meter</option><option value="14">Spectrum Bars</option><option value="15">Flow</option><option value="16">Pulses</option><option value="17">Sparkles</option><option value="18">Mood</option><option value="19">Waveform</option><option value="20">Bass · Mid · Treble Meters</option><option value="21">Fire</option><option value="22">Aurora</option><option value="23">Juggle</option><option value="24">Radial Spectrum</option><option value="25">Blobs</option></optgroup>
-  </select><p class="hint" id="audio-mode-hint"></p></div>
-  <div class="field" data-modes="5,6,7,8,9,10,13,15,16,18,21,22,23,24,25"><label for="param-source">Signal source</label><select id="param-source"><option value="loudness" selected>Loudness</option>
-<option value="spectral">Spectral activity</option>
-<option value="bass">Bass</option><option value="mid">Mid</option>
-<option value="high">Treble</option><option value="peak">Loudest band</option>
-<option value="onset">Onsets</option><option value="beat">Beats</option></select></div>
-  <div class="field" data-modes="1,2,3,4"><label for="spectrum-shape">Column brightness <span class="value" id="spectrum-shape-value">70%</span></label><input id="spectrum-shape" type="range" min="0" max="100" value="70"></div>
-  <div class="field" data-modes="1,2,3,4"><label for="spectrum-onset">Onset flashes <span class="value" id="spectrum-onset-value">30%</span></label><input id="spectrum-onset" type="range" min="0" max="100" value="30"></div>
-  <div class="field" data-modes="6,7,13,15,16,21,22,23,24,25"><label for="line-response"><span>Fast line response <svg class="ico tiny preview-only" role="img" aria-label="Preview only"><title>Preview only — not sent to the lamp</title><use href="#i-eye"/></svg></span> <span class="value" id="line-response-value">75%</span></label><input id="line-response" type="range" min="0" max="100" value="75"></div>
-  <div class="block" data-modes="13,14,15,16,17,18,19,20,21,22,23,24,25">
-   <div class="block-head"><span>Visualization</span><button class="ghost small" id="viz-reset" type="button">Reset</button></div>
-   <div class="field"><label for="viz-color">Colors</label><select id="viz-color"><option value="0" selected>Palette</option><option value="1">Color effect (audio as a mask)</option></select></div>
-   <label class="toggle" data-modes="13,14,15,19,20,21,23,24,25"><input type="checkbox" id="viz-auto" checked> Auto-level: each band and meter uses its own recent range</label>
-   <label class="toggle"><input type="checkbox" id="viz-mirror"> <span id="viz-mirror-label">From the center, both ways</span></label>
-   <div class="field"><label for="viz-decay">Fall-off <span class="value" id="viz-decay-value">50%</span></label><input id="viz-decay" type="range" min="0" max="100" value="50"></div>
-   <div class="field" data-modes="15,16,21,22,23,24,25"><label for="viz-speed">Motion speed <span class="value" id="viz-speed-value">50%</span></label><input id="viz-speed" type="range" min="0" max="100" value="50"></div>
+ <section class="tabpanel" id="panel-reaction" data-panel="reaction" role="tabpanel" aria-labelledby="tab-reaction" hidden>
+  <div class="target-note"></div>
+  <div class="section">
+   <div class="section-head"><h3 class="eyebrow" id="mode-title">Audio reaction</h3></div>
+   <select id="audio-mode" hidden>
+    <option value="0" selected>Off</option>
+    <optgroup label="Spectrum"><option value="3">Spectrum</option><option value="4">Spectrum Center</option></optgroup>
+    <optgroup label="Loudness"><option value="1">Wave</option><option value="2">Wave Center</option><option value="5">Brightness</option><option value="6">Line</option><option value="7">Line Center</option></optgroup>
+    <optgroup label="Drives a parameter"><option value="8">Speed Control</option><option value="9">Scale Control</option><option value="10">Light Control</option></optgroup>
+    <optgroup label="Experimental"><option value="11">Bass / Mid / High</option><option value="12">Beat-aware</option></optgroup>
+    <optgroup label="Visualizations"><option value="13">VU Meter</option><option value="14">Spectrum Bars</option><option value="15">Flow</option><option value="16">Pulses</option><option value="17">Sparkles</option><option value="18">Mood</option><option value="19">Waveform</option><option value="20">Bass · Mid · Treble Meters</option><option value="21">Fire</option><option value="22">Aurora</option><option value="23">Juggle</option><option value="24">Radial Spectrum</option><option value="25">Blobs</option></optgroup>
+   </select>
+   <div class="choices chips modes" data-for="audio-mode" aria-labelledby="mode-title"></div>
+   <p class="callout" id="audio-mode-hint"></p>
+  </div>
+  <div class="section" data-auto-hide>
+   <div class="section-head"><h3 class="eyebrow" id="signal-title">Signal</h3><button class="reset" id="signal-reset" type="button" data-reset="Reset signal settings" title="Reset signal settings" aria-label="Reset signal settings"><svg class="ico" aria-hidden="true"><use href="#i-reset"/></svg></button></div>
+   <div class="field" data-modes="5,6,7,8,9,10,13,15,16,18,21,22,23,24,25"><span class="field-label" id="param-source-title">Signal source</span>
+    <select id="param-source" hidden><option value="loudness" selected>Loudness</option><option value="spectral">Spectral activity</option><option value="bass">Bass</option><option value="mid">Mid</option><option value="high">Treble</option><option value="peak">Loudest band</option><option value="onset">Onsets</option><option value="beat">Beats</option></select>
+    <div class="choices chips" data-for="param-source" aria-labelledby="param-source-title"></div></div>
+   <div class="field" data-modes="1,2,3,4"><label for="spectrum-shape">Column brightness <span class="val" id="spectrum-shape-value">70%</span></label><input id="spectrum-shape" type="range" min="0" max="100" value="70"></div>
+   <div class="field" data-modes="1,2,3,4"><label for="spectrum-onset">Onset flashes <span class="val" id="spectrum-onset-value">30%</span></label><input id="spectrum-onset" type="range" min="0" max="100" value="30"></div>
+   <div class="field" data-modes="6,7,13,15,16,21,22,23,24,25"><label for="line-response"><span>Fast line response <svg class="ico tiny preview-only" role="img" aria-label="Preview only"><title>Preview only — not sent to the lamp</title><use href="#i-eye"/></svg></span><span class="val" id="line-response-value">75%</span></label><input id="line-response" type="range" min="0" max="100" value="75"></div>
+  </div>
+  <div class="section" data-modes="13,14,15,16,17,18,19,20,21,22,23,24,25">
+   <div class="section-head"><h3 class="eyebrow" id="viz-title">Visualization</h3><button class="reset" id="viz-reset" type="button" data-reset="Reset visualization settings" title="Reset visualization settings" aria-label="Reset visualization settings"><svg class="ico" aria-hidden="true"><use href="#i-reset"/></svg></button></div>
+   <div class="field"><span class="field-label" id="viz-color-title">Colors</span>
+    <select id="viz-color" hidden><option value="0" selected data-short="Palette">Palette</option><option value="1" data-short="Effect as a mask">Color effect (audio as a mask)</option></select>
+    <div class="choices segmented" data-for="viz-color" aria-labelledby="viz-color-title"></div></div>
+   <label class="check" data-modes="13,14,15,19,20,21,23,24,25"><input type="checkbox" id="viz-auto" checked><span>Auto-level<small>each band and meter uses its own recent range</small></span></label>
+   <label class="check"><input type="checkbox" id="viz-mirror"><span id="viz-mirror-label">From the center, both ways</span></label>
+   <div class="field"><label for="viz-decay">Fall-off <span class="val" id="viz-decay-value">50%</span></label><input id="viz-decay" type="range" min="0" max="100" value="50"></div>
+   <div class="field" data-modes="15,16,21,22,23,24,25"><label for="viz-speed">Motion speed <span class="val" id="viz-speed-value">50%</span></label><input id="viz-speed" type="range" min="0" max="100" value="50"></div>
    <p class="hint" id="viz-hint"></p>
   </div>
-  <div class="block" data-modes="1,2,3,4,5,6,7,8,9,10,13,14,15,16,17,18,19,20,21,22,23,24,25">
-   <div class="block-head"><span>Reaction range</span><button class="ghost small" id="range-reset" type="button">Reset</button></div>
+  <div class="section" data-modes="1,2,3,4,5,6,7,8,9,10,13,14,15,16,17,18,19,20,21,22,23,24,25">
+   <div class="section-head"><h3 class="eyebrow">Reaction range</h3><button class="reset" id="range-reset" type="button" data-reset="Reset the reaction range" title="Reset the reaction range" aria-label="Reset the reaction range"><svg class="ico" aria-hidden="true"><use href="#i-reset"/></svg></button></div>
    <canvas class="transfer" id="transfer-curve" width="300" height="120" aria-label="Curve: signal → reaction"></canvas>
-   <div class="field-pair">
-    <div class="field"><label for="input-min">Signal from <span class="value" id="input-min-value">0%</span></label><input id="input-min" type="range" min="0" max="255" value="0"></div>
-    <div class="field"><label for="input-max">Signal to <span class="value" id="input-max-value">100%</span></label><input id="input-max" type="range" min="0" max="255" value="255"></div>
-   </div>
-   <div class="field-pair">
-    <div class="field"><label for="audio-min">Reaction from <span class="value" id="audio-min-value">0</span></label><input id="audio-min" type="range" min="0" max="255" value="0"></div>
-    <div class="field"><label for="audio-max">Reaction to <span class="value" id="audio-max-value">255</span></label><input id="audio-max" type="range" min="0" max="255" value="255"></div>
-   </div>
-   <div class="field"><label for="input-curve">Curve <span class="value" id="input-curve-value">linear</span></label><input id="input-curve" type="range" min="-100" max="100" value="0"></div>
-   <label class="toggle"><input type="checkbox" id="input-gate"> Signal below “from” turns off (0)</label>
-   <details class="more"><summary>How it works</summary>
-   <p class="hint">The signal window “from–to” is stretched onto the reaction “from–to”. Above “to” the reaction is always at maximum; below “from” it stays at the minimum, or 0. Example: signal 0–60% → reaction 150–250.</p>
-   <p class="hint">Curve bends the stretch: LED brightness looks logarithmic (50% → 100% barely changes), so a curve of ×2–×2.5 keeps quiet and mid signals dim and makes the reaction look even. Below linear it lifts quiet signals.</p>
+   <div class="field"><span class="field-label">Signal window <span class="val"><span id="input-min-value">0%</span> – <span id="input-max-value">100%</span></span></span>
+    <div class="dual"><input id="input-min" type="range" min="0" max="255" value="0" aria-label="Signal from"><input id="input-max" type="range" min="0" max="255" value="255" aria-label="Signal to"></div></div>
+   <div class="field"><span class="field-label">Reaction <span class="val"><span id="audio-min-value">0</span> – <span id="audio-max-value">255</span></span></span>
+    <div class="dual"><input id="audio-min" type="range" min="0" max="255" value="0" aria-label="Reaction from"><input id="audio-max" type="range" min="0" max="255" value="255" aria-label="Reaction to"></div></div>
+   <div class="field"><label for="input-curve">Curve <span class="val" id="input-curve-value">linear</span></label><input id="input-curve" type="range" min="-100" max="100" value="0" data-center></div>
+   <label class="check"><input type="checkbox" id="input-gate"><span>Silence below the window<small>a signal under “from” turns the reaction off (0)</small></span></label>
+   <details class="disclosure"><summary>How it works</summary>
+    <p class="hint">The signal window is stretched onto the reaction range. Above the window the reaction is always at maximum; below it the reaction stays at the minimum, or 0. Example: signal 0–60% → reaction 150–250.</p>
+    <p class="hint">Curve bends the stretch: LED brightness looks logarithmic (50% → 100% barely changes), so a curve of ×2–×2.5 keeps quiet and mid signals dim and makes the reaction look even. Below linear it lifts quiet signals.</p>
    </details>
   </div>
-  <div class="block" data-modes="1,2,3,4,6,7,11,12,13,14,15,16,18,19,20,21,22,23,24,25">
-   <div class="block-head"><span>Start and direction</span><button class="ghost small" id="origin-reset" type="button">Reset</button></div>
-   <div class="field"><label for="origin-shift">Start offset <span class="value" id="origin-shift-value">0 LED</span></label><input id="origin-shift" type="range" min="-8" max="8" value="0"></div>
-   <label class="toggle"><input type="checkbox" id="origin-reverse"> Reverse direction</label>
-   <label class="toggle"><input type="checkbox" id="origin-ring"> Ring (strip ends joined)</label>
-   <label class="toggle" data-requires-matrix><input type="checkbox" id="origin-radial"> Center modes as a circle (2D)</label>
-   <div class="field" data-requires-matrix data-requires="origin-radial"><label for="origin-y">Circle center Y <span class="value" id="origin-y-value">50%</span></label><input id="origin-y" type="range" min="0" max="1000" value="500"></div>
+  <div class="section" data-modes="1,2,3,4,6,7,11,12,13,14,15,16,18,19,20,21,22,23,24,25">
+   <div class="section-head"><h3 class="eyebrow">Start and direction</h3><button class="reset" id="origin-reset" type="button" data-reset="Reset start and direction" title="Reset start and direction" aria-label="Reset start and direction"><svg class="ico" aria-hidden="true"><use href="#i-reset"/></svg></button></div>
+   <div class="field"><label for="origin-shift">Start offset <span class="val" id="origin-shift-value">0 LED</span></label><input id="origin-shift" type="range" min="-8" max="8" value="0" data-center></div>
+   <label class="check"><input type="checkbox" id="origin-reverse"><span>Reverse direction</span></label>
+   <label class="check"><input type="checkbox" id="origin-ring"><span>Ring<small>strip ends joined</small></span></label>
+   <label class="check" data-requires-matrix><input type="checkbox" id="origin-radial"><span>Center modes as a circle<small>2D, around an adjustable row</small></span></label>
+   <div class="field" data-requires-matrix data-requires="origin-radial"><label for="origin-y">Circle center Y <span class="val" id="origin-y-value">50%</span></label><input id="origin-y" type="range" min="0" max="1000" value="500"></div>
    <p class="hint" id="origin-hint"></p>
   </div>
-  <details class="more"><summary>How it works</summary>
+  <details class="disclosure"><summary>How audio modes work</summary>
    <p class="hint">Spectrum and Wave do not draw on top of the picture; they scale the brightness of the running effect per column. Speed / Scale / Light Control change the preset parameter before rendering, as in the firmware. The preview uses the same DSP whose features the lamp receives.</p>
   </details>
  </section>
 
- <section class="tabpanel" data-panel="led" role="tabpanel" hidden>
-  <div class="field"><label for="geometry">Matrix or strip</label><select id="geometry"><optgroup label="Matrices"><option value="16x16" selected>16 × 16 · matrix (lamp)</option><option value="32x32">32 × 32</option><option value="64x64">64 × 64</option><option value="128x128">128 × 128 (simulator)</option></optgroup>
-<optgroup label="Strips"><option value="7x1">7 LED · strip (torus)</option><option value="34x1">34 LED · strip (test)</option><option value="46x1">46 LED · strip (mini_lamp)</option><option value="60x1">60 LED · strip, 1 m</option><option value="153x1">153 LED · strip (ceiling)</option><option value="300x1">300 LED · strip, 5 m</option><option value="72x2">72 × 2 · two-row strip (tv)</option></optgroup>
-<optgroup label="Other"><option value="custom">Custom size…</option><option value="device">From connected ESP (hello_ack)</option></optgroup></select></div>
-  <div class="geometry-custom" id="geometry-custom" hidden><label>Width<input type="number" id="geom-w" min="1" max="1024" value="60"></label><span>×</span><label>Height<input type="number" id="geom-h" min="1" max="128" value="1"></label></div>
-  <p class="hint" id="geometry-note"></p>
-  <div class="toggles">
-   <label class="toggle"><input type="checkbox" id="led-dots" checked> <span>Draw as LEDs <svg class="ico tiny preview-only" role="img" aria-label="Preview only"><title>Preview only — not sent to the lamp</title><use href="#i-eye"/></svg></span></label>
-   <label class="toggle"><input type="checkbox" id="invert-y" checked> <span>Flip vertically <svg class="ico tiny preview-only" role="img" aria-label="Preview only"><title>Preview only — not sent to the lamp</title><use href="#i-eye"/></svg></span></label>
-   <label class="toggle"><input type="checkbox" id="xy-test"> <span>Orientation test (corners) <svg class="ico tiny preview-only" role="img" aria-label="Preview only"><title>Preview only — not sent to the lamp</title><use href="#i-eye"/></svg></span></label>
-   <label class="toggle"><input type="checkbox" id="simulate-led"> <span>Simulate LED output <svg class="ico tiny preview-only" role="img" aria-label="Preview only"><title>Preview only — not sent to the lamp</title><use href="#i-eye"/></svg></span></label>
+ <section class="tabpanel" id="panel-lamps" data-panel="lamps" role="tabpanel" aria-labelledby="tab-lamps" hidden>
+  <div class="stream-card" id="remote-panel">
+   <label class="switch"><input id="remote-enable" type="checkbox" checked><span class="switch-track" aria-hidden="true"></span><span class="switch-label">Stream to lamps</span></label>
+   <p class="stream-state" id="remote-state" aria-live="polite">Off · the preview only</p>
   </div>
-  <div class="field" data-requires="simulate-led"><label for="master-brightness"><span>LED output brightness <svg class="ico tiny preview-only" role="img" aria-label="Preview only"><title>Preview only — not sent to the lamp</title><use href="#i-eye"/></svg></span> <span class="value" id="master-brightness-value">128</span></label><input id="master-brightness" type="range" min="0" max="255" value="128"></div>
-  <div class="field"><label for="gamma"><span>Palette gamma <svg class="ico tiny preview-only" role="img" aria-label="Preview only"><title>Preview only — not sent to the lamp</title><use href="#i-eye"/></svg></span> <span class="value" id="gamma-value">2.20</span></label><input id="gamma" type="range" min="0" max="255" value="128"></div>
-  <details class="more"><summary>Orientation and accuracy</summary>
-   <p class="hint">Orientation test: red (0,0), green (W−1,0), blue (0,H−1), white (W−1,H−1) in firmware coordinates. Flipping only changes the display. Addressing is serpentine, like <code>Led::get_index</code>; long strips wrap onto several display lines.</p>
-   <p class="hint">Effects are hand-ported to C++/WASM; an exact match with the firmware is not proven (FastLED version, frame timing, physical LEDs). LED output simulation is approximate: brightness and TypicalLEDStrip correction, without current limiting or dithering.</p>
+  <div class="lamps-master" id="lamps-master" hidden aria-label="All lamps">
+   <div class="master-row">
+    <span class="eyebrow">All lamps</span>
+    <button class="btn small" id="lamps-connect" type="button" title="Connect every lamp in the list">Connect all</button>
+   </div>
+   <div class="master-row">
+    <div class="seg" role="group" aria-label="Power of all connected lamps"><button id="lamps-on" type="button" title="Turn all connected lamps on" aria-pressed="false"><svg class="ico" aria-hidden="true"><use href="#i-power"/></svg>On</button><button id="lamps-off" type="button" title="Turn all connected lamps off" aria-pressed="false">Off</button></div>
+    <label class="bright-ctl" title="Brightness of all connected lamps (saved on each lamp)"><svg class="ico" aria-hidden="true"><use href="#i-sun"/></svg><input id="lamps-brightness" type="range" min="0" max="100" value="100" aria-label="Brightness of all connected lamps"><b class="val" id="lamps-brightness-value">—</b></label>
+   </div>
+   <p class="hint" id="lamps-limit-hint" hidden>Each lamp stays within its own max brightness.</p>
+  </div>
+  <div id="remote-devices" aria-live="polite"></div>
+  <form class="add-lamp" id="remote-form" onsubmit="return false">
+   <input type="text" id="remote-address" placeholder="Add a lamp: IP or esp_lamp.local" aria-label="Lamp address" autocomplete="off" spellcheck="false">
+   <button class="btn primary" id="remote-add" type="submit">Connect</button>
+  </form>
+  <p class="hint error-text" id="lamp-add-error" hidden></p>
+  <div class="empty-lamps" id="lamps-empty"><svg class="ico" aria-hidden="true"><use href="#i-bulb"/></svg><p>Enter the address shown on the lamp's web page. Lamps are remembered in this browser; each one can then get its own effect and reaction.</p></div>
+  <details class="disclosure"><summary>Stream settings</summary>
+   <div class="field-pair">
+    <div class="field"><label for="remote-bands">Spectrum bands</label><select id="remote-bands"><option value="16">16</option><option value="32" selected>32</option><option value="64">64</option></select></div>
+    <div class="field"><label for="remote-latency">Light offset, ms <span class="val" id="remote-latency-value" hidden>0 ms</span></label><input type="number" min="-100" max="500" step="5" value="0" id="remote-latency"></div>
+   </div>
+   <label class="check"><input type="checkbox" id="remote-adapt" checked><span>Band count from each lamp's width<small>about one band per column; “Spectrum bands” is then only the preview of All lamps. A lamp's own choice (its details) always wins.</small></span></label>
+   <label class="check"><input type="checkbox" id="remote-autoconnect"><span>Connect all lamps when the page opens</span></label>
+   <p class="hint">On / Off and brightness apply to every connected lamp and are saved on the lamp, like its own controls. Older firmware without the <code>control</code> capability gets them over HTTP (<code>/api/power</code>, <code>/api/brightness</code>) and its state is not shown.</p>
+   <p class="hint">Only DSP features are sent, never audio. Lamp endpoint: <code>ws://address/audio</code>. A page served over HTTPS may block <code>ws://</code>; open it from localhost or as a file. A positive light offset delays the light, a negative one advances it.</p>
   </details>
  </section>
 
- <section class="tabpanel" data-panel="dsp" role="tabpanel" hidden>
-  <div class="split"><p class="hint">Audio analyzer settings. They affect both the preview and what the lamp receives.</p><button class="ghost small" id="defaults">Reset ↺</button></div>
-  <div class="field"><label for="fft">FFT size</label><select id="fft"><option value="64">64 · 4 ms</option><option value="128">128 · 8 ms</option><option value="256">256 · 16 ms</option><option value="512" selected>512 · 32 ms</option><option value="1024">1024 · 64 ms</option><option value="2048">2048 · 128 ms</option><option value="4096">4096 · 256 ms</option><option value="8192">8192 · 512 ms</option></select><p class="hint" id="fft-hint"></p></div>
-  <div class="field"><label for="sample-rate">Analysis sample rate</label><select id="sample-rate"><option value="8000">8 kHz</option><option value="16000" selected>16 kHz</option><option value="32000">32 kHz</option><option value="48000">48 kHz</option></select><p class="hint" id="sample-rate-hint"></p></div>
-  <div class="field-pair">
-   <div class="field"><label for="freq-min">Frequencies from <span class="value" id="freq-min-value">40 Hz</span></label><input id="freq-min" type="range" min="0" max="1000" value="116"></div>
-   <div class="field"><label for="freq-max">to <span class="value" id="freq-max-value">8 kHz</span></label><input id="freq-max" type="range" min="0" max="1000" value="1000"></div>
+ <section class="tabpanel" id="panel-analyzer" data-panel="analyzer" role="tabpanel" aria-labelledby="tab-analyzer" hidden>
+  <p class="panel-note"><svg class="ico" aria-hidden="true"><use href="#i-bars"/></svg>The audio analyzer. It shapes both the preview and what the lamps receive.</p>
+  <div class="section">
+   <div class="section-head"><h3 class="eyebrow">Resolution</h3><button class="reset" id="defaults" type="button" title="Reset the analyzer" aria-label="Reset the analyzer"><svg class="ico" aria-hidden="true"><use href="#i-reset"/></svg></button></div>
+   <div class="field-pair">
+    <div class="field"><label for="fft">FFT size</label><select id="fft"><option value="64">64 · 4 ms</option><option value="128">128 · 8 ms</option><option value="256">256 · 16 ms</option><option value="512" selected>512 · 32 ms</option><option value="1024">1024 · 64 ms</option><option value="2048">2048 · 128 ms</option><option value="4096">4096 · 256 ms</option><option value="8192">8192 · 512 ms</option></select></div>
+    <div class="field"><label for="sample-rate">Sample rate</label><select id="sample-rate"><option value="8000">8 kHz</option><option value="16000" selected>16 kHz</option><option value="32000">32 kHz</option><option value="48000">48 kHz</option></select></div>
+   </div>
+   <p class="hint" id="fft-hint"></p>
+   <p class="hint" id="sample-rate-hint"></p>
   </div>
-  <p class="hint">Bands are spread logarithmically inside this range; sound outside it is ignored. Example: 200 Hz – 4 kHz for vocals and leads, 40–250 Hz for bass only.</p>
-  <div class="field"><label for="gain">Sensitivity <span class="value" id="gain-value">1.6×</span></label><input id="gain" type="range" min="5" max="50" value="16"></div>
-  <div class="field-pair">
-   <div class="field"><label for="attack">Attack <span class="value" id="attack-value">25 ms</span></label><input id="attack" type="range" min="5" max="200" step="5" value="25"></div>
-   <div class="field"><label for="release">Release <span class="value" id="release-value">210 ms</span></label><input id="release" type="range" min="25" max="850" step="5" value="210"></div>
+  <div class="section">
+   <div class="section-head"><h3 class="eyebrow">Frequency range</h3><span class="section-value"><span id="freq-min-value">40 Hz</span> – <span id="freq-max-value">8 kHz</span></span></div>
+   <div class="dual log"><input id="freq-min" type="range" min="0" max="1000" value="116" aria-label="Frequencies from"><input id="freq-max" type="range" min="0" max="1000" value="1000" aria-label="Frequencies to"></div>
+   <p class="hint">Bands are spread logarithmically inside this range; sound outside it is ignored. Example: 200 Hz – 4 kHz for vocals and leads, 40–250 Hz for bass only.</p>
   </div>
-  <div class="field"><label for="transient">Onset threshold <span class="value" id="transient-value">1.0×</span></label><input id="transient" type="range" min="3" max="30" value="10"></div>
-  <div class="field"><label for="compression">Compression <span class="value" id="compression-value">82%</span></label><input id="compression" type="range" min="0" max="100" value="82"></div>
-  <div class="field"><label for="agc">Auto gain (AGC) <span class="value" id="agc-value">900 ms</span></label><input id="agc" type="range" min="100" max="3500" step="50" value="900"></div>
-  <div class="field-pair">
-   <div class="field"><label for="noise">Noise floor <span class="value" id="noise-value">0.008</span></label><input id="noise" type="range" min="0" max="50" value="8"></div>
-   <div class="field"><label for="adaptive-floor">Adaptive floor <span class="value" id="adaptive-floor-value">0%</span></label><input id="adaptive-floor" type="range" min="0" max="100" value="0"></div>
+  <div class="section">
+   <div class="section-head"><h3 class="eyebrow">Level</h3></div>
+   <div class="field"><label for="gain">Sensitivity <span class="val" id="gain-value">1.6×</span></label><input id="gain" type="range" min="5" max="50" value="16"></div>
+   <div class="field"><label for="compression">Compression <span class="val" id="compression-value">82%</span></label><input id="compression" type="range" min="0" max="100" value="82"></div>
+   <div class="field"><label for="agc">Auto gain (AGC) <span class="val" id="agc-value">900 ms</span></label><input id="agc" type="range" min="100" max="3500" step="50" value="900"></div>
   </div>
-  <details class="more"><summary>Details</summary>
+  <div class="section">
+   <div class="section-head"><h3 class="eyebrow">Envelope</h3></div>
+   <div class="field-pair">
+    <div class="field"><label for="attack">Attack <span class="val" id="attack-value">25 ms</span></label><input id="attack" type="range" min="5" max="200" step="5" value="25"></div>
+    <div class="field"><label for="release">Release <span class="val" id="release-value">210 ms</span></label><input id="release" type="range" min="25" max="850" step="5" value="210"></div>
+   </div>
+  </div>
+  <div class="section">
+   <div class="section-head"><h3 class="eyebrow">Onsets and noise</h3></div>
+   <div class="field"><label for="transient">Onset threshold <span class="val" id="transient-value">1.0×</span></label><input id="transient" type="range" min="3" max="30" value="10"></div>
+   <div class="field-pair">
+    <div class="field"><label for="noise">Noise floor <span class="val" id="noise-value">0.008</span></label><input id="noise" type="range" min="0" max="50" value="8"></div>
+    <div class="field"><label for="adaptive-floor">Adaptive floor <span class="val" id="adaptive-floor-value">0%</span></label><input id="adaptive-floor" type="range" min="0" max="100" value="0"></div>
+   </div>
+  </div>
+  <details class="disclosure"><summary>Details</summary>
    <p class="hint">Hann-windowed FFT at the selected analysis rate (the top frequency is half that rate), 16 logarithmic bands for the classic preview modes (16/32/64 for the lamp and the lab-preview modes), envelope attack/release, adaptive noise floor, spectral-flux onset detector and an experimental tempo estimate (may be wrong on complex music).</p>
   </details>
  </section>
  </div>
 </aside>
-</div>
-<footer class="footer">Everything is processed locally in the browser · only audio features are sent to the lamp<br><svg class="ico tiny preview-only" role="img" aria-label="Preview only"><title>Preview only — not sent to the lamp</title><use href="#i-eye"/></svg> — Preview only, not sent to the lamp</footer>
 </main>
+
+<footer class="player" id="transport" aria-label="Player">
+ <button type="button" class="now-playing" id="now-playing" title="Show the playlist">
+  <span class="np-icon" aria-hidden="true"><svg class="ico"><use id="source-icon" href="#i-music"/></svg></span>
+  <span class="np-text"><span class="filename" id="filename">No audio file</span><span class="status" id="status">Loading WebAssembly…</span></span>
+ </button>
+ <div class="transport-buttons">
+  <button type="button" class="icon-btn" id="prev" title="Previous (P) · restarts the track after 3 s" aria-label="Previous"><svg class="ico" aria-hidden="true"><use href="#i-prev"/></svg></button>
+  <button type="button" class="play" id="play" title="Play (Space)" aria-label="Play" disabled><svg class="ico" aria-hidden="true"><use href="#i-play"/></svg></button>
+  <button type="button" class="icon-btn" id="next" title="Next (N)" aria-label="Next" disabled><svg class="ico" aria-hidden="true"><use href="#i-next"/></svg></button>
+ </div>
+ <div class="timebar">
+  <button type="button" class="icon-btn mode" id="shuffle" title="Shuffle" aria-label="Shuffle" aria-pressed="false"><svg class="ico" aria-hidden="true"><use href="#i-shuffle"/></svg></button>
+  <span class="time" id="now">00:00</span><input id="seek" type="range" min="0" max="1000" value="0" aria-label="Position"><span class="time" id="duration">00:00</span>
+  <button type="button" class="icon-btn mode" id="repeat" title="Repeat: off" aria-label="Repeat: off" aria-pressed="false"><svg class="ico" aria-hidden="true"><use href="#i-repeat"/></svg></button>
+ </div>
+ <div class="player-right">
+  <button type="button" class="icon-btn" id="volume-button" popovertarget="volume-menu" title="Playback volume" aria-label="Playback volume"><svg class="ico" aria-hidden="true"><use href="#i-volume"/></svg></button>
+  <div class="volume-menu" id="volume-menu" popover>
+   <label class="volume" title="Playback volume (the lamp is not affected)"><svg class="ico" aria-hidden="true"><use href="#i-volume"/></svg><input id="playback-volume" type="range" min="0" max="100" value="100" aria-label="Volume"><b class="val" id="playback-volume-value">100%</b></label>
+  </div>
+  <button type="button" class="icon-btn" id="library-toggle" title="Show or hide the playlist" aria-label="Playlist" aria-pressed="true"><svg class="ico" aria-hidden="true"><use href="#i-list"/></svg></button>
+ </div>
+</footer>
+</div>
+
+<div class="popover menu" id="sources-menu" popover aria-label="Sources">
+ <button class="menu-item source" id="demo" type="button"><span class="source-icon" aria-hidden="true"><svg class="ico"><use href="#i-music"/></svg></span><span class="source-name">Demo beat<small>120 BPM loop</small></span></button>
+ <button class="menu-item source" id="mic-source" type="button"><span class="source-icon" aria-hidden="true"><svg class="ico"><use href="#i-mic"/></svg></span><span class="source-name">Microphone<small id="mic-hint">live input, not played back</small></span></button>
+ <div class="menu-sep" role="separator"></div>
+ <button class="menu-item" id="pl-clear" type="button"><span class="source-icon" aria-hidden="true"><svg class="ico"><use href="#i-trash"/></svg></span><span class="source-name">Clear the list</span></button>
+</div>
+
+<div class="popover" id="geometry-menu" popover aria-label="LED layout">
+ <div class="pop-head"><h3 class="pop-title">LED layout</h3><span class="muted">WIDTH × HEIGHT, as in the firmware</span></div>
+ <select id="geometry" hidden><optgroup label="Matrices"><option value="16x16" selected data-short="16 × 16">16 × 16 · matrix (lamp)</option><option value="32x32" data-short="32 × 32">32 × 32</option><option value="64x64" data-short="64 × 64">64 × 64</option><option value="128x128" data-short="128 × 128">128 × 128 (simulator)</option></optgroup>
+<optgroup label="Strips"><option value="7x1" data-short="7 · torus">7 LED · strip (torus)</option><option value="34x1" data-short="34 · test">34 LED · strip (test)</option><option value="46x1" data-short="46 · mini_lamp">46 LED · strip (mini_lamp)</option><option value="60x1" data-short="60 · 1 m">60 LED · strip, 1 m</option><option value="153x1" data-short="153 · ceiling">153 LED · strip (ceiling)</option><option value="300x1" data-short="300 · 5 m">300 LED · strip, 5 m</option><option value="72x2" data-short="72 × 2 · tv">72 × 2 · two-row strip (tv)</option></optgroup>
+<optgroup label="Other"><option value="custom" data-short="Custom size…">Custom size…</option><option value="device" data-short="From connected lamp">From connected ESP (hello_ack)</option></optgroup></select>
+ <div class="choices chips" data-for="geometry" aria-label="LED layout"></div>
+ <div class="geometry-custom" id="geometry-custom" hidden><label>Width<input type="number" id="geom-w" min="1" max="1024" value="60"></label><span aria-hidden="true">×</span><label>Height<input type="number" id="geom-h" min="1" max="128" value="1"></label></div>
+ <p class="hint" id="geometry-note"></p>
+</div>
+
+<div class="popover" id="view-menu" popover aria-label="Preview display">
+ <div class="pop-head"><h3 class="pop-title">Preview display</h3><button class="reset" id="view-reset" type="button" title="Reset preview display" aria-label="Reset preview display"><svg class="ico" aria-hidden="true"><use href="#i-reset"/></svg></button></div>
+ <p class="hint top"><svg class="ico tiny" aria-hidden="true"><use href="#i-eye"/></svg> Only changes how this page draws the LEDs; nothing here is sent to the lamp.</p>
+ <div class="field"><label for="mix">Audio reaction strength <span class="val" id="mix-value">100%</span></label><input id="mix" type="range" min="0" max="100" value="100"></div>
+ <label class="check"><input type="checkbox" id="led-dots" checked><span>Draw as LEDs</span></label>
+ <label class="check"><input type="checkbox" id="invert-y" checked><span>Flip vertically</span></label>
+ <label class="check"><input type="checkbox" id="xy-test"><span>Orientation test<small>red (0,0), green (W−1,0), blue (0,H−1), white (W−1,H−1)</small></span></label>
+ <label class="check"><input type="checkbox" id="simulate-led"><span>Simulate LED output<small>brightness and TypicalLEDStrip correction</small></span></label>
+ <div class="field" data-requires="simulate-led"><label for="master-brightness">LED output brightness <span class="val" id="master-brightness-value">128</span></label><input id="master-brightness" type="range" min="0" max="255" value="128"></div>
+ <div class="field"><label for="gamma">Palette gamma <span class="val" id="gamma-value">2.20</span></label><input id="gamma" type="range" min="0" max="255" value="128"></div>
+ <details class="disclosure"><summary>Orientation and accuracy</summary>
+  <p class="hint">Flipping only changes the display. Addressing is serpentine, like <code>Led::get_index</code>; long strips wrap onto several display lines.</p>
+  <p class="hint">Effects are hand-ported to C++/WASM; an exact match with the firmware is not proven (FastLED version, frame timing, physical LEDs). LED output simulation is approximate: no current limiting or dithering.</p>
+ </details>
+</div>
+
+<div class="popover help" id="help-menu" popover aria-label="Shortcuts and settings">
+ <div class="pop-head"><h3 class="pop-title">Keyboard</h3></div>
+ <dl class="keys">
+  <dt><kbd>Space</kbd></dt><dd>Play / pause</dd>
+  <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>Seek 5 s</dd>
+  <dt><kbd>N</kbd> <kbd>P</kbd></dt><dd>Next / previous track</dd>
+  <dt><kbd>1</kbd>–<kbd>5</kbd></dt><dd>Music, Effect, Reaction, Lamps, Analyzer</dd>
+ </dl>
+ <p class="hint">Headphone buttons, media keys and the system media controls drive the player too.</p>
+ <div class="pop-head"><h3 class="pop-title">This browser</h3></div>
+ <p class="hint">Settings, lamps and the LED layout are remembered here. Everything is processed locally; only audio features are sent to the lamps.</p>
+ <button class="btn" id="reset-all" type="button"><svg class="ico" aria-hidden="true"><use href="#i-reset"/></svg>Reset all settings</button>
+</div>
+
 <script src="vendor/audio-metadata.js"></script>
 <script src="js/state.js"></script>
 <script src="js/analysis.js"></script>
 <script src="js/geometry.js"></script>
 <script src="js/tuning.js"></script>
 <script src="js/remote.js"></script>
+<script src="js/lamps.js"></script>
 <script src="js/remote-ui.js"></script>
 <script src="js/view.js"></script>
+<script src="js/ui.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/playlist.js"></script>
 <script src="js/main.js"></script>

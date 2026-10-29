@@ -15,12 +15,15 @@ async function loadWasm(name){
 async function init(){
  try{
   const [render,dsp]=await Promise.all(['render.wasm','dsp.wasm'].map(loadWasm));
-  STATE.modules.new=(await WebAssembly.instantiate(render)).instance;
+  const {module,instance}=await WebAssembly.instantiate(render);
+  STATE.modules.new=instance;
+  // A second renderer draws the palette swatches and color-effect thumbnails.
+  STATE.modules.thumb=await WebAssembly.instantiate(module);
   STATE.canvases.new={off:document.createElement('canvas')};
   STATE.modules.dsp=(await WebAssembly.instantiate(dsp)).instance;
   STATE.ready=true;
   STATE.modules.new.exports.set_palette(3);
-  refreshLabels();resetDSP();
+  initPickers();refreshLabels();resetDSP();
   $('status').textContent='Pick a track or the demo beat';$('play').disabled=true;
   requestAnimationFrame(animate);
  }catch(err){
@@ -42,7 +45,7 @@ if(STATE.playing&&STATE.inputMode==='microphone'&&STATE.mic){
    STATE.modules.new.exports.reset_render();}
  }
  STATE.lastPlaybackSample=current;
- if(!STATE.seeking){$('now').textContent=asTime(current/fs);$('seek').value=Math.floor(current/STATE.pcm.length*1000);}
+ if(!STATE.seeking){$('now').textContent=asTime(current/fs);setSeek(Math.floor(current/STATE.pcm.length*1000));}
 }else if(!STATE.playing&&STATE.tailUntil>=0){
  // Paused or stopped: feed silence at real time until the envelopes settle.
  STATE.tailPos+=dt*fs/1000;current=Math.min(STATE.tailUntil,Math.floor(STATE.tailPos));
@@ -61,33 +64,14 @@ STATE.frames++;
 if(t-STATE.lastStats>=1000){$('fps').textContent=Math.round(STATE.frames*1000/Math.max(1,t-STATE.lastStats))+' FPS';STATE.frames=0;STATE.lastStats=t;}
 }
 $('fps').hidden=!/[?&]debug\b/.test(location.search);
+restoreSettings();
 initRemote();
 spectrumPlan();
 initTuning();
+initUi();
+initLamps();
+renderRemoteDevices();
 for(const id of inputIds.filter(id=>id!=='sample-rate')){$(id).addEventListener('input',refreshLabels);$(id).addEventListener('change',refreshLabels);}
-// Settings tabs; the active tab is remembered.
-const TAB_KEY='esp-led-lab.tab';
-function selectTab(name){
- const tabs=[...document.querySelectorAll('.tabs [data-tab]')];
- if(!tabs.some(t=>t.dataset.tab===name))name=tabs[0].dataset.tab;
- for(const t of tabs)t.setAttribute('aria-selected',String(t.dataset.tab===name));
- for(const p of document.querySelectorAll('.tabpanel'))p.hidden=p.dataset.panel!==name;
- try{localStorage.setItem(TAB_KEY,name);}catch(_){}
- if(name==='audio')drawTransfer(NaN);
-}
-for(const t of document.querySelectorAll('.tabs [data-tab]'))t.onclick=()=>selectTab(t.dataset.tab);
-try{selectTab(localStorage.getItem(TAB_KEY)||'effect');}catch(_){selectTab('effect');}
-// Remember the LED geometry per browser (a convenience only; storage may be unavailable).
-const GEOMETRY_KEY='esp-led-lab.geometry';
-try{
- const saved=JSON.parse(localStorage.getItem(GEOMETRY_KEY)||'null');
- if(saved&&[...$('geometry').options].some(o=>o.value===saved.value)){
-  $('geometry').value=saved.value;$('geom-w').value=saved.w;$('geom-h').value=saved.h;
- }
-}catch(_){}
-for(const id of ['geometry','geom-w','geom-h'])$(id).addEventListener('change',()=>{
- try{localStorage.setItem(GEOMETRY_KEY,JSON.stringify({value:$('geometry').value,w:$('geom-w').value,h:$('geom-h').value}));}catch(_){}
-});
 // Microphone or file / demo. A failed microphone falls back to the file side.
 async function setInputMode(mode){
  pauseAudio();STATE.inputMode=mode;
@@ -127,7 +111,15 @@ for(const id of ['freq-min','freq-max'])$(id).addEventListener('input',()=>{
  if(hi>=lo*1.5)return;
  if(id==='freq-min')$('freq-max').value=Math.min(1000,hzSlider(lo*1.5)+1);
  if(id==='freq-max'||sliderHz(+$('freq-max').value)<lo*1.5)$('freq-min').value=Math.max(0,hzSlider(sliderHz(+$('freq-max').value)/1.5)-1);
+ refreshLabels();
 });
-$('defaults').onclick=()=>{const o={'param-source':'loudness','spectrum-shape':70,'spectrum-onset':30,'line-response':75,fft:512,'sample-rate':16000,attack:25,release:210,noise:8,'adaptive-floor':0,gain:16,transient:10,agc:900,compression:82,'freq-min':hzSlider(40),'freq-max':1000};Object.entries(o).forEach(([k,v])=>$(k).value=v);refreshLabels();if(STATE.ready)resetDSP(Math.max(0,STATE.inputMode==='microphone'?STATE.mic?.written||0:Math.floor((STATE.playing&&STATE.context?STATE.context.currentTime-STATE.playStart:STATE.pausedAt)*fs)));changeAnalysisRate(16000);};
+// Analyzer defaults: 40 Hz is set in Hz so it survives the change back to 16 kHz.
+function resetAnalyzer(){
+ resetControls(['fft','attack','release','noise','adaptive-floor','gain','transient','agc','compression']);
+ $('freq-min').value=hzSlider(40);$('freq-max').value=1000;refreshLabels();
+ if(STATE.ready)resetDSP(Math.max(0,STATE.inputMode==='microphone'?STATE.mic?.written||0:Math.floor((STATE.playing&&STATE.context?STATE.context.currentTime-STATE.playStart:STATE.pausedAt)*fs)));
+ changeAnalysisRate(16000);
+}
+$('defaults').onclick=resetAnalyzer;
 refreshLabels();
 init();

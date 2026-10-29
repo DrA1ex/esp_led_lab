@@ -129,15 +129,16 @@ with sync_playwright() as p:
     print('PASS repeat one')
 
     # Pinned sources take over; the demo loops and never advances the playlist.
-    page.locator('#demo').click()
+    page.locator('#sources-button').click();page.locator('#demo').click()
     page.wait_for_function('STATE.playing && STATE.loopDemo && !PL.active',timeout=10000)
     assert 'current' in page.locator('#demo').get_attribute('class')
     assert page.locator('#playlist .track.current').count()==0
-    page.locator('#pl-clear').click()
+    page.locator('#sources-button').click();page.locator('#pl-clear').click()
     assert page.evaluate('PL.tracks.length')==0 and page.locator('#pl-empty').is_visible()
     print('PASS demo row, clear list')
 
     # Lamps: connect all, then power and brightness for every connected lamp.
+    page.locator('#tab-lamps').click()
     for port in [8765,8766,8767]:
         page.locator('#remote-address').fill(f'127.0.0.1:{port}')
         page.locator('#remote-add').click()
@@ -160,14 +161,30 @@ with sync_playwright() as p:
     assert 'http://127.0.0.1:8767/api/power?value=0' in http and 'http://127.0.0.1:8767/api/brightness?value=80' in http and \
         'http://127.0.0.1:8767/api/power?value=1' in http, http
     assert not any(':8765' in u or ':8766' in u for u in http), http
-    # Per-lamp power button, and a change made on the lamp shows up with the next status.
+    # Per-lamp power switch, and a change made on the lamp shows up with the next status.
     page.locator('.lamp').nth(1).locator('.lamp-power').click()
     page.wait_for_function("!__lamps['ws://127.0.0.1:8766/audio'].power && __lamps['ws://127.0.0.1:8765/audio'].power")
+    assert page.locator('.lamp').nth(1).locator('.lamp-power').get_attribute('aria-checked')=='false'
     page.evaluate("__lamps['ws://127.0.0.1:8765/audio'].brightness=51")
     page.wait_for_function("REMOTE.devices[0].brightness===51",timeout=5000)
-    page.wait_for_function("document.querySelector('.lamp .lamp-ctl .value').textContent==='20%'")
+    page.wait_for_function("document.querySelector('.lamp .lamp-now').textContent==='now 20%'")
+    page.locator('.lamp').nth(2).locator('.lamp-more-toggle').click()
     assert 'older firmware: power and brightness over HTTP' in page.locator('.lamp').nth(2).inner_text()
     print('PASS connect all, all on/off, all brightness, per-lamp power, HTTP fallback for older firmware')
+
+    # Max brightness: a lamp at 50% stays at half of the all-lamps level, now and later.
+    page.locator('#lamps-brightness').fill('80')
+    page.wait_for_function("__lamps['ws://127.0.0.1:8765/audio'].brightness===204")
+    page.locator('.lamp').nth(1).locator('.lamp-bright').fill('50')
+    page.wait_for_function("__lamps['ws://127.0.0.1:8766/audio'].brightness===102")
+    assert page.locator('#lamps-limit-hint').is_visible()
+    page.locator('#lamps-brightness').fill('60')
+    page.wait_for_function("__lamps['ws://127.0.0.1:8765/audio'].brightness===153 && __lamps['ws://127.0.0.1:8766/audio'].brightness===77")
+    assert 'http://127.0.0.1:8767/api/brightness?value=60' in page.evaluate('__http')
+    page.wait_for_timeout(600) # the next status report: the all-lamps level reads back as set
+    assert page.locator('#lamps-brightness-value').inner_text()=='60%'
+    assert page.evaluate("LAMP_PROFILES['ws://127.0.0.1:8766/audio'].limit")==50
+    print('PASS max brightness per lamp scales with the all-lamps brightness')
 
     assert not errors,errors
     print('PASS no page errors')

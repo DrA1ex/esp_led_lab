@@ -8,7 +8,7 @@ with sync_playwright() as p:
  page=browser.new_page(viewport={'width':1360,'height':900})
  errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
  page.set_content((ROOT/'dist'/'standalone.html').read_text());page.wait_for_function('STATE.ready === true')
- page.locator('#demo').click()
+ page.locator('#sources-button').click();page.locator('#demo').click()
  page.locator('#color').select_option('0',force=True)
  page.locator('#audio-mode').select_option('8',force=True)
  page.locator('#param-source').select_option('loudness',force=True)

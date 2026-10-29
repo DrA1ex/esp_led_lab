@@ -85,6 +85,9 @@ function refreshTuningUi(s,g){
   if(show&&el.dataset.requires)show=Boolean($(el.dataset.requires)?.checked);
   el.hidden=!show;
  }
+ // A section whose every field is hidden for this mode goes away too.
+ for(const sec of document.querySelectorAll('[data-auto-hide]'))
+  sec.hidden=![...sec.querySelectorAll('[data-modes]')].some(el=>!el.hidden);
  $('audio-mode-hint').textContent=MODE_HINTS[mode]||'';
  const shift=$('origin-shift');
  if(+shift.max!==half){shift.min=-half;shift.max=half;}
@@ -100,14 +103,17 @@ function refreshTuningUi(s,g){
  $('viz-mirror-label').textContent=strip?'From the center, both ways':'Mirror vertically (from the middle row)';
  $('viz-decay-value').textContent=s['viz-decay']+'%';$('viz-speed-value').textContent=s['viz-speed']+'%';
  $('viz-hint').textContent=(strip?`Strip (${g.w}×${g.h}): every row shows the same.`:`Matrix (${g.w}×${g.h}).`)+
-  ` Spectrum uses ${$('remote-bands').value} bands, the count sent to the lamp (Lamps over Wi-Fi → Advanced).`+
+  ` Spectrum uses ${previewBands()} bands, the count sent to the lamp (Lamps → Stream settings).`+
   ' Lab preview only: the lamp is sent Off until the mode is added to the firmware.';
  const centered=CENTERED_MODES.includes(mode)||(strip&&LAB_MODES.includes(mode)&&s['viz-mirror']),at=originColumn(s,g,centered),unit=isStrip(g)?'LED':'column';
  const where=at<0?'off the edge':`${unit} ${at+1} of ${g.w}`;
  $('origin-hint').textContent=(centered?`Center: ${where}. `:`Start: ${where}, running ${s['origin-reverse']?'left':'right'}. `)+
   (s['origin-ring']?'On a ring the effect continues past the end of the strip. ':'Without a ring, the part shifted past the edge stays dark. ')+
   'Click the preview to set the point.';
- document.body.classList.toggle('center-pick',ORIGIN_MODES.includes(mode));
+ const pick=ORIGIN_MODES.includes(mode);
+ document.body.classList.toggle('center-pick',pick);
+ $('origin-tip').hidden=!pick;
+ $('origin-tip-text').textContent=centered?'Click an LED to set the center':'Click an LED to set the start';
 }
 
 // Keep the window non-empty (firmware rejects input_min >= input_max).
@@ -124,26 +130,27 @@ function drawTransfer(input){
  const canvas=$('transfer-curve');
  if(!canvas||canvas.closest('[hidden]'))return;
  const s=settings(),dpi=Math.min(2,devicePixelRatio||1);
- const cssW=canvas.clientWidth||300,cssH=canvas.clientHeight||110;
+ const cssW=canvas.clientWidth||300,cssH=canvas.clientHeight||128;
  const cw=Math.round(cssW*dpi),ch=Math.round(cssH*dpi);
  if(canvas.width!==cw||canvas.height!==ch){canvas.width=cw;canvas.height=ch;}
  const ctx=canvas.getContext('2d');ctx.setTransform(dpi,0,0,dpi,0,0);
- const pad=8,w=cssW-pad*2,h=cssH-pad*2,X=v=>pad+v*w,Y=v=>pad+(1-v/255)*h;
+ const pad=10,w=cssW-pad*2,h=cssH-pad*2,X=v=>pad+v*w,Y=v=>pad+(1-v/255)*h;
  ctx.clearRect(0,0,cssW,cssH);
- ctx.fillStyle='rgba(99,140,255,.08)';ctx.fillRect(X(s['input-min']/255),pad,X(s['input-max']/255)-X(s['input-min']/255),h);
- ctx.strokeStyle='#232c3a';ctx.lineWidth=1;ctx.beginPath();
+ ctx.fillStyle='rgba(142,155,255,.09)';ctx.fillRect(X(s['input-min']/255),pad,X(s['input-max']/255)-X(s['input-min']/255),h);
+ ctx.strokeStyle='#1d222c';ctx.lineWidth=1;ctx.beginPath();
  for(const v of [0,.25,.5,.75,1]){ctx.moveTo(X(v),pad);ctx.lineTo(X(v),pad+h);}
  for(const v of [0,127.5,255]){ctx.moveTo(pad,Y(v));ctx.lineTo(pad+w,Y(v));}
  ctx.stroke();
- ctx.strokeStyle='#7fb0ff';ctx.lineWidth=2;ctx.beginPath();
+ ctx.strokeStyle='#8e9bff';ctx.lineWidth=2;ctx.lineJoin='round';ctx.beginPath();
  for(let i=0;i<=w;i++){const v=i/w,y=Y(transferValue(v,s));if(i)ctx.lineTo(X(v),y);else ctx.moveTo(X(v),y);}
  ctx.stroke();
  if(Number.isFinite(input)){
   const v=Math.max(0,Math.min(1,input)),y=transferValue(v,s);
-  ctx.fillStyle='#86e2c6';ctx.beginPath();ctx.arc(X(v),Y(y),4,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='rgba(90,209,160,.35)';ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(X(v),pad+h);ctx.lineTo(X(v),Y(y));ctx.lineTo(pad,Y(y));ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#5ad1a0';ctx.beginPath();ctx.arc(X(v),Y(y),4.5,0,Math.PI*2);ctx.fill();
  }
- ctx.fillStyle='#6f7c90';ctx.font='10px system-ui,sans-serif';
- ctx.fillText('signal →',pad+4,pad+h-4);ctx.fillText('reaction',pad+4,pad+10);
+ ctx.fillStyle='#8a93a3';ctx.font='10px system-ui,sans-serif';
+ ctx.textAlign='right';ctx.fillText('signal →',pad+w-4,pad+h-5);ctx.textAlign='left';ctx.fillText('↑ reaction',pad+4,pad+11);
 }
 
 // Logical LED (x, y) under a click on the new-DSP preview canvas.
@@ -151,10 +158,10 @@ function previewLed(canvas,ev,g){
  const r=canvas.getBoundingClientRect(),px=ev.clientX-r.left,py=ev.clientY-r.top;
  let x,row;
  if(isStrip(g)){
-  const L=stripLayout(g.w,g.h,r.width);
+  const L=STATE.stripLayout||stripLayout(g.w,g.h,r.width);
   row=Math.min(g.h-1,Math.floor(py/(L.rowHeight+L.gap)));
   const line=Math.min(L.linesPerRow-1,Math.floor((py-row*(L.rowHeight+L.gap))/L.pitch));
-  x=line*L.perLine+Math.floor(px/L.pitch);
+  x=line*L.perLine+Math.max(0,Math.min(L.perLine-1,Math.floor((px-L.offsetX)/L.pitch)));
  }else{x=Math.floor(px/r.width*g.w);row=Math.floor(py/r.height*g.h);}
  x=Math.max(0,Math.min(g.w-1,x));row=Math.max(0,Math.min(g.h-1,row));
  return {x,y:$('invert-y').checked?g.h-1-row:row};
@@ -174,17 +181,9 @@ function pickOrigin(ev){
 
 function initTuning(){
  for(const id of ['input-min','input-max'])$(id).addEventListener('input',()=>keepWindow(id));
- $('range-reset').onclick=()=>{
-  Object.entries({'input-min':0,'input-max':255,'input-curve':0,'audio-min':0,'audio-max':255}).forEach(([k,v])=>$(k).value=v);
-  $('input-gate').checked=false;refreshLabels();
- };
- $('viz-reset').onclick=()=>{
-  $('viz-color').value=0;$('viz-auto').checked=true;$('viz-mirror').checked=false;$('viz-decay').value=50;$('viz-speed').value=50;refreshLabels();
- };
- $('origin-reset').onclick=()=>{
-  $('origin-shift').value=0;$('origin-y').value=500;
-  for(const id of ['origin-reverse','origin-ring','origin-radial'])$(id).checked=false;
-  refreshLabels();
- };
+ // Defaults on All lamps, the shared values on a lamp (resetSection in lamps.js).
+ $('range-reset').onclick=()=>resetSection(['input-min','input-max','input-curve','audio-min','audio-max','input-gate']);
+ $('viz-reset').onclick=()=>resetSection(['viz-color','viz-auto','viz-mirror','viz-decay','viz-speed']);
+ $('origin-reset').onclick=()=>resetSection(['origin-shift','origin-y','origin-reverse','origin-ring','origin-radial']);
  $('canvas-new').addEventListener('click',pickOrigin);
 }

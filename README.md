@@ -19,30 +19,80 @@ built with.
 - **Development:** `make serve`, then open <http://localhost:8000/>. The
   microphone needs `localhost` or HTTPS.
 
-Pick the demo beat, the microphone or a track in the **Playlist** column and
-choose an audio reaction on the **Audio** tab. To drive a lamp, enter its
-address under **Lamps over Wi-Fi** (the firmware's `ws://<ip>/audio`). Lamp
-addresses, the LED geometry and the active settings tab are remembered in the
-browser.
+## Using the lab
 
-The player sits in the header: ⏮ (restarts the track after 3 s, otherwise
-previous), play/pause, ⏭, shuffle, repeat off / all / one, volume. Hotkeys:
-Space play/pause, ←/→ seek ±5 s, N / P next / previous. Headphone buttons,
-keyboard media keys and the OS media controls drive the player too (Media
-Session; a silent looped `<audio>` keeps the browser routing them to the page). **📁 Folder…** replaces
-the list with a folder's audio files (recursive, natural sort; Chrome/Edge
-remember it between reloads, other browsers use a folder upload), **+ Files…**
-and drag-and-drop of files or folders append.
+The window is a music player around an LED preview:
 
-**Lamps over Wi-Fi** can connect every listed lamp at once (optionally when
-the page opens), and turn all connected lamps on or off or set their
-brightness; each lamp card has its own power button and brightness slider.
-These are saved on the lamp (`power` / `brightness` on the `/audio` socket;
-older firmware gets `/api/power` and `/api/brightness` over HTTP).
+- **Music** (left column; the **Music** tab on narrower screens): the
+  playlist. **Open folder** replaces the list with a folder's audio files
+  (recursive, natural sort; Chrome/Edge remember it between reloads, other
+  browsers use a folder upload), **Add files** and drag-and-drop of files or
+  folders anywhere on the page append. The **⋯** menu holds the demo beat, the
+  microphone and clearing the list. The playlist button at the right of the
+  player hides or shows the column.
+- **Stage** (center): with lamps added, a switcher on top picks **All lamps**
+  or one lamp (see below); then the LED preview and, under it, the analyzer: FFT bars,
+  bass / mid / high onsets, the tempo estimate and, for Brightness, Line and
+  Speed / Scale / Light Control, the control signal with its effective value.
+  The button above the preview picks the **LED layout**; **View** holds the
+  preview-only display options (audio reaction strength in the preview, LEDs
+  as dots, flip, orientation test, LED output simulation, palette gamma).
+  Clicking an LED moves the start (or center) of the audio effect there.
+- **Settings** (right), in tabs: **Effect** (color effects shown as rendered
+  thumbnails, the 79 palettes as swatches with a filter, brightness effect,
+  speed / scale / light), **Reaction** (audio mode, its signal, visualization
+  options, reaction range, start and direction), **Lamps** and **Analyzer**.
+  Only the fields that the selected mode uses are shown; each section has its
+  own reset (↺).
+- **Player** (bottom): ⏮ (restarts the track after 3 s, otherwise previous),
+  play/pause, ⏭, shuffle, position, repeat off / all / one, volume.
+
+Hotkeys: Space play/pause, ←/→ seek ±5 s, N / P next / previous, 1–5 open
+Music, Effect, Reaction, Lamps, Analyzer. Headphone buttons, keyboard media
+keys and the OS media controls drive the player too (Media Session; a silent
+looped `<audio>` keeps the browser routing them to the page).
+
+On phones the preview stays pinned at the top while the settings scroll under
+it (its arrow button makes it smaller), and the player is fixed at the bottom.
+
+Settings, lamps with their own settings, names and max brightness, the LED
+layout, the open tab and whether the music column is hidden are remembered in
+the browser; **? → Reset all settings** returns to the defaults (lamps and
+their names stay).
+
+## Lamps
+
+The **Lamps** tab streams to every listed lamp: enter an address (the
+firmware's `ws://<ip>/audio`), then use **Connect all** (optionally when the
+page opens). The pill in the header shows one dot per lamp and opens the tab.
+
+**Each lamp can have its own settings.** The switcher above the preview picks
+what the preview shows and what the Effect and Reaction tabs edit:
+
+- **All lamps** — the shared settings, on the LED layout from the menu above
+  the preview.
+- **A lamp** — the preview takes the lamp's own size (reported by the lamp and
+  remembered for when it is offline) and shows its settings. A lamp follows
+  All lamps until something is changed while it is selected; from then on that
+  setting is its own, marked with a dot. Every setting the lamp receives can be
+  its own: effect, palette, parameters, audio mode and its signal,
+  visualization options, reaction range, start, direction and ring. A section's
+  reset (↺) on a lamp goes back to the All lamps values, **Use All lamps
+  settings** drops all of them. A start offset that a lamp follows is the same
+  share of its width; its own offset counts its own LEDs.
+
+**Power and brightness** apply to every connected lamp from the **All lamps**
+block and per lamp on its card; they are saved on the lamp (`power` /
+`brightness` on the `/audio` socket; older firmware gets `/api/power` and
+`/api/brightness` over HTTP). A card's slider is the lamp's **max
+brightness**: the all-lamps brightness scales within it, so a lamp at 50 % runs
+at half of the others at any level. The card's details hold the lamp's name,
+its spectrum band count (Auto: about one band per column), whether it gets the
+stream, the connection statistics, Disconnect and Remove.
 
 ## LED geometry
 
-**Matrix or strip** on the **LED** tab selects what the preview renders:
+The **LED layout** menu above the preview selects what it renders:
 
 | Option | WIDTH × HEIGHT | Notes |
 |---|---|---|
@@ -54,8 +104,8 @@ older firmware gets `/api/power` and `/api/brightness` over HTTP).
 
 Addressing is always row-serpentine, exactly like `Led::get_index(x, y)`.
 Strips are drawn wrapped onto several display lines so every LED stays
-visible; only the presentation wraps, the framebuffer is linear. The choice
-is remembered in the browser.
+visible, with LEDs as large as the stage allows; only the presentation wraps,
+the framebuffer is linear. The choice is remembered in the browser.
 
 Audio modes on strips behave like the firmware: Spectrum maps the bands along
 the strip, Wave scrolls loudness along it (longer strips stretch the 3.2 s
@@ -64,14 +114,14 @@ single row, Line fills the strip from the start (or from the center).
 
 ## Reaction range and start point
 
-The **Audio** tab has two blocks that are sent to the lamp with the stream
-(firmware with the `tuning` capability):
+The **Reaction** tab has two sections that are sent to the lamp with the
+stream (firmware with the `tuning` capability):
 
-- **Reaction range** — a signal window. The input range *Signal from–to*
-  is stretched onto *Reaction from–to*: above *to* the reaction is always at
-  maximum, below *from* at the minimum, or 0 with *Signal below “from” turns
-  off*. Example: signal 0–60 % → reaction 150–250. The curve shows the
-  mapping and the live input.
+- **Reaction range** — a signal window. The *Signal window* (a two-thumb
+  slider) is stretched onto the *Reaction* range: above the window the
+  reaction is always at maximum, below it at the minimum, or 0 with *Silence
+  below the window*. Example: signal 0–60 % → reaction 150–250. The curve
+  shows the mapping and the live input.
 - **Start and direction** — moves the start of Wave, Spectrum, Line and
   Bass / Mid / High, and the center of the Center modes and Beat-aware.
   *Reverse direction* runs the effect from the other end, *Ring* lets a
@@ -83,7 +133,7 @@ Both default to the stock firmware picture.
 
 ## Analyzer
 
-The **DSP** tab sets the FFT size (64–8192 points) and **analysis sample rate**
+The **Analyzer** tab sets the FFT size (64–8192 points) and **analysis sample rate**
 (8, 16, 32 or 48 kHz; default 16 kHz). Bin spacing is sample rate / FFT size;
 window duration is FFT size / sample rate. Larger FFTs or lower rates separate
 nearby frequencies better, while smaller FFTs react faster. The analysed
@@ -105,7 +155,7 @@ frequency range still capped at half the original rate; the UI explains this.
 File decoding uses an offline context so a lower-rate playback device cannot
 prematurely discard frequencies the analyzer can use.
 
-The bars beside the LED preview show actual FFT bins grouped logarithmically
+The bars under the LED preview show actual FFT bins grouped logarithmically
 for the available display width. Unresolved low-frequency groups merge; a
 64-point FFT therefore draws fewer, broader bars than a large FFT. Captions
 show the displayed group count and Hz per bin. The lamps still receive their
@@ -132,9 +182,12 @@ web/                 development page (served as-is)
   js/state.js        shared state, settings
   js/geometry.js     matrices/strips, strip display layout
   js/remote.js       Remote Audio v1 wire format, WebSocket devices, clock sync
-  js/remote-ui.js    feature snapshots, presentation timing, device list, lamp power / brightness
+  js/lamps.js        per-lamp settings: All lamps vs a lamp's own values, the edited target, max brightness
+  js/remote-ui.js    feature snapshots, presentation timing, lamp cards, power / brightness, target switcher
   js/tuning.js       reaction range, start point, transfer curve, mode hints
   js/view.js         settings → WASM, canvas painting, meters
+  js/ui.js           choices bound to the selects, sliders, popovers, tabs, music column,
+                     palette swatches and effect thumbnails, remembered settings
   js/audio.js        file / demo / microphone input and DSP feed
   js/playlist.js     playlist, folder / files / drop, next / previous, repeat, shuffle, hotkeys
   js/main.js         bootstrap, animation loop, UI wiring

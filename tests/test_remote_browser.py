@@ -37,12 +37,13 @@ with sync_playwright() as p:
     page.wait_for_function('STATE.ready',timeout=10000)
     # One stream for all lamps: the band count below comes from "Spectrum bands", not each lamp's width.
     page.evaluate("$('remote-adapt').checked=false;$('remote-adapt').onchange()")
+    page.locator('#tab-lamps').click()
     for port in [8765,8766]:
         page.locator('#remote-address').fill(f'127.0.0.1:{port}')
         page.locator('#remote-add').click()
     page.wait_for_function('REMOTE.devices.length===2 && REMOTE.devices.every(d=>d.status==="ready")',timeout=10000)
     assert page.locator('#remote-enable').is_checked(), 'Remote streaming must be enabled by default'
-    page.locator('#demo').click()
+    page.locator('#sources-button').click();page.locator('#demo').click()
     page.wait_for_function('REMOTE.devices.every(d=>d.sent>=10 && d.started)',timeout=12000)
     assert page.evaluate('''() => __frames.filter(f=>new DataView(f.buf).getUint8(7)===32).length>=20''')
     assert page.evaluate('''() => __control.filter(f=>f.type==='start').length>=2''')
@@ -74,12 +75,12 @@ with sync_playwright() as p:
       }}});
     }''')
     page.locator('#remote-enable').check(force=True)
-    page.locator('#mic-source').click()
+    page.locator('#sources-button').click();page.locator('#mic-source').click()
     page.wait_for_function('STATE.mic && STATE.mic.written>4096',timeout=18000)
     page.wait_for_function('''__frames.some(f=>new DataView(f.buf).getUint8(6)&1)''',timeout=18000)
     assert page.evaluate('''() => __frames.some(f => (new DataView(f.buf).getUint8(6)&1) &&
         new DataView(f.buf).getUint8(7)===64)''')
-    page.locator('#mic-source').click()  # second click: back to the file side
+    page.locator('#sources-button').click();page.locator('#mic-source').click()  # second click: back to the file side
     page.wait_for_function('STATE.mic===null')
     print('PASS microphone causal frames, live flag, track cleanup and source change')
     assert not errors,errors
