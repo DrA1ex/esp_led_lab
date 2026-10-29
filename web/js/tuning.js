@@ -4,9 +4,9 @@
 // curve, mode-dependent visibility and picking the origin on the preview.
 // The rules mirror firmware audioTransfer() and RemoteReactive::OriginMap.
 
-const ORIGIN_MODES=[1,2,3,4,6,7,11,12,13,14,15,16,18,19,20];
+const ORIGIN_MODES=[1,2,3,4,6,7,11,12,13,14,15,16,18,19,20,21,22,23,24,25];
 // Lab-only visualizations (render.cpp render_viz); the lamp gets Off for them.
-const LAB_MODES=[13,14,15,16,17,18,19,20];
+const LAB_MODES=[13,14,15,16,17,18,19,20,21,22,23,24,25];
 const CENTERED_MODES=[2,4,7,12];
 const MODE_HINTS={
  0:'Audio does not affect the picture.',
@@ -29,7 +29,12 @@ const MODE_HINTS={
  17:'Treble and onsets sprinkle sparks, bass is a soft glow. Looks the same on any geometry.',
  18:'The whole lamp breathes with the level, the color follows the tone. Good for short strips and small lamps.',
  19:'Strip: the loudness history in palette colors. Matrix: the history as bars, or a mirrored waveform.',
- 20:'Three meters for bass, mid and treble: three parts of a strip (or ring), three bars on a matrix.'
+ 20:'Three meters for bass, mid and treble: three parts of a strip (or ring), three bars on a matrix.',
+ 21:'Fire fed by the music: on a strip it burns from the start (or the center), on a matrix every column is a flame fed by its band. Onsets throw up flares. Try the Flames or Fiery palette.',
+ 22:'Aurora: a slow, soft noise curtain that grows, brightens and speeds up with the music; the color follows the tone.',
+ 23:'Juggle: eight dots, one per band range, swing along the strip (Lissajous paths on a matrix) and leave trails; louder bands are bigger.',
+ 24:'Radial spectrum: on a matrix a rotating “sun” whose rays are the bands, with a bass core; on a strip or ring a symmetric spectrum that rolls along.',
+ 25:'Blobs: a lava lamp of four blobs (bass, bass, mid, treble) that swell with their band, drift and merge.'
 };
 
 // Origin shift: the slider counts LEDs (columns); the wire format and the

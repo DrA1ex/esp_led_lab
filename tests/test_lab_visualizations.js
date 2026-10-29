@@ -1,9 +1,9 @@
-// Lab-only visualizations 13..20 on every geometry class: silence stays dark,
+// Lab-only visualizations 13..25 on every geometry class: silence stays dark,
 // sound lights the LEDs, strips show the same on every row (except random Sparkles), the lamp band
 // count is used, and mirroring is symmetric.
 const fs=require('fs'),path=require('path'),assert=require('node:assert/strict');
 const mod=new WebAssembly.Module(fs.readFileSync(path.join(__dirname,'../web/wasm/render.wasm')));
-const MODES=[13,14,15,16,17,18,19,20];
+const MODES=[13,14,15,16,17,18,19,20,21,22,23,24,25];
 
 // Palette colours on a white base; `fill(f, frame)` sets the features per frame.
 function run(w,h,mode,fill,{frames=40,mirror=0,bands=32,auto=0,setup}={}){
@@ -73,4 +73,4 @@ for(const mode of [13,14,19,20]){
  assert(bar(0,2)<6,'treble meter barely moves without auto-level');
  assert(bar(1,2)>15,'auto-level lifts the treble meter');
 }
-console.log('PASS lab visualizations 13..20 on strips 7/153, 72x2, matrices 16/128: silence, music, rows, mirror, bands');
+console.log('PASS lab visualizations 13..25 on strips 7/153, 72x2, matrices 16/128: silence, music, rows, mirror, bands');

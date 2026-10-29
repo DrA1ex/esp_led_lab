@@ -164,9 +164,9 @@ Changes made together with the firmware (`esp_led_lamp`, `feature/remote-audio-d
   [16,32,64]`, frame size 38 + 2 × count). *Spectrum bands* under *Lamps
   over Wi-Fi → Advanced* picks the count for the lamp and for the new
   preview modes below.
-- **Lab preview (not on the lamp yet)**, audio modes 13–20: VU Meter,
+- **Lab preview (not on the lamp yet)**, audio modes 13–25: VU Meter,
   Spectrum Bars, Flow, Pulses, Sparkles, Mood, Waveform, Bass · Mid · Treble
-  Meters (`render_viz()` in `src/render.cpp`). They adapt to the geometry:
+  Meters, Fire, Aurora, Juggle, Radial Spectrum, Blobs (`render_viz()` in `src/render.cpp`). They adapt to the geometry:
   on strips (HEIGHT < 4, every row the same) they run along the LEDs from the
   start point, or out from the center with *From the center*; on matrices
   they use the height (bars from the bottom, a spectrogram, rings from the

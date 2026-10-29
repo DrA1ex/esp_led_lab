@@ -106,26 +106,26 @@
    <optgroup label="By loudness"><option value="1">Wave</option><option value="2">Wave Center</option><option value="5">Brightness</option><option value="6">Line</option><option value="7">Line Center</option></optgroup>
    <optgroup label="Audio drives a parameter"><option value="8">Speed Control</option><option value="9">Scale Control</option><option value="10">Light Control</option></optgroup>
    <optgroup label="Experimental"><option value="11">Bass / Mid / High</option><option value="12">Beat-aware</option></optgroup>
-   <optgroup label="Lab preview (not on the lamp yet)"><option value="13">VU Meter</option><option value="14">Spectrum Bars</option><option value="15">Flow</option><option value="16">Pulses</option><option value="17">Sparkles</option><option value="18">Mood</option><option value="19">Waveform</option><option value="20">Bass · Mid · Treble Meters</option></optgroup>
+   <optgroup label="Lab preview (not on the lamp yet)"><option value="13">VU Meter</option><option value="14">Spectrum Bars</option><option value="15">Flow</option><option value="16">Pulses</option><option value="17">Sparkles</option><option value="18">Mood</option><option value="19">Waveform</option><option value="20">Bass · Mid · Treble Meters</option><option value="21">Fire</option><option value="22">Aurora</option><option value="23">Juggle</option><option value="24">Radial Spectrum</option><option value="25">Blobs</option></optgroup>
   </select><p class="hint" id="audio-mode-hint"></p></div>
-  <div class="field" data-modes="5,6,7,8,9,10,13,15,16,18"><label for="param-source">Signal source</label><select id="param-source"><option value="loudness" selected>Loudness</option>
+  <div class="field" data-modes="5,6,7,8,9,10,13,15,16,18,21,22,23,24,25"><label for="param-source">Signal source</label><select id="param-source"><option value="loudness" selected>Loudness</option>
 <option value="spectral">Spectral activity</option>
 <option value="bass">Bass</option><option value="mid">Mid</option>
 <option value="high">Treble</option><option value="peak">Loudest band</option>
 <option value="onset">Onsets</option><option value="beat">Beats</option></select></div>
   <div class="field" data-modes="1,2,3,4"><label for="spectrum-shape">Column brightness <span class="value" id="spectrum-shape-value">70%</span></label><input id="spectrum-shape" type="range" min="0" max="100" value="70"></div>
   <div class="field" data-modes="1,2,3,4"><label for="spectrum-onset">Onset flashes <span class="value" id="spectrum-onset-value">30%</span></label><input id="spectrum-onset" type="range" min="0" max="100" value="30"></div>
-  <div class="field" data-modes="6,7,13,15,16"><label for="line-response">Fast line response <span class="value" id="line-response-value">75%</span></label><input id="line-response" type="range" min="0" max="100" value="75"><p class="hint">Preview only: the lamp draws the line from the signal source.</p></div>
-  <div class="block" data-modes="13,14,15,16,17,18,19,20">
+  <div class="field" data-modes="6,7,13,15,16,21,22,23,24,25"><label for="line-response">Fast line response <span class="value" id="line-response-value">75%</span></label><input id="line-response" type="range" min="0" max="100" value="75"><p class="hint">Preview only: the lamp draws the line from the signal source.</p></div>
+  <div class="block" data-modes="13,14,15,16,17,18,19,20,21,22,23,24,25">
    <div class="block-head"><span>Visualization</span><button class="ghost small" id="viz-reset" type="button">Reset</button></div>
    <div class="field"><label for="viz-color">Colors</label><select id="viz-color"><option value="0" selected>Palette</option><option value="1">Color effect (audio as a mask)</option></select></div>
-   <label class="toggle" data-modes="13,14,15,19,20"><input type="checkbox" id="viz-auto" checked> Auto-level: each band and meter uses its own recent range</label>
+   <label class="toggle" data-modes="13,14,15,19,20,21,23,24,25"><input type="checkbox" id="viz-auto" checked> Auto-level: each band and meter uses its own recent range</label>
    <label class="toggle"><input type="checkbox" id="viz-mirror"> <span id="viz-mirror-label">From the center, both ways</span></label>
    <div class="field"><label for="viz-decay">Fall-off <span class="value" id="viz-decay-value">50%</span></label><input id="viz-decay" type="range" min="0" max="100" value="50"></div>
-   <div class="field" data-modes="15,16"><label for="viz-speed">Motion speed <span class="value" id="viz-speed-value">50%</span></label><input id="viz-speed" type="range" min="0" max="100" value="50"></div>
+   <div class="field" data-modes="15,16,21,22,23,24,25"><label for="viz-speed">Motion speed <span class="value" id="viz-speed-value">50%</span></label><input id="viz-speed" type="range" min="0" max="100" value="50"></div>
    <p class="hint" id="viz-hint"></p>
   </div>
-  <div class="block" data-modes="1,2,3,4,5,6,7,8,9,10,13,14,15,16,17,18,19,20">
+  <div class="block" data-modes="1,2,3,4,5,6,7,8,9,10,13,14,15,16,17,18,19,20,21,22,23,24,25">
    <div class="block-head"><span>Reaction range</span><button class="ghost small" id="range-reset" type="button">Reset</button></div>
    <canvas class="transfer" id="transfer-curve" width="300" height="120" aria-label="Curve: signal → reaction"></canvas>
    <div class="field-pair">
@@ -141,7 +141,7 @@
    <p class="hint">The signal window “from–to” is stretched onto the reaction “from–to”. Above “to” the reaction is always at maximum; below “from” it stays at the minimum, or 0. Example: signal 0–60% → reaction 150–250.</p>
    <p class="hint">Curve bends the stretch: LED brightness looks logarithmic (50% → 100% barely changes), so a curve of ×2–×2.5 keeps quiet and mid signals dim and makes the reaction look even. Below linear it lifts quiet signals.</p>
   </div>
-  <div class="block" data-modes="1,2,3,4,6,7,11,12,13,14,15,16,18,19,20">
+  <div class="block" data-modes="1,2,3,4,6,7,11,12,13,14,15,16,18,19,20,21,22,23,24,25">
    <div class="block-head"><span>Start and direction</span><button class="ghost small" id="origin-reset" type="button">Reset</button></div>
    <div class="field"><label for="origin-shift">Start offset <span class="value" id="origin-shift-value">0 LED</span></label><input id="origin-shift" type="range" min="-8" max="8" value="0"></div>
    <label class="toggle"><input type="checkbox" id="origin-reverse"> Reverse direction</label>

@@ -198,7 +198,7 @@ window.addEventListener('resize',updateFloatingPreview,{passive:true});
 function meters(){
  const vals=STATE.newSpectrum,wrap=$('new-mini-bars');
  for(let j=0;j<16;j++)wrap.children[j].style.height=`${Math.max(2,Math.min(100,vals[j]*100))}%`;
- const mode=+($('audio-mode').value),isWave=[1,2].includes(mode),isParam=[5,6,7,8,9,10,13,15,16,18].includes(mode);
+ const mode=+($('audio-mode').value),isWave=[1,2].includes(mode),isParam=[5,6,7,8,9,10,13,15,16,18,21,22,23,24,25].includes(mode);
  const strength=isParam?newControlSource():(isWave?STATE.newLoudness:Math.max(...vals));
  $('new-label').textContent=`FFT: ${Math.round(strength*100)}% · RGB: ${Math.round(STATE.output.new*100)}%`;
  drawTransfer(mode?strength:NaN);

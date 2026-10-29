@@ -17,7 +17,7 @@ static unsigned char gamma_lut[256];
 static float features[225]; // 0..15 spectrum; 16..21 onset; 22..23 volume; 24..151 wave; 152..155 tempo; 156..158 low/mid/high levels; 159 line; 160..223 lamp bands; 224 lamp band count
 static int W=16,H=16;
 static int color_fx=0,bright_fx=0,speed=82,scale=190,light=180;
-static int audio_fx=3; // Off, 10 firmware modes, 2 experimental modes, 8 lab-only visualizations (13..20)
+static int audio_fx=3; // Off, 10 firmware modes, 2 experimental modes, 13 lab-only visualizations (13..25)
 static float audio_mix=1.f;
 static int audio_min=0,audio_max=255;
 // New-DSP-only expressive modulation; the legacy WASM instance receives zeros
@@ -159,7 +159,7 @@ static inline float provider_at(int index){
 }
 static int pulse_phase(float phase,int offset){int value=fl_round(phase+offset)%1024;if(value<0)value+=1024;if(value<256)return 255-value;if(value<512)return 0;if(value<768)return value-512;return 255;}
 
-// ---- Lab-only visualizations, audio modes 13..20 (not in the firmware) ----
+// ---- Lab-only visualizations, audio modes 13..25 (not in the firmware) ----
 // Candidates to port once picked on real lamps. They adapt to the geometry:
 // strips (H < 4; every row shows the same) run along the LEDs from the origin
 // (shift / reverse / ring), or out from the centre with viz_mirror; matrices
@@ -171,9 +171,10 @@ static constexpr int VIZ_FIRST=13;
 static int viz_color=0; // 0 palette colours, 1 mask the colour effect
 static bool viz_mirror=false,viz_auto=true;
 static float viz_decay=.5f,viz_speed=.5f;
-static float viz_level[MAX_W],viz_peak[MAX_W],viz_hold[MAX_W],viz_lo[MAX_W],viz_hi[MAX_W];
+static float viz_level[MAX_W],viz_peak[MAX_W],viz_hold[MAX_W],viz_lo[MAX_W+1],viz_hi[MAX_W+1]; // [MAX_W]: overall level
 static uint8_t viz_v[MAX_PIX],viz_h[MAX_PIX];
 static float viz_prev_pulse[3],viz_cool[4],viz_clock=0.f,viz_tone=0.f,viz_mood=0.f,viz_spawn=0.f;
+static float viz_phase[8];
 static int viz_key=-1;
 struct Comet {float pos,energy;uint8_t hue;bool on;};
 static Comet comets[24];
@@ -262,18 +263,35 @@ static int viz_onsets(float strength[3],float dt){
  return mask;
 }
 static void viz_reset(){
- for(int i=0;i<MAX_W;i++)viz_level[i]=viz_peak[i]=viz_hold[i]=viz_lo[i]=viz_hi[i]=0;
+ for(int i=0;i<MAX_W;i++)viz_level[i]=viz_peak[i]=viz_hold[i]=0;
+ for(int i=0;i<=MAX_W;i++)viz_lo[i]=viz_hi[i]=0;
  for(int i=0;i<MAX_PIX;i++)viz_v[i]=viz_h[i]=0;
  for(Comet &c:comets)c.on=false;
  for(int g=0;g<3;g++)viz_prev_pulse[g]=0;
  for(int k=0;k<4;k++)viz_cool[k]=0;
  viz_clock=viz_mood=viz_spawn=0;viz_tone=tone_now();
+ for(int k=0;k<8;k++)viz_phase[k]=k*.13f;
 }
 static inline void fade_buffer(int n,float dt,float tau){
  const int keep=255-mini(255,(int)(255.f*dt/maxf(1e-3f,tau))+1);
  for(int i=0;i<n;i++)viz_v[i]=uint8_t(viz_v[i]*keep/255);
 }
 static inline void stamp(int i,float v,int hue){const int b=u8((int)(v*255.f));if(b>=viz_v[i]){viz_v[i]=b;viz_h[i]=uint8_t(hue);}}
+
+
+// sin of `turns` (1 = full circle) in -1..1, via FastLED sin16.
+static inline float sin_turns(float turns){return fl_sin16(uint16_t((int32_t)(fract(turns)*65536.f)))/32767.f;}
+// Angle of (x, y) in turns 0..1 (polynomial atan, no libm).
+static float angle_turns(float y,float x){
+ const float ax=abf(x),ay=abf(y),a=minf(ax,ay)/maxf(1e-6f,maxf(ax,ay)),s=a*a;
+ float r=((-.0464964749f*s+.15931422f)*s-.327622764f)*s*a+a;
+ if(ay>ax)r=1.57079637f-r;
+ if(x<0)r=3.14159274f-r;
+ if(y<0)r=6.28318548f-r;
+ return r/6.28318548f;
+}
+// Overall level for the free-form modes 21..25.
+static inline float overall(float line_source,float dt){return level01(autolevel(MAX_W,line_source,dt));}
 
 static void render_viz(float dt){
  const int key=audio_fx*100000+W*128+H+(viz_mirror?50000:0);
@@ -422,6 +440,136 @@ static void render_viz(float dt){
   }
   break;
  }
+ case 21:{ // Fire: bass and onsets feed the flames; strip burns from the start (or centre), matrix from the bottom with a flame per band
+  const float step=.033f-.022f*viz_speed,level=overall(line_source,dt);
+  const int cooling=90-(int)(viz_decay*60.f);
+  float strength[3]={0,0,0};const int mask=viz_onsets(strength,dt);
+  viz_clock+=dt;
+  const int rows=matrix?rise_cells(viz_mirror):strip_cells(),cols=matrix?W:1;
+  for(int n=0;viz_clock>=step&&n<6;n++){
+   viz_clock-=step;
+   for(int c=0;c<cols;c++){
+    // Cool, rise (each cell takes from the two below, with a sideways drift on matrices), ignite at the base.
+    for(int r=0;r<rows;r++){const int i=r*cols+c,cool=viz_random8()%((cooling*10)/rows+2);viz_v[i]=uint8_t(maxi(0,viz_v[i]-cool));}
+    for(int r=rows-1;r>=2;r--){
+     if(!matrix){viz_v[r]=uint8_t((viz_v[r-1]+2*viz_v[r-2])/3);continue;}
+     const int l=maxi(0,c-1),rr=mini(cols-1,c+1),b=(r-1)*cols;
+     viz_v[r*cols+c]=uint8_t((viz_v[b+l]+viz_v[b+c]+viz_v[b+rr]+viz_v[(r-2)*cols+c])/4);
+    }
+    const float feed=matrix?level01(autolevel(c,band_cell(c,cols),step)):level;
+    const float boost=(mask&1?strength[0]:0)+(mask&2?.5f*strength[1]:0);
+    if(feed>.03f&&viz_random8()<(int)(20+220*feed)){
+     const int at=viz_random(mini(rows,matrix?2:maxi(2,rows/10)));
+     viz_v[at*cols+c]=u8(viz_v[at*cols+c]+(int)(((matrix?80:120)+viz_random8()/2)*(.4f+.6f*feed)));
+    }
+    if(boost>0)for(int r=0;r<mini(rows,matrix?2:3);r++)viz_v[r*cols+c]=u8(viz_v[r*cols+c]+(int)((matrix?90:140)*boost));
+   }
+  }
+  auto fire=[&](int x,int y,int i){const int h=viz_v[i];viz_put(x,y,minf(1.f,h/170.f),h*215/255);};
+  if(!matrix){for(int x=0;x<W;x++){const int c=strip_cell(x);if(c<0){strip_put(x,0,0);continue;}for(int y=0;y<H;y++)fire(x,y,c);}break;}
+  for(int x=0;x<W;x++){const int xp=origin_x(x);for(int y=0;y<H;y++){if(xp<0){viz_put(x,y,0,0);continue;}fire(x,y,rise_cell(y,viz_mirror)*cols+xp);}}
+  break;
+ }
+ case 22:{ // Aurora: a slow noise field that grows, brightens and speeds up with the music; colour follows the tone
+  const float level=level01(line_source); // no auto-level: the curtain should stay calm between beats
+  viz_mood=approach(viz_mood,level,dt,.08f,release_s());
+  viz_phase[0]+=dt*(.25f+2.5f*viz_mood)*(.3f+1.4f*viz_speed);
+  const float z=viz_phase[0]*256.f,threshold=.5f-.3f*viz_mood,flash=.3f*features[16],gate=minf(1.f,viz_mood*10.f);
+  const float factor=256.f*(matrix?3.f/maxi(W,H):5.f/maxi(1,strip_cells()));
+  for(int x=0;x<W;x++){
+   const int c=matrix?origin_x(x):strip_cell(x);
+   for(int y=0;y<H;y++){
+    if(c<0){viz_put(x,y,0,0);continue;}
+    // Strips use 2-D noise (position, time): a fixed y = 0 plane of 3-D noise sits on the lattice and barely varies.
+    const float n=(matrix?inoise_hd(c*factor,y*factor*1.6f+77.f,z):inoise_hd(c*factor,z))/4095.f;
+    const float v=(clampf((n-threshold)*3.f,0.f,1.f)*(.45f+.55f*viz_mood)+(n>threshold?flash:0.f))*gate;
+    viz_put(x,y,v,int(viz_tone*150+n*90));
+   }
+  }
+  break;
+ }
+ case 23:{ // Juggle: eight dots, one per band range, swing with their band and leave trails
+  const int n=matrix?W*H:strip_cells(),dots=8;
+  fade_buffer(n,dt,release_s()*.45f);
+  const float level=overall(line_source,dt);
+  for(int k=0;k<dots;k++){
+   const float b=level01(autolevel(k,band_cell(k,dots),dt));
+   viz_phase[k]+=dt*(.18f+.045f*k)*(.4f+1.6f*viz_speed)*(.6f+.8f*level);
+   if(b<.05f)continue;
+   const int hue=k*255/dots;
+   if(!matrix){
+    // Swing around the strip; wider swings for louder bands.
+    const float pos=(.5f+.5f*sin_turns(viz_phase[k]))*(n-1),half=.6f+2.f*b;
+    for(int i=maxi(0,(int)(pos-half));i<=mini(n-1,(int)(pos+half)+1);i++)stamp(i,b*clampf(half-abf(i-pos)+.5f,0.f,1.f),hue);
+   }else{
+    // Lissajous paths, the dot grows with its band.
+    const float px=(.5f+.5f*sin_turns(viz_phase[k]))*(W-1),py=(.5f+.5f*sin_turns(viz_phase[k]*1.37f+k*.11f))*(H-1),rad=.7f+b*maxf(1.f,minf(W,H)/10.f);
+    for(int y=maxi(0,(int)(py-rad-1));y<=mini(H-1,(int)(py+rad+1));y++)for(int x=maxi(0,(int)(px-rad-1));x<=mini(W-1,(int)(px+rad+1));x++){
+     const float dx=x-px,dy=y-py;stamp(y*W+x,b*clampf(rad-__builtin_sqrtf(dx*dx+dy*dy)+.5f,0.f,1.f),hue);
+    }
+   }
+  }
+  if(!matrix){for(int x=0;x<W;x++){const int c=strip_cell(x);strip_put(x,c<0?0:viz_v[c]/255.f,c<0?0:viz_h[c]);}break;}
+  for(int y=0;y<H;y++)for(int x=0;x<W;x++){const int i=y*W+x;viz_put(x,y,viz_v[i]/255.f,viz_h[i]);}
+  break;
+ }
+ case 24:{ // Radial spectrum: matrix = a rotating spectrum sun, strip / ring = a symmetric spectrum that rolls along
+  const int bands=matrix?maxi(8,mini(W,H)/2):maxi(4,strip_cells()/2);
+  for(int c=0;c<bands;c++)meter_update(c,level01(autolevel(c,band_cell(c,bands),dt)),dt);
+  const float level=overall(line_source,dt);
+  viz_phase[0]+=dt*(.02f+.25f*level)*(.3f+1.4f*viz_speed);
+  // Band position t: 0 = bass .. 1 = treble, mirrored so there is no seam.
+  auto band_at=[&](float turns,float &t){t=abf(2.f*fract(turns)-1.f);return viz_level[mini(bands-1,(int)(t*bands))];};
+  if(!matrix){
+   const int cells=W;
+   for(int x=0;x<W;x++){const int xp=origin_x(x);if(xp<0){strip_put(x,0,0);continue;}
+    float t;const float l=band_at(float(xp)/cells+viz_phase[0],t);strip_put(x,l,int(t*255));}
+   break;
+  }
+  const float cx=W/2.f-.5f,cy=origin_is_radial()?origin_row():H/2.f-.5f,rmax=maxf(1.f,minf(W,H)/2.f);
+  for(int x=0;x<W;x++){const int xp=origin_x(x);for(int y=0;y<H;y++){
+   if(xp<0){viz_put(x,y,0,0);continue;}
+   const float dx=xp-cx,dy=y-cy,r=__builtin_sqrtf(dx*dx+dy*dy)/rmax;
+   float t;const float l=band_at(angle_turns(dy,dx)+viz_phase[0],t);
+   // Ray length follows the band; a bass-driven core glows in the middle.
+   const float ray=clampf((l*1.05f-r)*rmax+.5f,0.f,1.f),core=clampf((viz_level[0]*.35f-r)*rmax*.5f+.5f,0.f,1.f)*viz_level[0];
+   viz_put(x,y,maxf(ray*(.45f+.55f*l),core),ray>=core?int(t*255):0);
+  }}
+  break;
+ }
+ case 25:{ // Blobs: a lava lamp of four blobs (bass, bass, mid, treble) that swell with their band and merge
+  const float level=overall(line_source,dt);
+  viz_mood=approach(viz_mood,level,dt,.05f,release_s());
+  const int groups[4]={0,0,1,2};
+  float bx[4],by[4],br[4],group_level[3];int bh[4];
+  for(int g=0;g<3;g++)group_level[g]=level01(autolevel(g,features[156+g],dt));
+  const float span=matrix?minf(W,H):strip_cells();
+  for(int k=0;k<4;k++){
+   const int g=groups[k];
+   const float l=group_level[g];
+   viz_phase[k]+=dt*(.05f+.023f*k)*(.3f+1.7f*viz_speed)*(.5f+viz_mood);
+   viz_phase[4+k]=approach(viz_phase[4+k],l+.6f*features[16+g],dt,.03f,release_s());
+   const float grow=viz_phase[4+k];
+   br[k]=span*(matrix?.05f+.16f*grow:.02f+.08f*grow);
+   bx[k]=(.5f+.45f*sin_turns(viz_phase[k]+k*.25f))*((matrix?W:strip_cells())-1);
+   by[k]=(.5f+.45f*sin_turns(viz_phase[k]*1.31f+k*.4f))*(H-1);
+   bh[k]=g*85+20;
+  }
+  const float fade=minf(1.f,viz_mood*4.f);
+  for(int x=0;x<W;x++){
+   const int c=matrix?origin_x(x):strip_cell(x);
+   for(int y=0;y<H;y++){
+    if(c<0){viz_put(x,y,0,0);continue;}
+    float field=0,hue=0;
+    for(int k=0;k<4;k++){
+     const float dx=c-bx[k],dy=matrix?y-by[k]:0.f,f=br[k]*br[k]/(dx*dx+dy*dy+.3f);
+     field+=f;hue+=f*bh[k];
+    }
+    viz_put(x,y,clampf((field-.7f)*1.6f,0.f,1.f)*fade,int(hue/maxf(1e-3f,field)));
+   }
+  }
+  break;
+ }
  }
 }
 
@@ -540,7 +688,7 @@ __attribute__((visibility("default"))) int max_width(){return MAX_W;}
 __attribute__((visibility("default"))) int max_height(){return MAX_H;}
 __attribute__((visibility("default"))) void set_dimensions(int w,int h){w=maxi(1,mini(w,MAX_W));h=maxi(1,mini(h,MAX_H));if(w*h>MAX_PIX)h=maxi(1,MAX_PIX/w);if(w==W&&h==H)return;W=w;H=h;for(int i=0;i<MAX_PIX*4;i++)rgba[i]=0;}
 __attribute__((visibility("default"))) void set_palette(int index){index=maxi(0,mini(index,78));const int n=stop_counts[index];for(int j=0;j<16;j++){float pos=(float)j*(n-1)/15.f;int lo=(int)pos;int hi=mini(lo+1,n-1);palette[j]=blend(stops[index][lo],stops[index][hi],u8((int)((pos-lo)*255)));}}
-__attribute__((visibility("default"))) void set_effects(int cf,int bf,int af){if(cf!=color_fx){phase_color=0;}if(bf!=bright_fx)phase_bright=0;color_fx=maxi(0,mini(cf,9));bright_fx=maxi(0,mini(bf,4));audio_fx=maxi(0,mini(af,20));}
+__attribute__((visibility("default"))) void set_effects(int cf,int bf,int af){if(cf!=color_fx){phase_color=0;}if(bf!=bright_fx)phase_bright=0;color_fx=maxi(0,mini(cf,9));bright_fx=maxi(0,mini(bf,4));audio_fx=maxi(0,mini(af,25));}
 __attribute__((visibility("default"))) void set_parameters(int s,int sc,int l,float mix){speed=maxi(0,mini(s,255));scale=maxi(0,mini(sc,255));light=maxi(0,mini(l,255));audio_mix=clampf(mix,0.f,1.f);}
 __attribute__((visibility("default"))) void set_audio_range(int lo,int hi){audio_min=maxi(0,mini(lo,255));audio_max=maxi(0,mini(hi,255));}
 __attribute__((visibility("default"))) void set_reaction_tuning(float spectrum_shape,float onset_boost,float line_response,int floor_speed){
