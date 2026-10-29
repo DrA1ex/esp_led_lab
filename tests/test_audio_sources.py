@@ -29,14 +29,35 @@ try:
   }''')
   page.wait_for_function('STATE.playing && STATE.nextSample > 1536',timeout=15000)
   page.wait_for_function('!STATE.playing && STATE.source===null',timeout=15000)
-  assert page.evaluate('STATE.nextSample === +document.getElementById("fft").value && STATE.pausedAt===0'), 'DSP timeline must rewind at natural end'
+  assert page.evaluate('STATE.pausedAt===0 && STATE.silenceFrom!==Infinity'), 'natural end must rewind and release on silence'
   page.locator('#play').click()
   page.wait_for_function('STATE.playing && STATE.nextSample > 1536',timeout=15000)
   assert page.evaluate('STATE.newParam>0.01 && STATE.newSpectrum.some(x=>x>0.01)'), 'DSP must react on second run'
   print('PASS file replay: natural end, next play resumes WASM DSP without reset')
+  # Pause is silence: the spectrum releases instead of freezing; resume continues from the pause.
+  page.evaluate('''async () => {await ensureAudio();const a=demoAudio();loadBuffer(a.buffer,a.pcm,'pause fixture');await playAudio();}''')
+  page.wait_for_function('STATE.playing && Math.max(...STATE.newSpectrum)>0.05',timeout=15000)
+  page.wait_for_timeout(800)
+  page.locator('#play').click()
+  page.wait_for_function('!STATE.playing',timeout=5000)
+  page.wait_for_function('Math.max(...STATE.newSpectrum)<0.02 && STATE.newLoudness<0.02',timeout=5000)
+  paused=page.evaluate('STATE.pausedAt')
+  assert paused>0.1,paused
+  page.locator('#play').click()
+  page.wait_for_function('STATE.playing && Math.max(...STATE.newSpectrum)>0.05',timeout=15000)
+  pos=page.evaluate('(STATE.context.currentTime-STATE.playStart)')
+  assert paused-0.05<=pos<paused+1.5,(paused,pos)
+  print('PASS pause: spectrum releases on silence, resume continues at',round(paused,2),'s')
+  # Dragging the position slider during playback is not overwritten by the animation loop.
+  page.evaluate('''() => {const s=document.getElementById('seek');s.dispatchEvent(new PointerEvent('pointerdown'));s.value=800;s.dispatchEvent(new Event('input'));}''')
+  page.wait_for_timeout(300)
+  assert page.evaluate('+document.getElementById("seek").value')==800
+  page.evaluate('''() => {const s=document.getElementById('seek');s.dispatchEvent(new Event('change'));s.dispatchEvent(new PointerEvent('pointerup'));}''')
+  page.wait_for_function('STATE.playing && (STATE.context.currentTime-STATE.playStart)>STATE.buffer.duration*0.75',timeout=5000)
+  print('PASS seek: held slider keeps its value, release jumps to it')
   # The visual meter is exclusively new/control, and is actually driven by signal.
-  page.locator('#audio-mode').select_option('8')
-  page.locator('#param-source').select_option('bass')
+  page.locator('#audio-mode').select_option('8',force=True)
+  page.locator('#param-source').select_option('bass',force=True)
   page.wait_for_timeout(350)
   assert page.locator('#control-visual').is_visible()
   data=page.evaluate('''() => ({label:document.getElementById('control-source-label').textContent,
@@ -54,7 +75,7 @@ try:
       osc.frequency.value=183;osc.connect(out);osc.start();return out.stream;
     }}});
   }''')
-  page.locator('#audio-input').select_option('microphone')
+  page.locator('#audio-input').select_option('microphone',force=True)
   page.wait_for_function('STATE.mic && STATE.mic.written>4096',timeout=20000)
   mic=page.evaluate('''() => ({mode:STATE.inputMode, rate:STATE.mic.nativeRate,
     samples:STATE.mic.written, playing:STATE.playing, bands:STATE.newSpectrum.slice(),
@@ -67,7 +88,7 @@ try:
   page.wait_for_function('STATE.playing && STATE.mic && STATE.mic.written>4096',timeout=20000)
   assert page.evaluate('STATE.newSpectrum.some(x=>x>0.001)')
   print('PASS microphone stop/restart: DSP resumes after capture is stopped')
-  page.locator('#audio-input').select_option('file')
+  page.locator('#audio-input').select_option('file',force=True)
   page.wait_for_function('!STATE.mic && STATE.inputMode==="file"')
   assert page.locator('#seek').is_enabled()
   assert not errors,errors

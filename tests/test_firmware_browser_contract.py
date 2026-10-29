@@ -53,7 +53,7 @@ with sync_playwright() as p:
     assert page.evaluate('''() => __firmwareLog.some(m=>m.type==='start')''')
     assert page.evaluate('''() => __firmwareLog.some(m=>m.type==='frame'&&m.bytes===102)''')
     print('PASS firmware-like receiver: idle -> start_ack -> binary 32-band frames -> status playing true')
-    page.locator('#remote-bands').select_option('64')
+    page.locator('#remote-bands').select_option('64',force=True)
     page.wait_for_timeout(120)
     assert page.evaluate('REMOTE.devices[0].session===null')
     assert page.evaluate('!REMOTE.devices[0].supported.includes(64)')

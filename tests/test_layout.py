@@ -6,6 +6,8 @@ from playwright.sync_api import sync_playwright
 ROOT = Path(__file__).resolve().parents[1]
 HTML = (ROOT / 'dist' / 'standalone.html').read_text()
 
+RECT = '''el => {const b = document.querySelector(el).getBoundingClientRect(); return {x:b.x,y:b.y,width:b.width,height:b.height,bottom:b.bottom}}'''
+
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=True, executable_path=os.environ.get('CHROMIUM') or None, args=['--no-sandbox', '--autoplay-policy=no-user-gesture-required'])
     for width, height in [(1600, 900), (1280, 720), (1200, 650), (1060, 720), (860, 720), (650, 800), (420, 740), (360, 740)]:
@@ -20,36 +22,54 @@ with sync_playwright() as p:
         page.locator('#mix').fill('50')
         page.wait_for_function('Math.abs(STATE.playbackGain.gain.value-.35) < .03', timeout=2000)
         assert page.locator('#mix-value').inner_text()=='50%'
-        top = page.evaluate('''() => {
-          let r = el => {const b = document.querySelector(el).getBoundingClientRect(); return {x:b.x,y:b.y,width:b.width,height:b.height,bottom:b.bottom}};
-          return {document:document.documentElement.scrollWidth,stage:r('.matrixstage'),main:r('.main'),player:r('.audio-card'),remote:r('.remote-panel'),workspace:r('.workspace-sticky'),body:document.documentElement.clientWidth};
-        }''')
+        top = page.evaluate(f'''() => {{
+          const r = {RECT};
+          return {{document:document.documentElement.scrollWidth,scrollHeight:document.documentElement.scrollHeight,
+            stage:r('.matrixstage'),info:r('.preview-info'),main:r('.main'),player:r('.audio-card'),remote:r('.remote-panel'),
+            workspace:r('.workspace'),settings:r('.settings'),panels:r('.tabpanels')}};
+        }}''')
         assert top['document'] <= width + 1, (width, 'horizontal overflow',top)
-        assert top['stage']['width'] <= 232, (width,'oversized matrix',top)
         if width >= 1200:
-            assert abs(top['main']['x']-top['player']['x'])>50, (width,'not side by side',top)
-            assert top['player']['y']-top['main']['y'] < 12, (width,'player not alongside preview',top)
+            # One viewport tall: the page itself does not scroll.
+            assert top['scrollHeight'] <= height + 1, (width,'page taller than the viewport',top)
+            assert top['settings']['bottom'] <= height and top['remote']['bottom'] <= height + 1, (width,'column past the viewport',top)
+            # The lamps card fills the column under the preview.
+            assert abs(top['remote']['bottom']-top['workspace']['bottom']) < 2, (width,'lamps card does not reach the bottom',top)
+            # A matrix sits beside its readout and fits the height budget.
+            assert top['info']['x'] >= top['stage']['x']+top['stage']['width'], (width,'readout not beside the matrix',top)
+            assert 160 <= top['stage']['height'] <= min(390, height*0.45), (width,'matrix size',top)
+            assert abs(top['main']['x']-top['remote']['x'])>50 or abs(top['player']['x']-top['remote']['x'])>50, (width,'player and lamps not side by side',top)
+        else:
+            assert top['stage']['width'] <= 362, (width,'oversized matrix',top)
         if width <=760:
             assert top['player']['y'] > top['main']['y'],(width,'small mobile not stacked',top)
-        page.evaluate('window.scrollTo(0, 900)')
-        page.wait_for_timeout(300)
-        state = page.evaluate('''() => {
-          const r=document.querySelector('.workspace-sticky').getBoundingClientRect();
-          return {top:r.top, dock: !document.getElementById('floating-preview').hidden,
-             sticky:getComputedStyle(document.querySelector('.workspace-sticky')).position,
-             audio:document.querySelector('.audio-card').getBoundingClientRect().top,
-             viewport:innerHeight};
-        }''')
         if width >= 1200:
-            assert state['sticky']=='sticky' and not state['dock'],(width,state)
-            assert -2<=state['top']<=16,(width,state)
-            assert state['audio']<height,(width,'player out of viewport',state)
+            # Scrolling a long settings panel keeps the tabs in place and the page still.
+            page.locator('.tabs [data-tab="audio"]').click()
+            page.locator('#audio-mode').select_option('14')
+            tabs_before = page.evaluate("document.querySelector('.tabs').getBoundingClientRect().top")
+            page.mouse.move(top['panels']['x']+40, top['panels']['y']+60)
+            page.mouse.wheel(0, 900)
+            page.wait_for_timeout(300)
+            state = page.evaluate('''() => ({tabs:document.querySelector('.tabs').getBoundingClientRect().top,
+               panel:document.querySelector('.tabpanels').scrollTop,
+               panelScrollable:document.querySelector('.tabpanels').scrollHeight>document.querySelector('.tabpanels').clientHeight,
+               page:window.scrollY, dock:!document.getElementById('floating-preview').hidden})''')
+            assert state['page'] == 0 and abs(state['tabs']-tabs_before) < 1 and not state['dock'], (width,state)
+            assert state['panel'] > 0 or not state['panelScrollable'], (width,'settings panel did not scroll',state)
+            # Advanced lamp settings scroll inside the lamps card.
+            page.locator('#remote-panel summary').click()
+            page.wait_for_timeout(100)
+            assert page.evaluate("document.documentElement.scrollHeight") <= height + 1, (width,'advanced lamps grew the page')
             assert page.evaluate("document.querySelector('#remote-add').getBoundingClientRect().top < innerHeight"),(width,'connection control hidden')
         else:
+            page.evaluate('window.scrollTo(0, 900)')
+            page.wait_for_timeout(300)
+            state = {'dock': page.evaluate("!document.getElementById('floating-preview').hidden")}
             assert state['dock'],(width,state)
         assert not errors,(width,errors)
-        if width in (1280,860,420):
+        if width in (1600,1280,860,420):
             page.screenshot(path=str(ROOT/'tests'/f'layout_{width}.png'),full_page=False)
-        print('PASS', width, 'preview',round(top['stage']['width']), 'px',state)
+        print('PASS', width, 'matrix',round(top['stage']['width']), 'px', state)
         page.close()
     browser.close()

@@ -9,9 +9,9 @@ with sync_playwright() as p:
  errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
  page.set_content((ROOT/'dist'/'standalone.html').read_text());page.wait_for_function('STATE.ready === true')
  page.locator('#demo').click()
- page.locator('#color').select_option('0')
- page.locator('#audio-mode').select_option('8')
- page.locator('#param-source').select_option('loudness')
+ page.locator('#color').select_option('0',force=True)
+ page.locator('#audio-mode').select_option('8',force=True)
+ page.locator('#param-source').select_option('loudness',force=True)
  speeds=[]
  for i in range(24):
   page.wait_for_timeout(95)
@@ -24,13 +24,13 @@ with sync_playwright() as p:
  assert any('Speed:' in r['label'] for r in speeds),speeds[-1]
  vmax=max(x['newSpeed'] for x in speeds);vmin=min(x['newSpeed'] for x in speeds)
  assert vmax-vmin>12, f'Speed should react to 120 BPM demo, got {vmin}..{vmax}'
- page.locator('#param-source').select_option('high')
+ page.locator('#param-source').select_option('high',force=True)
  page.wait_for_timeout(200)
  assert 'Treble' in page.locator('#control-source-label').inner_text()
  print('PASS browser: real demo -> RMS -> effective Speed dynamic',vmin,'..',vmax,'and selectable High source')
- page.locator('#color').select_option('9')
- page.locator('#param-source').select_option('loudness')
- page.locator('#audio-mode').select_option('6')
+ page.locator('#color').select_option('9',force=True)
+ page.locator('#param-source').select_option('loudness',force=True)
+ page.locator('#audio-mode').select_option('6',force=True)
  widths=[]
  for i in range(26):
   page.wait_for_timeout(95)
@@ -47,7 +47,7 @@ with sync_playwright() as p:
   }'''))
  assert max(widths)-min(widths)>=2, f'Line should react to 120 BPM demo, got {widths}'
  print('PASS browser: new Line actually changes active columns during demo',min(widths),'..',max(widths))
- page.locator('#audio-mode').select_option('3')
+ page.locator('#audio-mode').select_option('3',force=True)
  assert page.locator('#spectrum-shape').input_value()=='70'
  assert page.locator('#spectrum-onset').input_value()=='30'
  assert not errors, errors

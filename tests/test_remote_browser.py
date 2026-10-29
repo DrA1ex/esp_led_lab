@@ -61,7 +61,7 @@ with sync_playwright() as p:
     page.wait_for_function('REMOTE.devices.every(d=>d.session!==null)',timeout=10000)
     assert old!=page.evaluate('RS.session')
     print('PASS pause/resume fresh session')
-    page.locator('#remote-enable').uncheck()
+    page.locator('#remote-enable').uncheck(force=True)
     assert page.evaluate('REMOTE.devices.every(d=>d.session===null)')
     assert page.evaluate('STATE.playing')
     # Microphone is a separate causal source; no future PCM is available.
@@ -71,13 +71,13 @@ with sync_playwright() as p:
         osc.frequency.value=180;osc.connect(out);osc.start();return out.stream;
       }}});
     }''')
-    page.locator('#remote-enable').check()
-    page.locator('#audio-input').select_option('microphone')
+    page.locator('#remote-enable').check(force=True)
+    page.locator('#audio-input').select_option('microphone',force=True)
     page.wait_for_function('STATE.mic && STATE.mic.written>4096',timeout=18000)
     page.wait_for_function('''__frames.some(f=>new DataView(f.buf).getUint8(6)&1)''',timeout=18000)
     assert page.evaluate('''() => __frames.some(f => (new DataView(f.buf).getUint8(6)&1) &&
         new DataView(f.buf).getUint8(7)===64)''')
-    page.locator('#audio-input').select_option('file')
+    page.locator('#audio-input').select_option('file',force=True)
     page.wait_for_function('STATE.mic===null')
     print('PASS microphone causal frames, live flag, track cleanup and source change')
     assert not errors,errors

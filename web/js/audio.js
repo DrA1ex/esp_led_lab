@@ -23,8 +23,17 @@ function resetDSP(startSample=0,preserveRemote=false){
  if(!preserveRemote)remoteInvalidate();
  const n=+($('fft')?.value||512);
  STATE.nextSample=Math.max(n,Math.ceil(startSample/hop)*hop);
- STATE.lastPlaybackSample=startSample;
+ STATE.lastPlaybackSample=startSample;STATE.silenceFrom=Infinity;STATE.tailUntil=-1;
  STATE.newParam=0;STATE.newLoudness=0;STATE.newLine=0;STATE.levels.fill(0);STATE.bpm=STATE.beatConfidence=STATE.beatPhase=STATE.beatPulse=0;STATE.newSpectrum.fill(0);STATE.pulses.fill(0);STATE.events.fill(0);STATE.modules.dsp.exports.reset_dsp();if(!preserveRemote)STATE.modules.new.exports.reset_render();}
+// After a pause, stop or the end of a file the DSP keeps running on silence in
+// real time (see animate), so the spectrum and envelopes release as they would
+// on a quiet input instead of freezing on the last frame.
+function startSilenceTail(){
+ if(!STATE.ready)return;
+ STATE.silenceFrom=Math.min(STATE.silenceFrom,STATE.nextSample);STATE.tailPos=STATE.nextSample-hop;
+ const release=+($('release')?.value||210);
+ STATE.tailUntil=STATE.tailPos+Math.round(fs*Math.min(6,Math.max(2.5,release*6/1000)));
+}
 function loadBuffer(buffer,pcm,name,isDemo=false){
  pauseAudio();STATE.inputMode='file';$('audio-input').value='file';STATE.loopDemo=isDemo;
  STATE.buffer=buffer;STATE.pcm=pcm;STATE.audioLen=buffer.duration;STATE.fileName=name;STATE.pausedAt=0;resetDSP();
@@ -44,8 +53,12 @@ async function playAudio(){
  if(!STATE.buffer||STATE.playing)return;
  await ensureAudio();
  if(STATE.inputMode!=='file'||STATE.playing)return;
- if(STATE.pausedAt>=STATE.buffer.duration-.005||STATE.nextSample>=STATE.pcm.length||STATE.pausedAt===0) {
+ // nextSample also advances through the silence tail; only a finished timeline restarts.
+ if(STATE.pausedAt>=STATE.buffer.duration-.005||STATE.nextSample>=STATE.pcm.length&&STATE.silenceFrom===Infinity||STATE.pausedAt===0) {
   STATE.pausedAt=0;resetDSP(0);
+ }else{
+  STATE.silenceFrom=Infinity;STATE.tailUntil=-1;
+  STATE.nextSample=Math.max(+($('fft')?.value||512),Math.ceil(STATE.pausedAt*fs/hop)*hop);
  }
  const context=STATE.context,source=context.createBufferSource();
  source.buffer=STATE.buffer;source.loop=STATE.loopDemo;source.connect(STATE.playbackGain);
@@ -53,7 +66,7 @@ async function playAudio(){
  remoteInvalidate();STATE.playStart=context.currentTime-offset;STATE.source=source;STATE.playing=true;
  source.onended=()=>{
   if(STATE.source!==source)return;
-  STATE.playing=false;STATE.source=null;STATE.pausedAt=0;resetDSP(0);
+  STATE.playing=false;STATE.source=null;STATE.pausedAt=0;remoteInvalidate();startSilenceTail();
   $('play').textContent='▶ Play again';$('now').textContent='00:00';$('seek').value=0;
   $('status').textContent='Playback finished · press Play to start again';
  };
@@ -69,6 +82,7 @@ function stopMicrophone(){
   for(const node of [mic.input,mic.lowpass1,mic.lowpass2,mic.worklet,mic.processor,mic.silent])try{node?.disconnect();}catch(_){}
   mic.stream.getTracks().forEach(t=>t.stop());
  }
+ if(STATE.playing)startSilenceTail();
  STATE.playing=false;STATE.source=null;
  $('play').textContent='🎙 Start microphone';
 }
@@ -78,6 +92,7 @@ function pauseAudio(){
  if(STATE.playing){
   STATE.pausedAt=Math.min(STATE.buffer?.duration||0,Math.max(0,STATE.context.currentTime-STATE.playStart));
   const src=STATE.source;STATE.source=null;STATE.playing=false;try{src?.stop();}catch(_){}
+  startSilenceTail();
  }
  $('play').textContent='▶ Play';
 }
@@ -158,7 +173,7 @@ async function startMicrophone(){
  }catch(err){stopMicrophone();throw err;}
 }
 function sampleAt(index){
- if(index<0)return 0;
+ if(index<0||index>=STATE.silenceFrom)return 0;
  if(STATE.inputMode==='microphone'){
   const m=STATE.mic;if(!m||index>=m.written||m.written-index>m.ring.length)return 0;
   return m.ring[index%m.ring.length];

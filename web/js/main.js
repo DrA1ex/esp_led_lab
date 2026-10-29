@@ -42,9 +42,13 @@ if(STATE.playing&&STATE.inputMode==='microphone'&&STATE.mic){
    STATE.modules.new.exports.reset_render();}
  }
  STATE.lastPlaybackSample=current;
- $('now').textContent=asTime(current/fs);$('seek').value=Math.floor(current/STATE.pcm.length*1000);
+ if(!STATE.seeking){$('now').textContent=asTime(current/fs);$('seek').value=Math.floor(current/STATE.pcm.length*1000);}
+}else if(!STATE.playing&&STATE.tailUntil>=0){
+ // Paused or stopped: feed silence at real time until the envelopes settle.
+ STATE.tailPos+=dt*fs/1000;current=Math.min(STATE.tailUntil,Math.floor(STATE.tailPos));
+ if(current>=STATE.tailUntil)STATE.tailUntil=-1;
 }
-if(current>=0&&!remoteEnabled()){
+if(current>=0&&(!remoteEnabled()||!STATE.playing)){
  let processed=0;while(STATE.nextSample<=current&&processed<12){processAudio(STATE.nextSample);STATE.nextSample+=hop;processed++;}
  if(STATE.nextSample<current-12*hop)STATE.nextSample=Math.max(+($('fft').value),current-(current%hop));
 }
@@ -80,6 +84,7 @@ for(const id of ['geometry','geom-w','geom-h'])$(id).addEventListener('change',(
 $('audio-input').onchange=async()=>{
  const mode=$('audio-input').value;
  pauseAudio();STATE.inputMode=mode;
+ if(STATE.ready)resetDSP(); // the release tail would read the other source's timeline
  if(mode==='microphone'){
   $('play').disabled=false;$('play').textContent='🎙 Start microphone';
   try{await startMicrophone();}catch(err){console.error(err);STATE.inputMode='file';$('audio-input').value='file';
@@ -101,8 +106,12 @@ $('playback-volume').addEventListener('input',()=>{
 $('choose').onclick=()=>$('file').click();$('file').onchange=async ev=>{const file=ev.target.files[0];if(!file)return;try{await ensureAudio();$('status').textContent='Decoding audio file…';const buf=await STATE.context.decodeAudioData(await file.arrayBuffer());if(buf.duration>1200)throw new Error('Files longer than 20 minutes are not supported yet');loadBuffer(buf,await resamplePCM(buf),file.name);await playAudio();}catch(err){console.error(err);$('status').textContent='Error: '+err.message;}};
 $('demo').onclick=async()=>{await ensureAudio();const a=demoAudio();loadBuffer(a.buffer,a.pcm,'Demo Loop · 120 BPM (looped)',true);await playAudio();};
 $('play').onclick=async()=>{try{if(STATE.playing)pauseAudio();else await playAudio();}catch(err){console.error(err);$('status').textContent='Error: '+err.message;}};
-$('stop').onclick=()=>{pauseAudio();STATE.pausedAt=0;if(STATE.ready)resetDSP();$('seek').value=0;$('now').textContent='00:00';$('status').textContent='Reset';};
-$('seek').onchange=()=>{if(STATE.buffer&&STATE.inputMode==='file')seekTo(+($('seek').value)/1000*STATE.buffer.duration);};
+$('stop').onclick=()=>{pauseAudio();STATE.pausedAt=0;$('seek').value=0;$('now').textContent='00:00';$('status').textContent='Reset';};
+// While the slider is held the animation loop leaves it alone; the jump happens on release.
+$('seek').addEventListener('pointerdown',()=>{STATE.seeking=true;});
+for(const ev of ['pointerup','pointercancel','blur'])$('seek').addEventListener(ev,()=>{STATE.seeking=false;});
+$('seek').oninput=()=>{if(!STATE.buffer||STATE.inputMode!=='file')return;STATE.seeking=true;$('now').textContent=asTime(+($('seek').value)/1000*STATE.buffer.duration);};
+$('seek').onchange=()=>{STATE.seeking=false;if(STATE.buffer&&STATE.inputMode==='file')seekTo(+($('seek').value)/1000*STATE.buffer.duration);};
 $('fft').addEventListener('change',()=>{
  if(!STATE.ready)return;
  const start=STATE.inputMode==='microphone'?STATE.mic?.written||0:

@@ -31,7 +31,7 @@ code{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;color:#c8d6ec}
 /* Layout */
 .layout{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:16px;align-items:start}
 .workspace{min-width:0}
-.workspace-sticky{position:sticky;top:12px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"preview preview" "player remote";gap:12px;max-height:calc(100dvh - 24px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#3c4859 transparent}
+.workspace-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"preview preview" "player remote";gap:12px}
 .preview-card{grid-area:preview}
 .player{grid-area:player}
 .remote-panel{grid-area:remote}
@@ -71,13 +71,9 @@ select:focus,input[type=text]:focus,input[type=number]:focus{border-color:#7095d
 .toggle{display:flex;gap:8px;align-items:center;font-size:12.5px;color:#c3cfdf;cursor:pointer}
 .toggle input{accent-color:var(--accent);margin:0}
 
-/* Preview */
-.compare{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
-.matrixbox{border:1px solid var(--line);background:#10151e;border-radius:12px;padding:10px;min-width:0;display:flex;flex-direction:column;align-items:stretch}
-.matrixhead{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:8px}
-.matrixname{font-weight:650;font-size:12.5px}
-.pill{font-size:10.5px;border:1px solid #455170;color:#b0c6f2;border-radius:6px;padding:1px 7px;white-space:nowrap}
-.pill.new{border-color:#356656;color:#93e6cd}
+/* Preview: LEDs plus the analyzer readout (beside a matrix on wide screens, below otherwise) */
+.preview-body{border:1px solid var(--line);background:#10151e;border-radius:12px;padding:10px;min-width:0;display:flex;flex-direction:column;align-items:stretch;gap:8px}
+.preview-info{display:flex;flex-direction:column;min-width:0}
 .matrixstage{aspect-ratio:1/1;width:min(100%,360px);margin-inline:auto;background:#030508;border:1px solid #1d2633;border-radius:8px;overflow:hidden;box-shadow:inset 0 0 24px #000;cursor:default}
 .matrixstage canvas{width:100%;height:100%;display:block;image-rendering:pixelated;object-fit:contain}
 .center-pick .matrixstage{cursor:crosshair}
@@ -85,8 +81,7 @@ select:focus,input[type=text]:focus,input[type=number]:focus{border-color:#7095d
 .bars{display:flex;align-items:flex-end;gap:2px}
 .bars .bar{background:linear-gradient(0deg,#4a6f9c,#86b5f8);border-radius:2px 2px 0 0;flex:1;min-height:2px;transition:height .08s linear}
 .bars.new .bar{background:linear-gradient(0deg,#327670,#7fdcbf)}
-.inline-spectrum{height:30px;margin-top:8px;border-bottom:1px solid #2a3443}
-.strip-layout .compare{grid-template-columns:minmax(0,1fr)}
+.inline-spectrum{height:30px;border-bottom:1px solid #2a3443}
 .strip-layout .matrixstage{aspect-ratio:auto;width:100%;padding:6px}
 .strip-layout .matrixstage canvas{height:auto}
 
@@ -150,8 +145,9 @@ details.more[open] summary{margin-bottom:8px}
 .more-grid label .value{display:none}
 
 /* Settings tabs */
-.settings{padding:0;overflow:hidden}
-.tabs{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line);background:#121720}
+.settings{padding:0;overflow:hidden;display:flex;flex-direction:column}
+.tabpanels{min-height:0}
+.tabs{flex:none;display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line);background:#121720}
 .tabs button{border:0;background:none;padding:12px 6px;font-weight:620;font-size:13px;color:var(--muted);border-bottom:2px solid transparent}
 .tabs button:hover{color:var(--text)}
 .tabs button[aria-selected=true]{color:var(--text);border-bottom-color:var(--accent);background:#171d28}
@@ -183,16 +179,35 @@ details.more[open] summary{margin-bottom:8px}
 .strip-layout .floating-matrix canvas{flex:1;width:0;height:auto}
 
 @media(min-width:1200px){.floating-preview{display:none!important}}
+/* Wide screens: the page is exactly one viewport tall and never scrolls itself.
+   Each column scrolls on its own; the settings tabs stay put above their panel,
+   the lamps card takes the height left under the preview, and a matrix is sized
+   from the viewport height so the preview never pushes the rest off screen. */
+@media(min-width:1200px) and (min-height:560px){
+ html,body{height:100%;overflow:hidden}
+ .app{height:100dvh;display:flex;flex-direction:column;padding-bottom:12px}
+ .topbar{flex:none}
+ .layout{flex:1;min-height:0;grid-template-rows:minmax(0,1fr);align-items:stretch}
+ .workspace{min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#3c4859 transparent}
+ .workspace-grid{height:100%;grid-template-rows:auto minmax(170px,1fr);align-items:start}
+ .player{max-height:100%;overflow-y:auto}
+ .remote-panel{align-self:stretch;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#3c4859 transparent}
+ .settings{min-height:0}
+ .tabpanels{flex:1;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#3c4859 transparent}
+ .footer{flex:none;margin-top:8px}
+ body:not(.strip-layout) .preview-body{flex-direction:row;gap:14px}
+ body:not(.strip-layout) .matrixstage{--stage:clamp(170px,calc(100dvh - 470px),380px);height:var(--stage);width:auto;max-width:min(var(--stage)*2,62%);flex:none;margin:0}
+ body:not(.strip-layout) .preview-info{flex:1}
+ body:not(.strip-layout) .inline-spectrum{flex:1;height:auto;min-height:48px}
+}
 @media(max-width:1199px){
  .layout{grid-template-columns:minmax(0,1fr)}
- .workspace-sticky{position:static;max-height:none;overflow:visible}
  .settings{max-width:none}
 }
 @media(max-width:760px){
  .app{padding:12px 10px 32px}
- .workspace-sticky{grid-template-columns:minmax(0,1fr);grid-template-areas:"preview" "player" "remote";gap:10px}
- .compare{gap:8px}
- .matrixbox{padding:8px}
+ .workspace-grid{grid-template-columns:minmax(0,1fr);grid-template-areas:"preview" "player" "remote";gap:10px}
+ .preview-body{padding:8px}
  .title{font-size:17px}
  .subtitle{display:none}
  .tabpanel{padding:14px}

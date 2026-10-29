@@ -191,7 +191,9 @@ __attribute__((visibility("default"))) void new_process(int n,float hop_seconds,
     // A slowly decaying reference prevents the line/parameter modes from
     // sitting near a constant spectral mean. A fast envelope retains the
     // separate attack/release dynamics of musical hits.
-    loudness_peak=maxf(frame_rms,loudness_peak*maxf(0.0f,1.0f-hop_seconds/1.5f));
+    // Below the loudness threshold the reference holds: silence (a pause) must
+    // not lower it, or the next hit flashes at full scale.
+    if(frame_rms>=0.0015f)loudness_peak=maxf(frame_rms,loudness_peak*maxf(0.0f,1.0f-hop_seconds/1.5f));
     float loudness_target=clamp((frame_rms-0.0015f)/maxf(0.004f,loudness_peak*1.05f),0.f,1.f);
     loudness_target=loudness_target*loudness_target; // more contrast in verse vs hit
     float al=clamp(hop_seconds/(loudness_target>new_loudness_level?0.025f:0.15f),0.0f,1.0f);
@@ -234,8 +236,11 @@ __attribute__((visibility("default"))) void new_process(int n,float hop_seconds,
     }
     float average=total/BANDS;
     // Slow global AGC; retains inter-band balance (does not normalize each FFT frame to its own max).
+    // Gated: bands at or below the noise gate are silence, which would otherwise
+    // pump the gain up during a pause and overshoot when the music returns.
+    const bool silent=average<=noise_gate;
     float agc_alpha=clamp(hop_seconds / maxf(0.02f,agc_ms/1000.0f),0.002f,0.4f);
-    level_ref+=(average-level_ref)*agc_alpha;
+    if(!silent)level_ref+=(average-level_ref)*agc_alpha;
     const float ref=maxf(0.003f,level_ref);
     float attack=clamp(hop_seconds/maxf(0.005f,attack_ms/1000.0f),0.005f,1);
     float release=clamp(hop_seconds/maxf(0.015f,release_ms/1000.0f),0.005f,1);
@@ -247,7 +252,7 @@ __attribute__((visibility("default"))) void new_process(int n,float hop_seconds,
         // Optional slow-adapting noise estimate: follows quieter conditions
         // quickly but rises only over ~8s, to avoid interpreting music as noise.
         float floor_alpha=clamp(hop_seconds/(raw<noise_floor[b]?0.1f:8.f),0.0003f,0.25f);
-        noise_floor[b]+=(raw-noise_floor[b])*floor_alpha;
+        if(!silent)noise_floor[b]+=(raw-noise_floor[b])*floor_alpha;
         float v=maxf(0,raw-noise_gate-noise_floor[b]*clamp(adaptive_floor,0.f,1.f));
         // Previous implementation hard-clipped most active bands to 1.0 after AGC,
         // causing the display and parameter-control envelope to remain constant.

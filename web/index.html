@@ -15,27 +15,27 @@
 </div>
 
 <div class="layout">
-<section class="workspace"><div class="workspace-sticky">
+<section class="workspace"><div class="workspace-grid">
 
  <div class="card main preview-card">
   <div class="panelhead">
    <div><h2 class="h2" id="preview-title">LED matrix</h2><div class="muted" id="matrix-label">16 × 16 · matrix</div></div>
   </div>
-  <div class="compare">
-   <article class="matrixbox">
-    <div class="matrixstage"><canvas id="canvas-new" width="16" height="16" aria-label="LED preview: what the lamp shows"></canvas></div>
+  <div class="preview-body">
+   <div class="matrixstage"><canvas id="canvas-new" width="16" height="16" aria-label="LED preview: what the lamp shows"></canvas></div>
+   <div class="preview-info">
     <div class="inline-spectrum bars new" id="new-mini-bars" title="16 FFT bands"></div>
     <div class="matrixfoot"><span id="new-label">FFT</span><span id="fft-display">512 / 16 kHz</span></div>
-   </article>
-  </div>
-  <div class="events" aria-label="Rhythm">
-   <span class="event" id="bass"><b></b>Bass</span><span class="event" id="mid"><b></b>Mid</span><span class="event" id="high"><b></b>High</span>
-   <span class="event bpm" id="bpm" title="Experimental tempo estimate">BPM —</span>
-  </div>
-  <div class="control-visual" id="control-visual" hidden>
-   <div class="control-visual-header"><span>Control signal · <strong id="control-source-label">Loudness</strong></span><span id="control-value-label">—</span></div>
-   <div class="control-meter-track"><div class="control-meter-fill" id="control-fill"></div><div class="control-meter-marker" id="control-marker"></div></div>
-   <div class="hint" id="control-hint"></div>
+    <div class="events" aria-label="Rhythm">
+     <span class="event" id="bass"><b></b>Bass</span><span class="event" id="mid"><b></b>Mid</span><span class="event" id="high"><b></b>High</span>
+     <span class="event bpm" id="bpm" title="Experimental tempo estimate">BPM —</span>
+    </div>
+    <div class="control-visual" id="control-visual" hidden>
+     <div class="control-visual-header"><span>Control signal · <strong id="control-source-label">Loudness</strong></span><span id="control-value-label">—</span></div>
+     <div class="control-meter-track"><div class="control-meter-fill" id="control-fill"></div><div class="control-meter-marker" id="control-marker"></div></div>
+     <div class="hint" id="control-hint"></div>
+    </div>
+   </div>
   </div>
  </div>
 
@@ -90,6 +90,7 @@
   <button role="tab" data-tab="led">LED</button>
   <button role="tab" data-tab="dsp">DSP</button>
  </nav>
+ <div class="tabpanels">
 
  <section class="tabpanel" data-panel="effect" role="tabpanel">
   <div class="field"><label for="color">Color effect</label><select id="color"><option value="0">Perlin Noise</option><option value="1">Gradient</option><option value="2">Fire</option><option value="3">Aurora</option><option value="4" selected>Plasma</option><option value="5">Ripple</option><option value="6">Velum</option><option value="7">Particles</option><option value="8">Color Change</option><option value="9">Solid Color</option></select></div>
@@ -201,6 +202,7 @@
    <p class="hint">Hann-windowed FFT at 16 kHz (so the top frequency is 8 kHz), 16 logarithmic bands for the classic preview modes (16/32/64 for the lamp and the lab-preview modes), envelope attack/release, adaptive noise floor, spectral-flux onset detector and an experimental tempo estimate (may be wrong on complex music).</p>
   </details>
  </section>
+ </div>
 </aside>
 </div>
 <footer class="footer">Everything is processed locally in the browser · only audio features are sent to the lamp</footer>

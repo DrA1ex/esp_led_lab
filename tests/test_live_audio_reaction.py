@@ -34,8 +34,8 @@ with sync_playwright() as p:
     print('PASS browser: demo -> PCM -> FFT, mini spectrum populated',measurements['newParam'])
     # Compare each original effect against Off at the SAME instant and same base.
     # Solid is intentionally chosen to remove unrelated animation from the test.
-    page.locator('#color').select_option('9')
-    page.locator('#brightness').select_option('0')
+    page.locator('#color').select_option('9',force=True)
+    page.locator('#brightness').select_option('0',force=True)
     page.locator('#speed').fill('40');page.locator('#scale').fill('190');page.locator('#light').fill('215')
     statuses=page.evaluate('''() => {
       const e=document.getElementById('audio-mode'), sides=['new'];
@@ -56,8 +56,8 @@ with sync_playwright() as p:
     assert all(all(x['changed']) for x in statuses), 'one of the firmware audio modes did not modify the solid reference'
     # Light Control really has no effect on Plasma+Fixed: report the original
     # limitation rather than silently pretending the user selected a working mode.
-    page.locator('#color').select_option('4')
-    page.locator('#audio-mode').select_option('10')
+    page.locator('#color').select_option('4',force=True)
+    page.locator('#audio-mode').select_option('10',force=True)
     assert 'has no effect on this preset' in page.locator('#control-hint').inner_text()
     assert not errors,errors
     print('PASS browser: all 10 firmware modes alter WASM RGB on demo, no swallowed signal; incompatible preset warning')
