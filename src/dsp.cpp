@@ -26,6 +26,9 @@ static float noise_floor[BANDS],group_levels[3];
 static float prev_bands[BANDS];
 static float baseline[BANDS];
 static float raw_group[3], pulse[3], events[3], flux_avg[3], flux_dev[3], refractory[3];
+// Intermediate signals for the lab's DSP view: each band's level before the
+// attack/release envelope and each group's current onset threshold.
+static float targets[BANDS], thresholds[3];
 static float metrics[10]; // flux x3, RMS, activity, AGC ref, BPM, beat confidence, phase, beat pulse
 static float novelty_ring[256];
 static int novelty_pos=0,novelty_filled=0,novelty_updates=0;
@@ -143,6 +146,9 @@ __attribute__((visibility("default"))) float* new_bands_ptr(){return bands;}
 __attribute__((visibility("default"))) float* new_remote32_ptr(){return remote32;}
 __attribute__((visibility("default"))) float* new_remote64_ptr(){return remote64;}
 __attribute__((visibility("default"))) float* new_raw_ptr(){return raw_bands;}
+__attribute__((visibility("default"))) float* new_targets_ptr(){return targets;}
+__attribute__((visibility("default"))) float* new_floor_ptr(){return noise_floor;}
+__attribute__((visibility("default"))) float* new_thresholds_ptr(){return thresholds;}
 __attribute__((visibility("default"))) float* new_pulses_ptr(){return pulse;}
 __attribute__((visibility("default"))) float* new_levels_ptr(){return group_levels;}
 __attribute__((visibility("default"))) float* new_events_ptr(){return events;}
@@ -161,10 +167,10 @@ __attribute__((visibility("default"))) unsigned short* old_bands_ptr(){return ol
 __attribute__((visibility("default"))) void reset_dsp() {
     ensure_tables();
     for(int i=0;i<MAX_N;i++){input_pcm[i]=0;real_fft[i]=0;imag_fft[i]=0;}
-    for(int i=0;i<BANDS;i++){bands[i]=0;raw_bands[i]=0;prev_bands[i]=0;baseline[i]=0.003f;noise_floor[i]=0;old_out[i]=0;}
+    for(int i=0;i<BANDS;i++){bands[i]=0;raw_bands[i]=0;targets[i]=0;prev_bands[i]=0;baseline[i]=0.003f;noise_floor[i]=0;old_out[i]=0;}
     for(int i=0;i<32;i++)remote32[i]=0;
     for(int i=0;i<64;i++)remote64[i]=0;
-    for(int i=0;i<3;i++){pulse[i]=events[i]=flux_avg[i]=flux_dev[i]=refractory[i]=raw_group[i]=group_levels[i]=0;}
+    for(int i=0;i<3;i++){thresholds[i]=0;pulse[i]=events[i]=flux_avg[i]=flux_dev[i]=refractory[i]=raw_group[i]=group_levels[i]=0;}
     for(int i=0;i<10;i++)metrics[i]=0;
     for(int i=0;i<256;i++)novelty_ring[i]=0;
     novelty_pos=novelty_filled=novelty_updates=0;novelty_elapsed=novelty_sum=0;
@@ -272,6 +278,7 @@ __attribute__((visibility("default"))) void new_process(int n,float hop_seconds,
         float normalized=maxf(0.f,v*user_gain/(ref*6.5f));
         float compressed=(1-compression)*normalized+compression*sqrt_fast(normalized);
         float target=compressed/(0.85f+compressed);
+        targets[b]=target;
         float coeff=target>bands[b]?attack:release;
         bands[b]+=(target-bands[b])*coeff;
         activity+=bands[b];
@@ -290,6 +297,7 @@ __attribute__((visibility("default"))) void new_process(int n,float hop_seconds,
         flux_avg[g]+=(flux-flux_avg[g])*a;
         flux_dev[g]+=(absf(flux-flux_avg[g])-flux_dev[g])*a;
         float threshold=0.07f+sensitivity*(flux_avg[g]+1.2f*flux_dev[g]);
+        thresholds[g]=threshold;
         refractory[g]=maxf(0,refractory[g]-hop_seconds);
         events[g]=0;
         if(warm_count>5 && flux>threshold && refractory[g]<=0 && activity>0.035f){

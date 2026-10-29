@@ -1,6 +1,7 @@
 """Interface components in Chromium: choices bound to the hidden selects, palette swatches and
 effect thumbnails from the second renderer, two-thumb ranges, tabs and hotkeys, the LED layout
-menu with picking the start on a strip, and settings remembered in the browser.
+menu with picking the start on a strip, the Analyzer tab's DSP view, and settings remembered in
+the browser.
 Run: python tests/test_ui.py
 """
 import os
@@ -114,6 +115,28 @@ with sync_playwright() as p:
     assert page.evaluate("+$('origin-shift').value") == 20
     assert 'LED 21 of 153' in page.locator('#origin-hint').inner_text()
     print('PASS LED layout menu, large strip LEDs, click-to-start on a wrapped strip')
+
+    # Analyzer tab: the stage switches to the DSP view; touching a control opens its panel.
+    page.locator('#tab-analyzer').click()
+    assert page.locator('#stage-mode').is_visible()
+    page.locator('#stage-mode label', has_text='DSP').click()
+    assert page.evaluate("document.body.classList.contains('dsp-stage')") and page.locator('#dsp-canvas').is_visible()
+    assert page.locator('#canvas-new').is_hidden()
+    page.locator('#attack').focus()
+    assert page.locator('[data-dsp="envelope"]').get_attribute('aria-selected') == 'true' and page.locator('#dsp-groups').is_visible()
+    page.locator('#noise').focus()
+    assert page.locator('[data-dsp="noise"]').get_attribute('aria-selected') == 'true' and page.locator('#dsp-groups').is_hidden()
+    page.locator('[data-dsp="level"]').click()
+    page.wait_for_timeout(400)
+    assert 'Sensitivity' in page.locator('#dsp-caption').inner_text()
+    drawn = page.evaluate("(()=>{const c=$('dsp-canvas'),d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let n=0;for(let i=3;i<d.length;i+=4)if(d[i])n++;return n/(c.width*c.height);})()")
+    assert drawn > .01, drawn
+    page.locator('#stage-mode label', has_text='LEDs').click()
+    assert page.locator('#canvas-new').is_visible() and page.locator('#dsp-view').is_hidden()
+    page.locator('#stage-mode label', has_text='DSP').click()
+    page.locator('#tab-effect').click()
+    assert page.locator('#stage-mode').is_hidden() and page.locator('#canvas-new').is_visible()
+    print('PASS DSP view: stage switch on the Analyzer tab, panel follows the touched control, curve drawn')
 
     if stored:
         # Remembered: effect, mode, layout, volume; the music column state. Reset all forgets them.

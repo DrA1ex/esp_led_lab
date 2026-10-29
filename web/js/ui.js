@@ -125,6 +125,7 @@ function selectTab(name,persist=true){
  for(const p of document.querySelectorAll('.tabpanel'))p.hidden=p.dataset.panel!==name;
  if(persist)try{localStorage.setItem(TAB_KEY,name);}catch(_){}
  if(name==='reaction')drawTransfer(NaN);
+ refreshStageMode();
 }
 function initTabs(){
  const nav=document.querySelector('.tabs');

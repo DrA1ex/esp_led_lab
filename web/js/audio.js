@@ -250,5 +250,6 @@ const levels=new Float32Array(d.memory.buffer,d.new_levels_ptr(),3);
 for(let j=0;j<3;j++)STATE.levels[j]=levels[j];
 const newer=new Float32Array(d.memory.buffer,d.new_bands_ptr(),16),p=new Float32Array(d.memory.buffer,d.new_pulses_ptr(),3),e=new Float32Array(d.memory.buffer,d.new_events_ptr(),3);
 for(let j=0;j<16;j++)STATE.newSpectrum[j]=newer[j];for(let j=0;j<3;j++){STATE.pulses[j]=p[j];STATE.events[j]=e[j];}
+recordDsp(d,hop/fs);
 }
 function seekTo(pos){if(!STATE.buffer||STATE.inputMode!=='file')return;let wasPlaying=STATE.playing;pauseAudio();STATE.pausedAt=Math.min(STATE.buffer.duration-.01,Math.max(0,pos));const start=Math.floor(STATE.pausedAt*fs);resetDSP(start);$('now').textContent=asTime(STATE.pausedAt);setSeek(Math.floor(STATE.pausedAt/STATE.buffer.duration*1000));if(wasPlaying)playAudio();}

@@ -76,11 +76,25 @@
    <svg class="ico" aria-hidden="true"><use id="geometry-icon" href="#i-grid"/></svg><span class="sr-only" id="preview-title">LED matrix</span><span id="matrix-label">16 × 16 · matrix</span><svg class="ico chev" aria-hidden="true"><use href="#i-chevron"/></svg>
   </button>
   <span class="origin-tip" id="origin-tip" hidden><svg class="ico" aria-hidden="true"><use href="#i-target"/></svg><span id="origin-tip-text">Click an LED to set the start</span></span>
+  <div class="segmented stage-mode" id="stage-mode" role="radiogroup" aria-label="The stage shows" title="On the Analyzer tab the stage can show what the analyzer does to the signal" hidden>
+   <label class="choice"><input type="radio" name="stage-mode" value="leds"><span>LEDs</span></label>
+   <label class="choice"><input type="radio" name="stage-mode" value="dsp"><span>DSP</span></label>
+  </div>
   <button type="button" class="icon-btn" id="stage-size" title="Smaller preview" aria-label="Smaller preview" aria-pressed="false"><svg class="ico" aria-hidden="true"><use href="#i-chevron"/></svg></button>
   <button type="button" class="menu-btn" id="view-button" popovertarget="view-menu" title="Preview display: not sent to the lamp"><svg class="ico" aria-hidden="true"><use href="#i-eye"/></svg><span class="label">View</span><svg class="ico chev" aria-hidden="true"><use href="#i-chevron"/></svg></button>
  </div>
  <div class="stage-view" id="stage-view">
   <div class="matrixstage"><canvas id="canvas-new" width="16" height="16" aria-label="LED preview: what the lamp shows"></canvas></div>
+  <div class="dsp-view" id="dsp-view" hidden>
+   <div class="dsp-bar">
+    <div class="dsp-panels" id="dsp-panels" role="tablist" aria-label="What the analyzer settings do">
+     <button type="button" role="tab" data-dsp="resolution">Resolution</button><button type="button" role="tab" data-dsp="level">Level</button><button type="button" role="tab" data-dsp="envelope">Envelope</button><button type="button" role="tab" data-dsp="onsets">Onsets</button><button type="button" role="tab" data-dsp="noise">Noise</button>
+    </div>
+    <div class="dsp-groups" id="dsp-groups" role="group" aria-label="Band group"><button type="button" data-group="0">Bass</button><button type="button" data-group="1">Mid</button><button type="button" data-group="2">High</button></div>
+   </div>
+   <div class="dsp-plot"><canvas id="dsp-canvas" aria-label="DSP view"></canvas></div>
+   <p class="dsp-caption" id="dsp-caption" aria-live="off"></p>
+  </div>
  </div>
  <div class="analyzer" aria-label="Analyzer">
   <div class="analyzer-main">
@@ -236,7 +250,7 @@
  </section>
 
  <section class="tabpanel" id="panel-analyzer" data-panel="analyzer" role="tabpanel" aria-labelledby="tab-analyzer" hidden>
-  <p class="panel-note"><svg class="ico" aria-hidden="true"><use href="#i-bars"/></svg>The audio analyzer. It shapes both the preview and what the lamps receive.</p>
+  <p class="panel-note"><svg class="ico" aria-hidden="true"><use href="#i-bars"/></svg><span>The audio analyzer. It shapes both the preview and what the lamps receive. <b>DSP</b> above the preview shows what each setting does to the signal.</span></p>
   <div class="section">
    <div class="section-head"><h3 class="eyebrow">Resolution</h3><button class="reset" id="defaults" type="button" title="Reset the analyzer" aria-label="Reset the analyzer"><svg class="ico" aria-hidden="true"><use href="#i-reset"/></svg></button></div>
    <div class="field-pair">
@@ -361,6 +375,7 @@
 <script src="js/lamps.js"></script>
 <script src="js/remote-ui.js"></script>
 <script src="js/view.js"></script>
+<script src="js/dsp-view.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/playlist.js"></script>

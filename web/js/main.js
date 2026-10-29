@@ -69,6 +69,7 @@ initRemote();
 spectrumPlan();
 initTuning();
 initUi();
+initDspView();
 initLamps();
 renderRemoteDevices();
 for(const id of inputIds.filter(id=>id!=='sample-rate')){$(id).addEventListener('input',refreshLabels);$(id).addEventListener('change',refreshLabels);}

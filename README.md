@@ -161,6 +161,25 @@ for the available display width. Unresolved low-frequency groups merge; a
 show the displayed group count and Hz per bin. The lamps still receive their
 negotiated 16/32/64 feature bands independently of this analyzer display.
 
+### DSP view
+
+On the Analyzer tab, **LEDs / DSP** above the preview switches the stage to a
+view of what the analyzer settings do to the signal. Touching a setting opens
+its panel; the curves are computed from the same formulas as `new_process()`,
+and the live traces come from the running DSP:
+
+| Panel | Settings | Shows |
+|---|---|---|
+| Resolution | FFT size, sample rate, frequency range | the live spectrum as FFT bins on a frequency axis, the 16 bands inside the range (bands narrower than a bin are marked), the window of consecutive frames and the hop between them |
+| Level | Sensitivity, Compression, Auto gain | the band level → LED level curve (with and without compression), the noise floor, the 16 bands on it now, where the music's average level lands, and the AGC reference following the average over the last 5 s |
+| Envelope | Attack, Release | a band group (bass / mid / high) before and after the envelope over the last 5 s, and the response to a sound that starts and stops, with the time to 63 % / 90 % and back to 37 % |
+| Onsets | Onset threshold | the group's energy rise (flux) against its adaptive threshold, the hits with their refractory time and the flash they trigger |
+| Noise | Noise floor, Adaptive floor | each band's level against the noise floor, the background each band has learned and what the adaptive floor removes |
+
+The DSP exports the intermediate values for it (`new_targets_ptr`: band levels
+before the envelope, `new_thresholds_ptr`: onset thresholds, `new_floor_ptr`:
+learned noise floors); nothing sent to the lamps changes.
+
 File metadata parsing uses the bundled MIT-licensed `music-metadata` library;
 normal builds work offline. To regenerate its browser bundle, run
 `npm ci --prefix scripts/metadata --ignore-scripts` then
@@ -186,6 +205,7 @@ web/                 development page (served as-is)
   js/remote-ui.js    feature snapshots, presentation timing, lamp cards, power / brightness, target switcher
   js/tuning.js       reaction range, start point, transfer curve, mode hints
   js/view.js         settings → WASM, canvas painting, meters
+  js/dsp-view.js     the Analyzer tab's DSP view: what each analyzer setting does to the signal
   js/ui.js           choices bound to the selects, sliders, popovers, tabs, music column,
                      palette swatches and effect thumbnails, remembered settings
   js/audio.js        file / demo / microphone input and DSP feed

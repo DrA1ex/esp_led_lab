@@ -196,4 +196,5 @@ function meters(){
  const sure=STATE.beatConfidence>.21;
  $('bpm').textContent=sure?Math.round(STATE.bpm):'—';
  $('bpm-confidence').textContent=sure?Math.round(STATE.beatConfidence*100)+'%':'';
+ drawDspView();
 }

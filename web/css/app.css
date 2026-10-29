@@ -242,6 +242,25 @@ body.dropping::after{content:"Drop audio files or folders to add them";position:
 .strip-layout .stage-view{container-type:inline-size}
 .strip-layout .matrixstage{width:calc(100% - 24px);aspect-ratio:auto;padding:0;background:none;box-shadow:none}
 .strip-layout .matrixstage canvas{height:auto}
+/* Analyzer tab: the stage can show the DSP view (dsp-view.js) instead of the LEDs. */
+.stage-mode{flex:none;margin-left:auto;padding:2px}
+.stage-mode .choice>span{height:26px;padding:0 11px}
+.stage-mode:not([hidden])~.menu-btn{margin-left:0}
+body.dsp-stage .matrixstage,body.dsp-stage #origin-tip{display:none!important}
+body.dsp-stage .stage-view{display:flex;place-items:stretch;background:var(--inset);border:1px solid var(--line)}
+.dsp-view{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0;min-height:0;padding:10px 12px}
+.dsp-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px}
+.dsp-panels,.dsp-groups{display:flex;gap:2px;padding:2px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel)}
+.dsp-panels button,.dsp-groups button{height:26px;padding:0 10px;border:1px solid transparent;border-radius:var(--r-sm);background:none;color:var(--text-2);font-size:12px;font-weight:550;white-space:nowrap}
+.dsp-panels button:hover,.dsp-groups button:hover{color:var(--text)}
+.dsp-panels [aria-selected=true],.dsp-groups [aria-pressed=true]{background:var(--raised-2);border-color:var(--line-3);color:var(--text)}
+.dsp-groups [data-group="0"][aria-pressed=true]{color:var(--bass)}
+.dsp-groups [data-group="1"][aria-pressed=true]{color:var(--mid)}
+.dsp-groups [data-group="2"][aria-pressed=true]{color:var(--high)}
+.dsp-plot{position:relative;flex:1;min-height:140px}
+.dsp-plot canvas{position:absolute;inset:0;display:block;width:100%;height:100%}
+.dsp-caption{flex:none;margin:0;max-width:110ch;color:var(--text-2);font-size:12px;line-height:1.5}
+.dsp-caption b{color:var(--text);font-weight:650}
 
 .analyzer{flex:none;display:flex;flex-direction:column;gap:8px}
 .analyzer-main{display:flex;gap:12px;align-items:stretch;height:74px}
@@ -496,6 +515,17 @@ label.mini input,label.mini select{height:30px;font-size:12.5px}
  .control-visual-header{font-size:11px}
  .origin-tip{display:none!important}
  .menu-btn .label{display:none}
+ /* The DSP view takes the whole stage width; the analyzer strip under it would repeat it. */
+ body.dsp-stage .stage{display:flex}
+ body.dsp-stage .stage-view{height:min(56vh,130vw);padding:0}
+ body.dsp-stage .analyzer,body.dsp-stage #geometry-button{display:none}
+ body.dsp-stage .dsp-view{padding:8px}
+ .dsp-panels,.dsp-groups{flex:1 1 100%}
+ .dsp-panels button,.dsp-groups button{flex:1;padding:0 6px}
+ .dsp-caption{max-height:6em;overflow-y:auto;font-size:11.5px}
+ body.stage-compact.dsp-stage .stage-view{height:min(36vh,90vw)}
+ body.stage-compact .dsp-caption{display:none}
+ .stage-mode:not([hidden])+#stage-size{margin-left:0}
  /* A smaller preview leaves more room for the panels. */
  #stage-size{display:inline-grid;width:32px;height:32px;margin-left:auto}
  #stage-size .ico{transform:rotate(180deg);transition:transform .15s}
