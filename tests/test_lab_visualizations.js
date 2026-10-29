@@ -73,4 +73,10 @@ for(const mode of [13,14,19,20]){
  assert(bar(0,2)<6,'treble meter barely moves without auto-level');
  assert(bar(1,2)>15,'auto-level lifts the treble meter');
 }
+// The firmware renders the same modes from its own copy of the engine.
+{
+ const lamp=path.join(__dirname,'../../esp_led_lamp/src/remote_audio/viz_engine.h');
+ if(fs.existsSync(lamp))assert.equal(fs.readFileSync(lamp,'utf8'),fs.readFileSync(path.join(__dirname,'../src/viz_engine.h'),'utf8'),
+  'src/viz_engine.h differs from esp_led_lamp/src/remote_audio/viz_engine.h: copy it over');
+}
 console.log('PASS lab visualizations 13..25 on strips 7/153, 72x2, matrices 16/128: silence, music, rows, mirror, bands');

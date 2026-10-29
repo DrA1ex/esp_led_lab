@@ -164,9 +164,9 @@ Changes made together with the firmware (`esp_led_lamp`, `feature/remote-audio-d
   [16,32,64]`, frame size 38 + 2 × count). *Spectrum bands* under *Lamps
   over Wi-Fi → Advanced* picks the count for the lamp and for the new
   preview modes below.
-- **Lab preview (not on the lamp yet)**, audio modes 13–25: VU Meter,
+- **Visualizations**, audio modes 13–25: VU Meter,
   Spectrum Bars, Flow, Pulses, Sparkles, Mood, Waveform, Bass · Mid · Treble
-  Meters, Fire, Aurora, Juggle, Radial Spectrum, Blobs (`render_viz()` in `src/render.cpp`). They adapt to the geometry:
+  Meters, Fire, Aurora, Juggle, Radial Spectrum, Blobs (`src/viz_engine.h`). They adapt to the geometry:
   on strips (HEIGHT < 4, every row the same) they run along the LEDs from the
   start point, or out from the center with *From the center*; on matrices
   they use the height (bars from the bottom, a spectrogram, rings from the
@@ -175,8 +175,21 @@ Changes made together with the firmware (`esp_led_lamp`, `feature/remote-audio-d
   *Motion speed* set the meters' release and how fast Flow / Pulses move;
   *Auto-level* stretches each band's and meter's own recent range so quiet
   treble moves like the bass. The reaction range and curve apply to every
-  level. While one of these modes is selected the lamp is sent Off; the
-  modes that work out get ported to the firmware, the rest are removed.
+  level. The lamp renders them too (see below).
+
+## Visualizations on the lamp (2026-10-29)
+
+`src/viz_engine.h` is shared byte-for-byte with the firmware
+(`esp_led_lamp/src/remote_audio/viz_engine.h`, effect ids 12–24 = lab modes
+13–25). `render.cpp` and the firmware only supply the inputs and the pixel
+output, so the lamp draws what the preview shows (random sparks aside).
+Firmware with them lists the ids in `hello_ack.visualizations`; the lab sends
+the mode and `viz_color`, `viz_mirror`, `viz_auto`, `viz_decay`,
+`viz_motion` (percent) to those lamps and Off to older ones (the lamp card
+says "older firmware: no visualizations"). *LED reaction* (mix) and *Fast line
+response* stay preview-only: the lamp follows the control source.
+`scripts/mock_remote_receiver.py` advertises them; `--no-viz` acts like older
+firmware.
 
 ## Adapt to each lamp (2026-10-29)
 
@@ -186,11 +199,10 @@ per lamp instead of one stream for all:
 - **Bands** follow the lamp's `hello_ack.width`: up to 24 columns → 16,
   up to 48 → 32, wider → 64 (the nearest count the lamp accepts). The global
   *Spectrum bands* is then ignored for lamps; it still sets the bands of the
-  lab-preview modes. Frames for each count are built once per moment and
+  visualizations in the preview. Frames for each count are built once per moment and
   share the sequence number.
-- **Card overrides** (shown on each lamp card): *Mode* (firmware modes only;
-  the lab-preview modes do not exist on the lamp, so with one selected a lamp
-  without its own mode gets Off), *Bands* (Auto / 16 / 32 / 64) and
+- **Card overrides** (shown on each lamp card): *Mode* (any mode; a lamp
+  whose firmware lacks a visualization gets Off), *Bands* (Auto / 16 / 32 / 64) and
   *Start, LED* (the start offset in that lamp's LEDs; empty = the lab's
   offset as a share of the width). They are remembered per lamp URL and
   restart that lamp's session when changed. The card shows what is sent.

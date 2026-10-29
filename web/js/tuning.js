@@ -5,7 +5,8 @@
 // The rules mirror firmware audioTransfer() and RemoteReactive::OriginMap.
 
 const ORIGIN_MODES=[1,2,3,4,6,7,11,12,13,14,15,16,18,19,20,21,22,23,24,25];
-// Lab-only visualizations (render.cpp render_viz); the lamp gets Off for them.
+// Visualizations (viz_engine.h, shared with the firmware). A lamp renders the
+// ones its hello_ack lists in "visualizations"; older firmware gets Off.
 const LAB_MODES=[13,14,15,16,17,18,19,20,21,22,23,24,25];
 const CENTERED_MODES=[2,4,7,12];
 const MODE_HINTS={

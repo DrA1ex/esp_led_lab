@@ -80,6 +80,7 @@ lamp only receives bands, so neither setting needs firmware support.
 ```
 src/                 C++ sources compiled to WebAssembly
   render.cpp         effect renderer (ported color/brightness/audio effects)
+  viz_engine.h       visualizations 13..25, shared byte-for-byte with the firmware
   dsp.cpp            FFT/onset/BPM DSP (+ the firmware's original analyzers, used by tests)
   fastled_compat.h   FastLED 3.6.0 fixed-point math port
   tables.h           lookup tables
@@ -133,6 +134,8 @@ receiver for manual Remote Output testing without a lamp.
 
 Keep these in sync with `esp_led_lamp`:
 
+- `src/viz_engine.h` ↔ `src/remote_audio/viz_engine.h`: identical copies
+  (the visualization test compares them when both repos sit side by side);
 - `src/render.cpp` audio modes 11/12 ↔ `src/remote_audio/reactive_math.h`
   (Bass / Mid / High, Beat-aware, spectrum shaping, control sources);
 - `scaled_audio()` ↔ `audioTransfer()` in `src/audio/transfer.h`, and

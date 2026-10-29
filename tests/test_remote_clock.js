@@ -15,6 +15,10 @@ function exchange(deviceOffset,rtt){
 }
 d.message({type:'hello_ack',version:1,width:153,height:1,band_counts:[32],capabilities:['sync','clock','config','status','tuning']});
 assert.equal(d.width,153);assert.equal(d.height,1);assert(d.capabilities.includes('tuning'));
+assert.deepEqual(d.visualizations,[],'older firmware: no visualizations');
+{const v=new RemoteAudio.Device('192.168.1.6',()=>{});v.socket={readyState:1,bufferedAmount:0,send(){},close(){}};
+ v.message({type:'hello_ack',version:1,width:16,height:16,band_counts:[16,32,64],visualizations:[12,13,22]});
+ assert.deepEqual(v.visualizations,[13,14,23],'firmware ids map to lab modes (+1)');}
 exchange(500,20);
 assert.equal(texts().filter(m=>m.type==='clock').pop().offset_ms,500);
 d.message({type:'clock_ack'});assert.equal(d.status,'ready');

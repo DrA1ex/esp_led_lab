@@ -67,7 +67,8 @@ def receiver(ws):
             print('hello', msg)
             ws.send(json.dumps(dict(type='hello_ack', version=1, session=1, width=ARGS.width,
                                     height=ARGS.height, bands=32, band_counts=[16, 32, 64], fps=60,
-                                    capabilities=['sync', 'clock', 'config', 'status', 'tuning'])))
+                                    capabilities=['sync', 'clock', 'config', 'status', 'tuning', 'visualizations'],
+                                    visualizations=[] if ARGS.no_viz else list(range(12, 25)))))
         elif op == 'sync':
             t1 = millis()
             ws.send(json.dumps(dict(type='sync_ack', session=1, id=msg.get('id'), t0=msg.get('t0'),
@@ -77,8 +78,13 @@ def receiver(ws):
             print('clock', msg)
             ws.send(json.dumps(dict(type='clock_ack', session=1)))
         elif op == 'config':
+            # Lab clients send lab mode ids: firmware id + 1, 0 = Off; 13..25 are visualizations.
+            effect = msg.get('audio_effect', 0)
             ok = (msg.get('input_min', 0) < msg.get('input_max', 255)
-                  and 25 <= msg.get('input_curve', 100) <= 400)
+                  and 25 <= msg.get('input_curve', 100) <= 400
+                  and (effect <= 12 or (not ARGS.no_viz and effect <= 25))
+                  and msg.get('viz_color', 0) in (0, 1)
+                  and 0 <= msg.get('viz_decay', 50) <= 100 and 0 <= msg.get('viz_motion', 50) <= 100)
             print('config', msg)
             ws.send(json.dumps(dict(type='config_ack', session=1) if ok
                                else dict(type='error', reason='invalid_config')))
@@ -102,6 +108,7 @@ if __name__ == '__main__':
     ap.add_argument('--port', type=int, default=8765)
     ap.add_argument('--width', type=int, default=16)
     ap.add_argument('--height', type=int, default=16)
+    ap.add_argument('--no-viz', action='store_true', help='behave like firmware without visualizations')
     args = ARGS = ap.parse_args()
     print(f'Mock ESP receiver listening on ws://{args.host}:{args.port}/audio')
     with serve(receiver, args.host, args.port) as server:

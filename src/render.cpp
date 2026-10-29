@@ -159,419 +159,44 @@ static inline float provider_at(int index){
 }
 static int pulse_phase(float phase,int offset){int value=fl_round(phase+offset)%1024;if(value<0)value+=1024;if(value<256)return 255-value;if(value<512)return 0;if(value<768)return value-512;return 255;}
 
-// ---- Lab-only visualizations, audio modes 13..25 (not in the firmware) ----
-// Candidates to port once picked on real lamps. They adapt to the geometry:
-// strips (H < 4; every row shows the same) run along the LEDs from the origin
-// (shift / reverse / ring), or out from the centre with viz_mirror; matrices
-// use the second dimension and mirror vertically (bars, spectrogram, rings).
-// y = 0 is the bottom row. Every level goes through scaled_audio(), so the
-// reaction range and curve apply. Bands are the ones sent to the lamp
-// (features[160..], count at [224]; 0 falls back to the 16 preview bands).
+// ---- Geometry-aware visualizations, audio modes 13..25 ----
+// The engine (viz_engine.h) is shared with the firmware, which implements
+// the same modes as AudioEffectEnum 12..24. Here it reads the preview
+// features: bands sent to the lamp (features[160..], count at [224]; 0 falls
+// back to the 16 preview bands), levels through scaled_audio(), so the
+// reaction range and curve apply.
+#include "viz_engine.h"
 static constexpr int VIZ_FIRST=13;
 static int viz_color=0; // 0 palette colours, 1 mask the colour effect
-static bool viz_mirror=false,viz_auto=true;
-static float viz_decay=.5f,viz_speed=.5f;
-static float viz_level[MAX_W],viz_peak[MAX_W],viz_hold[MAX_W],viz_lo[MAX_W+1],viz_hi[MAX_W+1]; // [MAX_W]: overall level
-static uint8_t viz_v[MAX_PIX],viz_h[MAX_PIX];
-static float viz_prev_pulse[3],viz_cool[4],viz_clock=0.f,viz_tone=0.f,viz_mood=0.f,viz_spawn=0.f;
-static float viz_phase[8];
-static int viz_key=-1;
-struct Comet {float pos,energy;uint8_t hue;bool on;};
-static Comet comets[24];
-
-static inline bool viz_matrix(){return H>=4;}
 static inline int band_count(){const int n=(int)features[224];return n==16||n==32||n==64?n:0;}
-static inline float band_raw(int i){return band_count()?features[160+i]:features[i];}
-// Cell i of `cells` like firmware RemoteSignalProvider: fewer cells than bands
-// average their band range, more cells interpolate between bands.
-static float band_cell(int i,int cells){
- int n=band_count();if(!n)n=16;
- if(cells<=1){float sum=0;for(int k=0;k<n;k++)sum+=band_raw(k);return sum/n;}
- if(cells<n){const int a=i*n/cells,b=maxi(a+1,(i+1)*n/cells);float sum=0;for(int k=a;k<b;k++)sum+=band_raw(k);return sum/(b-a);}
- const float pos=float(i)*(n-1)/(cells-1);const int a=(int)pos;
- if(a>=n-1)return band_raw(n-1);
- const float f=pos-a;return band_raw(a)*(1-f)+band_raw(a+1)*f;
-}
-// 0 = bass-heavy .. 1 = treble-heavy, from the low/mid/high levels.
-static inline float tone_now(){const float b=features[156],m=features[157],h=features[158],sum=b+m+h;return sum>.02f?(m*.5f+h)/sum:viz_tone;}
-static inline float level01(float v){return scaled_audio(v,1000)/1000.f;}
-// Auto-level channel i: its own recent range (~3 s) is stretched towards
-// 0..1, so quiet bands and the treble meter move like the bass. Applied
-// before the reaction range; a minimum span keeps silence and hiss dark.
-static float autolevel(int i,float x,float dt){
- if(!viz_auto)return x;
- const float k=minf(1.f,dt/3.f);
- viz_hi[i]=x>viz_hi[i]?x:viz_hi[i]+(x-viz_hi[i])*k;
- viz_lo[i]=x<viz_lo[i]?x:viz_lo[i]+(x-viz_lo[i])*k;
- // Subtract only part of the floor: a steady signal stays up instead of 0.
- const float floor=.8f*viz_lo[i];
- return clampf((x-floor)/maxf(.1f,viz_hi[i]-floor),0.f,1.f);
-}
-static inline float approach(float cur,float target,float dt,float attack,float release){
- return cur+(target-cur)*minf(1.f,dt/maxf(1e-3f,target>cur?attack:release));
-}
-static inline float release_s(){return .04f+viz_decay*.7f;}
-static inline uint8_t viz_random8(){return fl_random8(fastled_seed);}
-static inline int viz_random(int n){return ((viz_random8()<<8)|viz_random8())%maxi(1,n);}
-
-// Strip cells counted from the origin, or from the centre when mirrored; -1 dark.
-static inline int strip_cells(){return viz_mirror?W/2+1:W;}
-static inline int strip_cell(int x){
- const int xp=origin_x(x);if(xp<0)return -1;
- return viz_mirror?(xp<=W/2?W/2-xp:xp-W/2):xp;
-}
-// Matrix rows counted from the bottom, or from the middle rows when mirrored.
-static inline int rise_cells(bool mirror){return mirror?(H+1)/2:H;}
-static inline int rise_cell(int y,bool mirror){if(!mirror)return y;const int c=H/2;return y<c?c-1-y:y-c;}
-
-static void viz_put(int x,int y,float v,int hue){
- v=clampf(v,0.f,1.f);
- if(viz_color){multiply_pixel(x,y,1.f-audio_mix+audio_mix*v);return;}
- const unsigned c=pal(unsigned(maxi(0,mini(hue,255)))*15,u8((int)(v*255.f)));
- if(audio_mix>=1.f)pixel(x,y,c);else rgb_lerp_pixel(x,y,c,u8((int)(audio_mix*255.f)));
-}
-static inline void strip_put(int x,float v,int hue){for(int y=0;y<H;y++)viz_put(x,y,v,hue);}
-
-// Meter i: fast attack, release by viz_decay; the peak holds 0.4 s, then falls.
-static void meter_update(int i,float target,float dt){
- viz_level[i]=approach(viz_level[i],target,dt,.015f,release_s());
- if(viz_level[i]>=viz_peak[i]){viz_peak[i]=viz_level[i];viz_hold[i]=.4f;}
- else if(viz_hold[i]>0)viz_hold[i]-=dt;
- else viz_peak[i]=maxf(viz_level[i],viz_peak[i]-dt*(.25f+1.5f*(1.f-viz_decay)));
-}
-// Fill of `cells` up to level with an anti-aliased edge, plus the peak dot.
-static float meter_v(int cell,int cells,float level,float peak){
- const float edge=level*cells;
- float v=clampf(edge-cell,0.f,1.f);
- const int pk=mini(cells-1,(int)(peak*cells));
- if(peak>.02f&&cell==pk&&pk>=(int)edge)v=1.f;
- return v;
-}
-// Rising-edge onsets per low/mid/high group from the onset envelopes.
-// Each group re-triggers after .4/.32/.24 s and onsets are at least .15 s apart,
-// so hi-hat eighths do not flood the picture.
-static int viz_onsets(float strength[3],float dt){
- int mask=0;
- for(int k=0;k<4;k++)viz_cool[k]-=dt;
- for(int g=0;g<3;g++){
-  const float p=features[16+g];
-  if(p>.5f&&p>viz_prev_pulse[g]+.2f&&viz_cool[g]<=0&&viz_cool[3]<=0){
-   mask|=1<<g;strength[g]=p;viz_cool[g]=.4f-.08f*g;viz_cool[3]=.15f;
-  }
-  viz_prev_pulse[g]=p;
+struct VizHost {
+ int width()const{return W;}
+ int height()const{return H;}
+ int originX(int x)const{return origin_x(x);}
+ bool radial()const{return origin_is_radial();}
+ float radialRow()const{return origin_row();}
+ float transfer(float v)const{return scaled_audio(v,1000)/1000.f;}
+ float control()const{return features[23];}
+ // VU, Flow, Pulses...: the control source blended with the fast line envelope (Fast line response).
+ float lineSource()const{return (1.f-line_expression)*features[23]+line_expression*features[159];}
+ float level(int g)const{return features[156+g];}
+ float pulse(int g)const{return features[16+g];}
+ int bandCount()const{const int n=band_count();return n?n:16;}
+ float band(int i)const{return band_count()?features[160+i]:features[i];}
+ float wave(int index,int span)const{return wave_value(index,span);}
+ uint8_t random8(){return fl_random8(fastled_seed);}
+ int16_t sin16(uint16_t t)const{return fl_sin16(t);}
+ uint16_t noise(uint32_t x,uint32_t y)const{return fl_inoise16(x,y);}
+ uint16_t noise(uint32_t x,uint32_t y,uint32_t z)const{return fl_inoise16(x,y,z);}
+ void put(int x,int y,float v,int hue){
+  if(viz_color){multiply_pixel(x,y,1.f-audio_mix+audio_mix*v);return;}
+  const unsigned c=pal(unsigned(hue)*15,u8((int)(v*255.f)));
+  if(audio_mix>=1.f)pixel(x,y,c);else rgb_lerp_pixel(x,y,c,u8((int)(audio_mix*255.f)));
  }
- return mask;
-}
-static void viz_reset(){
- for(int i=0;i<MAX_W;i++)viz_level[i]=viz_peak[i]=viz_hold[i]=0;
- for(int i=0;i<=MAX_W;i++)viz_lo[i]=viz_hi[i]=0;
- for(int i=0;i<MAX_PIX;i++)viz_v[i]=viz_h[i]=0;
- for(Comet &c:comets)c.on=false;
- for(int g=0;g<3;g++)viz_prev_pulse[g]=0;
- for(int k=0;k<4;k++)viz_cool[k]=0;
- viz_clock=viz_mood=viz_spawn=0;viz_tone=tone_now();
- for(int k=0;k<8;k++)viz_phase[k]=k*.13f;
-}
-static inline void fade_buffer(int n,float dt,float tau){
- const int keep=255-mini(255,(int)(255.f*dt/maxf(1e-3f,tau))+1);
- for(int i=0;i<n;i++)viz_v[i]=uint8_t(viz_v[i]*keep/255);
-}
-static inline void stamp(int i,float v,int hue){const int b=u8((int)(v*255.f));if(b>=viz_v[i]){viz_v[i]=b;viz_h[i]=uint8_t(hue);}}
-
-
-// sin of `turns` (1 = full circle) in -1..1, via FastLED sin16.
-static inline float sin_turns(float turns){return fl_sin16(uint16_t((int32_t)(fract(turns)*65536.f)))/32767.f;}
-// Angle of (x, y) in turns 0..1 (polynomial atan, no libm).
-static float angle_turns(float y,float x){
- const float ax=abf(x),ay=abf(y),a=minf(ax,ay)/maxf(1e-6f,maxf(ax,ay)),s=a*a;
- float r=((-.0464964749f*s+.15931422f)*s-.327622764f)*s*a+a;
- if(ay>ax)r=1.57079637f-r;
- if(x<0)r=3.14159274f-r;
- if(y<0)r=6.28318548f-r;
- return r/6.28318548f;
-}
-// Overall level for the free-form modes 21..25.
-static inline float overall(float line_source,float dt){return level01(autolevel(MAX_W,line_source,dt));}
-
-static void render_viz(float dt){
- const int key=audio_fx*100000+W*128+H+(viz_mirror?50000:0);
- if(key!=viz_key){viz_key=key;viz_reset();}
- viz_tone=approach(viz_tone,tone_now(),dt,.15f,.15f);
- const bool matrix=viz_matrix();
- const float control=features[23];
- // VU, Flow and Pulses: the control source blended with the fast line envelope (Fast line response).
- const float line_source=(1.f-line_expression)*control+line_expression*features[159];
- switch(audio_fx){
- case 13:{ // VU meter: strip fill from the origin (or both ways), matrix fill from the bottom (or middle, or a circle)
-  meter_update(0,level01(autolevel(0,line_source,dt)),dt);
-  if(!matrix){
-   const int cells=strip_cells();
-   for(int x=0;x<W;x++){const int c=strip_cell(x);strip_put(x,c<0?0:meter_v(c,cells,viz_level[0],viz_peak[0]),c*230/maxi(1,cells-1));}
-   break;
-  }
-  const int cells=origin_is_radial()?maxi(W,H)/2+1:rise_cells(viz_mirror);
-  for(int x=0;x<W;x++){const int xp=origin_x(x);for(int y=0;y<H;y++){
-   if(xp<0){viz_put(x,y,0,0);continue;}
-   int c;
-   if(origin_is_radial()){const float dx=xp-W/2.f,dy=y-origin_row();c=mini(cells-1,(int)(__builtin_sqrtf(dx*dx+dy*dy)*(cells-1)/maxf(1.f,origin_max_distance())));}
-   else c=rise_cell(y,viz_mirror);
-   viz_put(x,y,meter_v(c,cells,viz_level[0],viz_peak[0]),c*230/maxi(1,cells-1));
-  }}
-  break;
- }
- case 14:{ // Spectrum: strip = smooth bands along the LEDs, matrix = bars with falling peaks
-  const int cells=matrix?W:strip_cells();
-  for(int c=0;c<cells;c++)meter_update(c,level01(autolevel(c,band_cell(c,cells),dt)),dt);
-  if(!matrix){
-   for(int x=0;x<W;x++){const int c=strip_cell(x);strip_put(x,c<0?0:viz_level[c],c*255/maxi(1,cells-1));}
-   break;
-  }
-  const int rows=rise_cells(viz_mirror);
-  for(int x=0;x<W;x++){const int xp=origin_x(x);for(int y=0;y<H;y++){
-   if(xp<0){viz_put(x,y,0,0);continue;}
-   const int r=rise_cell(y,viz_mirror);
-   viz_put(x,y,meter_v(r,rows,viz_level[xp],viz_peak[xp]),r*255/maxi(1,rows-1));
-  }}
-  break;
- }
- case 15:{ // Flow: strip = loudness river coloured by tone, matrix = scrolling spectrogram
-  const float step=.09f-.078f*viz_speed;
-  const int len=matrix?rise_cells(viz_mirror):strip_cells(),cols=matrix?W:1;
-  viz_clock+=dt;
-  for(int n=0;viz_clock>=step&&n<8;n++){
-   viz_clock-=step;
-   for(int a=len-1;a>0;a--)for(int c=0;c<cols;c++){viz_v[a*cols+c]=viz_v[(a-1)*cols+c];viz_h[a*cols+c]=viz_h[(a-1)*cols+c];}
-   if(matrix)for(int c=0;c<cols;c++){const float v=level01(autolevel(c,band_cell(c,cols),step));viz_v[c]=u8((int)(v*255));viz_h[c]=u8((int)(v*255));}
-   else{viz_v[0]=u8((int)(level01(autolevel(0,line_source,step))*255));viz_h[0]=u8((int)(viz_tone*255));}
-  }
-  if(!matrix){for(int x=0;x<W;x++){const int c=strip_cell(x);strip_put(x,c<0?0:viz_v[c]/255.f,c<0?0:viz_h[c]);}break;}
-  for(int x=0;x<W;x++){const int xp=origin_x(x);for(int y=0;y<H;y++){
-   if(xp<0){viz_put(x,y,0,0);continue;}
-   // Newest row at the top (or in the middle when mirrored), older rows move away.
-   const int age=viz_mirror?rise_cell(y,true):H-1-y,i=age*cols+xp;
-   viz_put(x,y,viz_v[i]/255.f,viz_h[i]);
-  }}
-  break;
- }
- case 16:{ // Pulses: onsets launch comets along a strip, rings from the centre on a matrix
-  float strength[3]={0,0,0};const int mask=viz_onsets(strength,dt);
-  for(int g=0;g<3;g++)if(mask&(1<<g)){
-   Comet *slot=&comets[0];
-   for(Comet &c:comets){if(!c.on){slot=&c;break;}if(c.energy<slot->energy)slot=&c;}
-   *slot={0.f,clampf(strength[g]*(.55f+.45f*level01(line_source)),0.f,1.f),uint8_t(g*85+20),true};
-  }
-  const int n=matrix?W*H:strip_cells();
-  fade_buffer(n,dt,release_s()*.3f);
-  const float rmax=matrix?maxf(1.f,__builtin_sqrtf(float(W*W+H*H))/2.f):1.f;
-  const float cx=matrix&&origin_is_radial()?W/2.f:(W-1)/2.f,cy=matrix&&origin_is_radial()?origin_row():(H-1)/2.f;
-  for(Comet &c:comets){
-   if(!c.on)continue;
-   const float from=c.pos;
-   c.pos+=dt*(.25f+1.75f*viz_speed)*(1.f+.25f*(c.hue/85));
-   if(!matrix){
-    const int a=(int)(from*(n-1)),b=mini(n-1,(int)(c.pos*(n-1)));
-    for(int k=a;k<=b;k++)stamp(k,c.energy,c.hue);
-   }else{
-    // Ring of radius pos (1 = the farthest corner), about 1.5 LEDs thick.
-    const float r0=from*rmax,r1=c.pos*rmax,fade=1.f-.6f*c.pos;
-    for(int y=0;y<H;y++)for(int x=0;x<W;x++){
-     const float dx=x-cx,dy=y-cy,r=__builtin_sqrtf(dx*dx+dy*dy);
-     if(r<r0-1.5f||r>r1+1.5f)continue;
-     const float d=r<r0?r0-r:(r>r1?r-r1:0.f);
-     stamp(y*W+x,c.energy*fade*maxf(0.f,1.f-d/1.5f),c.hue);
-    }
-   }
-   if(c.pos>=1.f)c.on=false;
-  }
-  const float glow=.12f*level01(control);
-  if(!matrix){for(int x=0;x<W;x++){const int c=strip_cell(x);
-   if(c<0){strip_put(x,0,0);continue;}
-   const float v=viz_v[c]/255.f;strip_put(x,maxf(v,glow),v>glow?viz_h[c]:int(viz_tone*255));}
-   break;}
-  for(int y=0;y<H;y++)for(int x=0;x<W;x++){const float v=viz_v[y*W+x]/255.f;viz_put(x,y,maxf(v,glow),v>glow?viz_h[y*W+x]:int(viz_tone*255));}
-  break;
- }
- case 17:{ // Sparkles: treble and onsets sprinkle sparks, bass is a soft glow
-  const int n=W*H;
-  fade_buffer(n,dt,release_s()*.6f);
-  float strength[3]={0,0,0};const int mask=viz_onsets(strength,dt);
-  viz_spawn+=dt*n*(.02f+1.2f*level01(features[158]));
-  for(int g=0;g<3;g++)if(mask&(1<<g))viz_spawn+=n*.05f*strength[g];
-  for(int k=0;k<n&&viz_spawn>=1.f;k++,viz_spawn-=1.f){
-   const int g=mask&4?2:(mask&2?1:(mask&1?0:2));
-   stamp(viz_random(n),.75f+viz_random8()/1020.f,g*85+viz_random8()/8);
-  }
-  viz_spawn=minf(viz_spawn,float(n));
-  const float glow=.35f*level01(features[156]);
-  for(int y=0;y<H;y++)for(int x=0;x<W;x++){const float v=viz_v[y*W+x]/255.f;viz_put(x,y,maxf(v,glow),v>glow?viz_h[y*W+x]:int(viz_tone*120));}
-  break;
- }
- case 18:{ // Mood: the whole lamp breathes with the level, colour follows the tone
-  viz_mood=approach(viz_mood,level01(control),dt,.05f,release_s());
-  const float v=clampf(viz_mood+.35f*features[16],0.f,1.f);
-  const int hue=int(viz_tone*200);
-  for(int y=0;y<H;y++)for(int x=0;x<W;x++){
-   const int c=matrix?(x+y)*48/maxi(1,W+H-2):(strip_cell(x)<0?0:strip_cell(x)*48/maxi(1,strip_cells()-1));
-   viz_put(x,y,v,hue+c);
-  }
-  break;
- }
- case 19:{ // Waveform: strip = coloured loudness history, matrix = history as bars / mirrored waveform
-  if(!matrix){const int cells=strip_cells();for(int x=0;x<W;x++){const int c=strip_cell(x);
-   const float v=c<0?0:level01(wave_value(c,cells));strip_put(x,v,int(v*255));}break;}
-  const int rows=rise_cells(viz_mirror);
-  for(int x=0;x<W;x++){const int xp=origin_x(x);const float a=xp<0?0:level01(wave_value(xp,W));
-   for(int y=0;y<H;y++){const int r=rise_cell(y,viz_mirror);viz_put(x,y,xp<0?0:clampf(a*rows-r,0.f,1.f),r*255/maxi(1,rows-1));}}
-  break;
- }
- case 20:{ // Bass / Mid / Treble meters: three segments of a strip, three bars on a matrix
-  for(int g=0;g<3;g++)meter_update(g,level01(autolevel(g,features[156+g],dt)),dt);
-  for(int x=0;x<W;x++){
-   const int xp=origin_x(x),g=xp<0?0:mini(2,xp*3/W),start=g*W/3,end=(g+1)*W/3,len=maxi(1,end-start);
-   const bool gap=xp<0||(W>=12&&g>0&&xp==start);
-   if(!matrix){
-    const int cells=viz_mirror?(len+1)/2:len,local=xp-start,mid=(len-1)/2;
-    const int c=viz_mirror?(local<=mid?mid-local:local-mid-((len&1)?0:1)):local;
-    strip_put(x,gap?0:meter_v(c,cells,viz_level[g],viz_peak[g]),g*85+20);
-    continue;
-   }
-   const int rows=rise_cells(viz_mirror);
-   for(int y=0;y<H;y++)viz_put(x,y,gap?0:meter_v(rise_cell(y,viz_mirror),rows,viz_level[g],viz_peak[g]),g*85+20);
-  }
-  break;
- }
- case 21:{ // Fire: bass and onsets feed the flames; strip burns from the start (or centre), matrix from the bottom with a flame per band
-  const float step=.033f-.022f*viz_speed,level=overall(line_source,dt);
-  const int cooling=90-(int)(viz_decay*60.f);
-  float strength[3]={0,0,0};const int mask=viz_onsets(strength,dt);
-  viz_clock+=dt;
-  const int rows=matrix?rise_cells(viz_mirror):strip_cells(),cols=matrix?W:1;
-  for(int n=0;viz_clock>=step&&n<6;n++){
-   viz_clock-=step;
-   for(int c=0;c<cols;c++){
-    // Cool, rise (each cell takes from the two below, with a sideways drift on matrices), ignite at the base.
-    for(int r=0;r<rows;r++){const int i=r*cols+c,cool=viz_random8()%((cooling*10)/rows+2);viz_v[i]=uint8_t(maxi(0,viz_v[i]-cool));}
-    for(int r=rows-1;r>=2;r--){
-     if(!matrix){viz_v[r]=uint8_t((viz_v[r-1]+2*viz_v[r-2])/3);continue;}
-     const int l=maxi(0,c-1),rr=mini(cols-1,c+1),b=(r-1)*cols;
-     viz_v[r*cols+c]=uint8_t((viz_v[b+l]+viz_v[b+c]+viz_v[b+rr]+viz_v[(r-2)*cols+c])/4);
-    }
-    const float feed=matrix?level01(autolevel(c,band_cell(c,cols),step)):level;
-    const float boost=(mask&1?strength[0]:0)+(mask&2?.5f*strength[1]:0);
-    if(feed>.03f&&viz_random8()<(int)(20+220*feed)){
-     const int at=viz_random(mini(rows,matrix?2:maxi(2,rows/10)));
-     viz_v[at*cols+c]=u8(viz_v[at*cols+c]+(int)(((matrix?80:120)+viz_random8()/2)*(.4f+.6f*feed)));
-    }
-    if(boost>0)for(int r=0;r<mini(rows,matrix?2:3);r++)viz_v[r*cols+c]=u8(viz_v[r*cols+c]+(int)((matrix?90:140)*boost));
-   }
-  }
-  auto fire=[&](int x,int y,int i){const int h=viz_v[i];viz_put(x,y,minf(1.f,h/170.f),h*215/255);};
-  if(!matrix){for(int x=0;x<W;x++){const int c=strip_cell(x);if(c<0){strip_put(x,0,0);continue;}for(int y=0;y<H;y++)fire(x,y,c);}break;}
-  for(int x=0;x<W;x++){const int xp=origin_x(x);for(int y=0;y<H;y++){if(xp<0){viz_put(x,y,0,0);continue;}fire(x,y,rise_cell(y,viz_mirror)*cols+xp);}}
-  break;
- }
- case 22:{ // Aurora: a slow noise field that grows, brightens and speeds up with the music; colour follows the tone
-  const float level=level01(line_source); // no auto-level: the curtain should stay calm between beats
-  viz_mood=approach(viz_mood,level,dt,.08f,release_s());
-  viz_phase[0]+=dt*(.25f+2.5f*viz_mood)*(.3f+1.4f*viz_speed);
-  const float z=viz_phase[0]*256.f,threshold=.5f-.3f*viz_mood,flash=.3f*features[16],gate=minf(1.f,viz_mood*10.f);
-  const float factor=256.f*(matrix?3.f/maxi(W,H):5.f/maxi(1,strip_cells()));
-  for(int x=0;x<W;x++){
-   const int c=matrix?origin_x(x):strip_cell(x);
-   for(int y=0;y<H;y++){
-    if(c<0){viz_put(x,y,0,0);continue;}
-    // Strips use 2-D noise (position, time): a fixed y = 0 plane of 3-D noise sits on the lattice and barely varies.
-    const float n=(matrix?inoise_hd(c*factor,y*factor*1.6f+77.f,z):inoise_hd(c*factor,z))/4095.f;
-    const float v=(clampf((n-threshold)*3.f,0.f,1.f)*(.45f+.55f*viz_mood)+(n>threshold?flash:0.f))*gate;
-    viz_put(x,y,v,int(viz_tone*150+n*90));
-   }
-  }
-  break;
- }
- case 23:{ // Juggle: eight dots, one per band range, swing with their band and leave trails
-  const int n=matrix?W*H:strip_cells(),dots=8;
-  fade_buffer(n,dt,release_s()*.45f);
-  const float level=overall(line_source,dt);
-  for(int k=0;k<dots;k++){
-   const float b=level01(autolevel(k,band_cell(k,dots),dt));
-   viz_phase[k]+=dt*(.18f+.045f*k)*(.4f+1.6f*viz_speed)*(.6f+.8f*level);
-   if(b<.05f)continue;
-   const int hue=k*255/dots;
-   if(!matrix){
-    // Swing around the strip; wider swings for louder bands.
-    const float pos=(.5f+.5f*sin_turns(viz_phase[k]))*(n-1),half=.6f+2.f*b;
-    for(int i=maxi(0,(int)(pos-half));i<=mini(n-1,(int)(pos+half)+1);i++)stamp(i,b*clampf(half-abf(i-pos)+.5f,0.f,1.f),hue);
-   }else{
-    // Lissajous paths, the dot grows with its band.
-    const float px=(.5f+.5f*sin_turns(viz_phase[k]))*(W-1),py=(.5f+.5f*sin_turns(viz_phase[k]*1.37f+k*.11f))*(H-1),rad=.7f+b*maxf(1.f,minf(W,H)/10.f);
-    for(int y=maxi(0,(int)(py-rad-1));y<=mini(H-1,(int)(py+rad+1));y++)for(int x=maxi(0,(int)(px-rad-1));x<=mini(W-1,(int)(px+rad+1));x++){
-     const float dx=x-px,dy=y-py;stamp(y*W+x,b*clampf(rad-__builtin_sqrtf(dx*dx+dy*dy)+.5f,0.f,1.f),hue);
-    }
-   }
-  }
-  if(!matrix){for(int x=0;x<W;x++){const int c=strip_cell(x);strip_put(x,c<0?0:viz_v[c]/255.f,c<0?0:viz_h[c]);}break;}
-  for(int y=0;y<H;y++)for(int x=0;x<W;x++){const int i=y*W+x;viz_put(x,y,viz_v[i]/255.f,viz_h[i]);}
-  break;
- }
- case 24:{ // Radial spectrum: matrix = a rotating spectrum sun, strip / ring = a symmetric spectrum that rolls along
-  const int bands=matrix?maxi(8,mini(W,H)/2):maxi(4,strip_cells()/2);
-  for(int c=0;c<bands;c++)meter_update(c,level01(autolevel(c,band_cell(c,bands),dt)),dt);
-  const float level=overall(line_source,dt);
-  viz_phase[0]+=dt*(.02f+.25f*level)*(.3f+1.4f*viz_speed);
-  // Band position t: 0 = bass .. 1 = treble, mirrored so there is no seam.
-  auto band_at=[&](float turns,float &t){t=abf(2.f*fract(turns)-1.f);return viz_level[mini(bands-1,(int)(t*bands))];};
-  if(!matrix){
-   const int cells=W;
-   for(int x=0;x<W;x++){const int xp=origin_x(x);if(xp<0){strip_put(x,0,0);continue;}
-    float t;const float l=band_at(float(xp)/cells+viz_phase[0],t);strip_put(x,l,int(t*255));}
-   break;
-  }
-  const float cx=W/2.f-.5f,cy=origin_is_radial()?origin_row():H/2.f-.5f,rmax=maxf(1.f,minf(W,H)/2.f);
-  for(int x=0;x<W;x++){const int xp=origin_x(x);for(int y=0;y<H;y++){
-   if(xp<0){viz_put(x,y,0,0);continue;}
-   const float dx=xp-cx,dy=y-cy,r=__builtin_sqrtf(dx*dx+dy*dy)/rmax;
-   float t;const float l=band_at(angle_turns(dy,dx)+viz_phase[0],t);
-   // Ray length follows the band; a bass-driven core glows in the middle.
-   const float ray=clampf((l*1.05f-r)*rmax+.5f,0.f,1.f),core=clampf((viz_level[0]*.35f-r)*rmax*.5f+.5f,0.f,1.f)*viz_level[0];
-   viz_put(x,y,maxf(ray*(.45f+.55f*l),core),ray>=core?int(t*255):0);
-  }}
-  break;
- }
- case 25:{ // Blobs: a lava lamp of four blobs (bass, bass, mid, treble) that swell with their band and merge
-  const float level=overall(line_source,dt);
-  viz_mood=approach(viz_mood,level,dt,.05f,release_s());
-  const int groups[4]={0,0,1,2};
-  float bx[4],by[4],br[4],group_level[3];int bh[4];
-  for(int g=0;g<3;g++)group_level[g]=level01(autolevel(g,features[156+g],dt));
-  const float span=matrix?minf(W,H):strip_cells();
-  for(int k=0;k<4;k++){
-   const int g=groups[k];
-   const float l=group_level[g];
-   viz_phase[k]+=dt*(.05f+.023f*k)*(.3f+1.7f*viz_speed)*(.5f+viz_mood);
-   viz_phase[4+k]=approach(viz_phase[4+k],l+.6f*features[16+g],dt,.03f,release_s());
-   const float grow=viz_phase[4+k];
-   br[k]=span*(matrix?.05f+.16f*grow:.02f+.08f*grow);
-   bx[k]=(.5f+.45f*sin_turns(viz_phase[k]+k*.25f))*((matrix?W:strip_cells())-1);
-   by[k]=(.5f+.45f*sin_turns(viz_phase[k]*1.31f+k*.4f))*(H-1);
-   bh[k]=g*85+20;
-  }
-  const float fade=minf(1.f,viz_mood*4.f);
-  for(int x=0;x<W;x++){
-   const int c=matrix?origin_x(x):strip_cell(x);
-   for(int y=0;y<H;y++){
-    if(c<0){viz_put(x,y,0,0);continue;}
-    float field=0,hue=0;
-    for(int k=0;k<4;k++){
-     const float dx=c-bx[k],dy=matrix?y-by[k]:0.f,f=br[k]*br[k]/(dx*dx+dy*dy+.3f);
-     field+=f;hue+=f*bh[k];
-    }
-    viz_put(x,y,clampf((field-.7f)*1.6f,0.f,1.f)*fade,int(hue/maxf(1e-3f,field)));
-   }
-  }
-  break;
- }
- }
-}
+};
+static VizHost viz_host;
+static Viz::Engine<VizHost,MAX_PIX> viz;
+static void render_viz(float dt){viz.render(viz_host,uint8_t(audio_fx-VIZ_FIRST),dt);}
 
 // Authentic preset stop colors copied from src/fx/palette_def.h; interpolation uses src/utils/palette.cpp approach.
 // All firmware PaletteEnum entries in the exact source order, Custom last.
@@ -701,9 +326,9 @@ __attribute__((visibility("default"))) void set_reaction_tuning(float spectrum_s
 __attribute__((visibility("default"))) void set_audio_window(int lo,int hi,int gate,int curve){in_min=maxi(0,mini(lo,255));in_max=maxi(0,mini(hi,255));in_gate=gate!=0;in_curve=curve<=0?100:maxi(25,mini(curve,400));}
 __attribute__((visibility("default"))) uint16_t* curve_table_ptr(){return curve_table;}
 // Lab-only modes 13..20: palette (0) or effect (1) colours, mirror, decay and speed 0..1, auto-level.
-__attribute__((visibility("default"))) void set_visualization(int color,int mirror,float decay,float motion,int autolevel_on){viz_color=color!=0;viz_mirror=mirror!=0;viz_auto=autolevel_on!=0;viz_decay=clampf(decay,0.f,1.f);viz_speed=clampf(motion,0.f,1.f);}
+__attribute__((visibility("default"))) void set_visualization(int color,int mirror,float decay,float motion,int autolevel_on){viz_color=color!=0;viz.settings.mirror=mirror!=0;viz.settings.autolevel=autolevel_on!=0;viz.settings.decay=clampf(decay,0.f,1.f);viz.settings.speed=clampf(motion,0.f,1.f);}
 __attribute__((visibility("default"))) void set_origin(int shift,int y,int reverse,int ring,int radial){origin_shift=maxi(-500,mini(shift,500));origin_y=maxi(0,mini(y,1000));origin_reverse=reverse!=0;origin_ring=ring!=0;origin_radial=radial!=0;}
-__attribute__((visibility("default"))) void reset_render(){time_ms=phase_color=phase_bright=0;fastled_seed=1337;viz_key=-1;for(int i=0;i<100;i++)particles[i].brightness=0;for(int i=0;i<MAX_PIX*4;i++)rgba[i]=0;}
+__attribute__((visibility("default"))) void reset_render(){time_ms=phase_color=phase_bright=0;fastled_seed=1337;viz.invalidate();for(int i=0;i<100;i++)particles[i].brightness=0;for(int i=0;i<MAX_PIX*4;i++)rgba[i]=0;}
 __attribute__((visibility("default"))) void render_frame(float dt){
  dt=clampf(dt,0,50);double before_ms=time_ms;time_ms+=dt;unsigned dms=(unsigned)time_ms-(unsigned)before_ms;
  // Firmware computes Speed / Scale / Light BEFORE ColorEffects and BrightnessEffects.

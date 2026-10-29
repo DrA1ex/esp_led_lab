@@ -51,13 +51,15 @@ const PARAM_SOURCES=['loudness','spectral','bass','mid','high','peak','onset','b
 // Firmware ignores unknown fields, so the lab tuning below is safe for older
 // receivers; receivers advertising "tuning" apply it like the new-FFT preview.
 function remoteRuntimeConfig(){const s=settings();return {
-  // Lab-only visualizations are not in the firmware yet: the lamp gets Off.
-  color_effect:s.color,brightness_effect:s.brightness,audio_effect:LAB_MODES.includes(s['audio-mode'])?0:s['audio-mode'],
+  // Visualizations go out as is; lampConfig() turns them Off for lamps without them.
+  color_effect:s.color,brightness_effect:s.brightness,audio_effect:s['audio-mode'],
   audio_min:s['audio-min'],audio_max:s['audio-max'],palette:s.palette,
   speed:s.speed,scale:s.scale,light:s.light,
   param_source:Math.max(0,PARAM_SOURCES.indexOf(s['param-source'])),
   // The reaction range replaces the separate speed floor (0 = stock mapping).
   speed_floor:0,spectrum_shape:s['spectrum-shape'],spectrum_onset:s['spectrum-onset'],
+  viz_color:+s['viz-color'],viz_mirror:Boolean(s['viz-mirror']),viz_auto:Boolean(s['viz-auto']),
+  viz_decay:+s['viz-decay'],viz_motion:+s['viz-speed'],
   ...tuningConfig(s,currentGeometry().w)
  };}
 // One frame per band count; all counts of a moment share the sequence number.
@@ -142,11 +144,15 @@ function lampBands(d){
  return RemoteAudio.pickBands(d.width||currentGeometry().w,d.supported);
 }
 function lampConfig(d,base){
- if(!lampAdapt())return base;
- const p=lampProfile(d),c={...base};
- if(p.mode!=='')c.audio_effect=+p.mode;
- // Start offset in this lamp's own LEDs; otherwise the lab's offset as a share of the width.
- if(p.shift!==''&&d.width>0)c.origin_shift=Math.max(-500,Math.min(500,Math.round(+p.shift*1000/d.width)));
+ const c={...base};
+ if(lampAdapt()){
+  const p=lampProfile(d);
+  if(p.mode!=='')c.audio_effect=+p.mode;
+  // Start offset in this lamp's own LEDs; otherwise the lab's offset as a share of the width.
+  if(p.shift!==''&&d.width>0)c.origin_shift=Math.max(-500,Math.min(500,Math.round(+p.shift*1000/d.width)));
+ }
+ // A visualization this lamp's firmware does not render: Off instead.
+ if(LAB_MODES.includes(c.audio_effect)&&!d.visualizations.includes(c.audio_effect))c.audio_effect=0;
  return c;
 }
 const modeName=v=>[...$('audio-mode').options].find(o=>+o.value===+v)?.textContent||String(v);
@@ -178,9 +184,9 @@ function lampCard(d){
  q('.lamp-connect').onclick=()=>d.socket?d.disconnect():d.connect();
  q('.lamp-remove').onclick=()=>{REMOTE.remove(d);saveLamps();};
  q('.lamp-name').textContent=d.address;
- // Firmware modes only: the lab-preview modes do not exist on the lamp.
+ // Every mode; a visualization the lamp does not render is sent as Off (see the stats line).
  q('.lamp-mode').innerHTML='<option value="">Same as the lab</option>'+[...$('audio-mode').options]
-  .filter(o=>!LAB_MODES.includes(+o.value)).map(o=>`<option value="${o.value}">${o.textContent}</option>`).join('');
+  .map(o=>`<option value="${o.value}">${o.textContent}</option>`).join('');
  const p=lampProfile(d);
  q('.lamp-mode').value=p.mode;q('.lamp-bands').value=p.bands;q('.lamp-shift').value=p.shift;
  q('.lamp-mode').onchange=e=>setLampProfile(d,'mode',e.target.value);
@@ -202,6 +208,7 @@ function updateLampCard(d){
   stats.push(`RTT ${Number.isFinite(d.rtt)?d.rtt.toFixed(1)+' ms':'—'}`,`sent ${d.sent}`,`received ${d.received}`,`buffer ${d.buffered}`);
   if(d.dropped||d.receiverDropped)stats.push(`<span class="warn">dropped ${d.dropped} / ${d.receiverDropped}</span>`);
   if(!d.capabilities.includes('tuning'))stats.push('<span class="warn">older firmware: no reaction tuning</span>');
+  else if(!d.visualizations.length)stats.push('<span class="warn">older firmware: no visualizations</span>');
   const mode=lampConfig(d,remoteRuntimeConfig()).audio_effect;
   stats.push(`sends ${lampBands(d)} bands · ${mode?modeName(mode):'audio off'}`);
  }

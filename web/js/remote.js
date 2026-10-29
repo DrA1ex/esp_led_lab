@@ -54,7 +54,7 @@ const RemoteAudio = (() => {
    this.sent=0;this.dropped=0;this.buffered=0;this.received=0;this.delay=NaN;this.syncId=0;this.pending=new Map();this.syncSamples=[];
    this.reconnectAttempts=0;this.reconnectAt=0;this.manual=false;this.lastSync=0;this.lastStatus=0;this.lastConfig='';this.clockSamples=0;
    this.receiverPlaying=false;this.started=false;this.lastError='';this.receiverDropped=0;this.receiverStale=0;this.lastStartAt=0;
-   this.width=0;this.height=0;this.capabilities=[];}
+   this.width=0;this.height=0;this.capabilities=[];this.visualizations=[];}
   connect(){
    this.manual=false;
    if(this.socket&&this.socket.readyState<=1)return;
@@ -86,6 +86,8 @@ const RemoteAudio = (() => {
     if(!this.supported.length){this.status='unsupported bands';this.notify();return;}
     this.width=Number(msg.width)||0;this.height=Number(msg.height)||0;
     this.capabilities=Array.isArray(msg.capabilities)?msg.capabilities.map(String):[];
+    // Visualization effect ids (firmware numbering) -> lab audio modes (+1).
+    this.visualizations=Array.isArray(msg.visualizations)?msg.visualizations.map(n=>Number(n)+1).filter(Number.isInteger):[];
     this.status='synchronizing';this.reconnectAttempts=0;this.syncBurst();this.notify();
    }else if(type==='sync_ack'){
     const id=msg.id, t0=this.pending.get(id);
