@@ -4,10 +4,10 @@
 // curve, mode-dependent visibility and picking the origin on the preview.
 // The rules mirror firmware audioTransfer() and RemoteReactive::OriginMap.
 
-const ORIGIN_MODES=[1,2,3,4,6,7,11,12,13,14,15,16,18,19,20,21,22,23,24,25,26,27,28,29];
+const ORIGIN_MODES=[1,2,3,4,6,7,11,12,13,14,15,16,18,19,20,21,22,23,24,25,26,27,28,29,30];
 // Visualizations (viz_engine.h, shared with the firmware). A lamp renders the
 // ones its hello_ack lists in "visualizations"; older firmware gets Off.
-const LAB_MODES=[13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29];
+const LAB_MODES=[13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30];
 const CENTERED_MODES=[2,4,7,12];
 const MODE_HINTS={
  0:'Audio does not affect the picture.',
@@ -39,7 +39,8 @@ const MODE_HINTS={
  26:'Constructor. Particles: hits launch sparks — fountains, rain, bursts, bubbles or comets. By default every band hit launches from its own place (bass on the left / at the start, treble on the right / further), colored by its frequency.',
  27:'Constructor. Field: a moving pattern (clouds, plasma, rings, stripes, spiral). By default every value of the pattern is a band, so each part lights with its own frequency; the bass pumps the motion and kicks it on hits.',
  28:'Constructor. Zones: the lamp split into columns, rows, rings, sectors or tiles. By default every zone is an equalizer band; or zones flash on hits in a pattern (chase, random, bounce, build up).',
- 29:'Spectrum: follows the dominant frequency (the loudest band, refined between bands) — the melody or the bass line, inside a part of the spectrum you choose. A dot, a bar or a scrolling trace.'
+ 29:'Spectrum: follows the dominant frequency (the loudest band, refined between bands) — the melody or the bass line, inside a part of the spectrum you choose. A dot, a bar or a scrolling trace.',
+ 30:'Beat. Groove: rings, spiral arms, stripes or a swinging ball move one step per beat, locked to the beat phase — not a flash per onset. Bass hits expand the pattern, mid hits turn its motion round, treble hits add small sparks. Without a confident tempo, bass and mid hits start the steps.'
 };
 
 // Origin shift: the slider counts LEDs (columns); the wire format and the

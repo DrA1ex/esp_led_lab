@@ -5,6 +5,16 @@ Dated notes from the lab's development before it became a git repository
 `dist/`, WASM binaries in `web/wasm/`, `app.js` was split into `web/js/*.js`
 and `build_standalone.py` moved to `scripts/`.
 
+## Groove (2026-10-30)
+
+- **Groove**, mode 30: the first visualization that keeps time. A beat clock
+  locked to the DSP's beat phase (a phase-locked loop; bass and mid hits
+  start the steps when the tempo is unsure) moves rings, spiral arms,
+  stripes or a swinging ball one eased step per beat; bass hits kick it
+  outwards, a mid hit turns the next step round, the treble adds sparks.
+- The engine host has `beatPhase()` and `tempoConfidence()`; the lamp
+  carries the frame's phase on at its BPM between frames.
+
 ## Effect parameters, four new modes, the library loader (2026-10-30)
 
 - **Effect parameters**: every visualization takes up to 11 values (the

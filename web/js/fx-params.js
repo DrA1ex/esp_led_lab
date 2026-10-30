@@ -12,7 +12,7 @@ const fxSigned=v=>v===128?'0':`${v>128?'+':'−'}${Math.round(Math.abs(v-128)/1.
 const fxMsText=t=>t>=1000?(t/1000).toFixed(1)+' s':Math.round(t)+' ms';
 const fxMs=(base,step)=>v=>fxMsText(base+v*step);
 const fxQ12=v=>Math.round(v*16/40.96)+'%';
-// The constructors' and Melody's last parameter: their light, 128 = as drawn.
+// The last parameter from Particles (26) on: the mode's light, 128 = as drawn.
 const fxBrightness={key:'brightness',label:'Brightness',min:16,def:128,fmt:fxTimes(128)};
 // A band position 0..255 of the spectrum, as the band's centre frequency.
 function fxBandText(v){
@@ -99,6 +99,14 @@ const FX_PARAMS={
      {key:'trail',label:'Trail',def:120,fmt:v=>fxMsText(20+v*4)},
      {key:'colors',label:'Colors',choices:['By note','By tone','By level'],def:0},
      {key:'gate',label:'Ignore below',def:40,fmt:fxQ12},
+     fxBrightness],
+ 30:[{key:'shape',label:'Shape',choices:['Rings','Spin','Stripes','Bounce'],def:0},
+     {key:'step',label:'Step per beat',def:64,fmt:v=>(v/128).toFixed(2)+' period'},
+     {key:'snap',label:'Snap to the beat',def:200,fmt:fxPct},
+     {key:'pump',label:'Bass expansion',def:160,fmt:fxPct},
+     {key:'zoom',label:'Zoom',def:100,fmt:v=>((8+v)/32).toFixed(1)+' periods'},
+     {key:'sparks',label:'Treble sparks',def:100,fmt:fxPct},
+     {key:'colors',label:'Colors',choices:['Along the pattern','By tone','New each beat'],def:0},
      fxBrightness]
 };
 // Engine order: the controls above list some parameters in another order (map first).

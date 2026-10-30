@@ -180,8 +180,8 @@ Changes made together with the firmware (`esp_led_lamp`, `feature/remote-audio-d
 ## Visualizations on the lamp (2026-10-29)
 
 `src/viz_engine.h` is shared byte-for-byte with the firmware
-(`esp_led_lamp/src/remote_audio/viz_engine.h`, effect ids 12–28 = lab modes
-13–29; 12–24 before 2026-10-30). `render.cpp` and the firmware only supply the inputs and the pixel
+(`esp_led_lamp/src/remote_audio/viz_engine.h`, effect ids 12–29 = lab modes
+13–30; 12–24 before 2026-10-30). `render.cpp` and the firmware only supply the inputs and the pixel
 output, so the lamp draws what the preview shows (random sparks aside).
 The engine is integer only (Q12 levels, ms, 1/16-LED positions), because the
 ESP8266 has no FPU; the lab host converts its float features to Q12.
@@ -236,3 +236,24 @@ does not list in `visualizations`). The parameter table per mode is in the
 firmware's `docs/REMOTE_AUDIO_PROTOCOL.md` (*Effect parameters*);
 `tools/remote_audio_sender.py --effect 25 --params 0,4,200` sends them
 without the lab.
+
+## Groove: motion on the beat (2026-10-30)
+
+Lab mode 30 = firmware id 29. The DSP's beat phase, BPM and confidence were
+on the wire from the start (bytes 33–36 of the frame) but no visualization
+used the phase. The engine host now has `beatPhase()` (Q16 turn since the
+last predicted beat) and `tempoConfidence()` (Q12): the lab reads
+`features[154]` and `[153]`, the lamp the frame's bytes, carrying the phase
+on at the frame's BPM for the frame's age so it moves between the 50 Hz
+frames.
+
+Groove runs a beat clock of its own, a phase-locked loop pulled towards that
+phase while the confidence is above 0.3 (it lets go below 0.2), and moves
+its pattern — rings, spiral arms, stripes or a swinging ball; waves or a
+swinging bar on a strip — one eased step per beat (*Step per beat*, *Snap to
+the beat*). Bass hits and the beat itself kick the pattern outwards (*Bass
+expansion*), a mid hit turns the next step round, the treble adds small
+sparks. Without a confident tempo, bass and mid hits start the steps and the
+pattern rests in between. On the demo it averages 0.22 of full RGB on a
+16×16 matrix (Blobs 0.24, Fire 0.42). No new wire fields: older firmware
+does not list id 29 and gets Off.

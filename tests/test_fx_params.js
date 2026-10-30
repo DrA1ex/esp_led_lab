@@ -12,7 +12,7 @@ const FX=vm.runInContext(fs.readFileSync(path.join(__dirname,'../web/js/fx-param
 const probe=new WebAssembly.Instance(mod).exports;
 assert.equal(probe.viz_params_version(),FX.FX_PARAMS_VERSION,'params layout version');
 assert.equal(probe.viz_max_params(),FX.FX_MAX,'parameter slots');
-assert.equal(probe.viz_mode_count(),17,'17 visualizations (lab modes 13..29)');
+assert.equal(probe.viz_mode_count(),18,'18 visualizations (lab modes 13..30)');
 for(let mode=13;mode<13+probe.viz_mode_count();mode++){
  const keys=FX.FX_PARAMS[mode]?[...FX.fxKeys(mode)]:[];
  assert.equal(probe.viz_param_count(mode-13),keys.length,`mode ${mode}: parameter count`);
@@ -43,7 +43,7 @@ const music=(f,k)=>{
  for(let i=0;i<16;i++)f[i]=.5;
  f[16+k%3]=k%6<3?1:0;f[23]=.5+.3*Math.sin(k*.23);f[159]=f[23];
  for(let i=0;i<128;i++)f[24+i]=.4+.5*Math.abs(Math.sin(i*.2+k*.1));
- f[156]=.7;f[157]=.5;f[158]=.6;f[153]=1;f[155]=k%30<4?1-(k%30)*.25:0;
+ f[156]=.7;f[157]=.5;f[158]=.6;f[153]=1;f[154]=(k%30)/30;f[155]=k%30<4?1-(k%30)*.25:0;
 };
 const silence=()=>{};
 // Parameters that only act with another set: [mode, key, other key, its value].
@@ -54,7 +54,7 @@ for(const mode of FX.FX_MODES){
  for(const [w,h] of [[16,16],[60,1]]){
   const plain=run(w,h,mode,music);
   assert.equal(run(w,h,mode,music,{params:defaults}).hash,plain.hash,`mode ${mode} ${w}x${h}: explicit defaults draw the same`);
-  assert.equal(run(w,h,mode,music,{params:defaults.map(v=>v^0x55),pmode:(mode-13+1)%17}).hash,plain.hash,`mode ${mode}: another mode's parameters are ignored`);
+  assert.equal(run(w,h,mode,music,{params:defaults.map(v=>v^0x55),pmode:(mode-13+1)%18}).hash,plain.hash,`mode ${mode}: another mode's parameters are ignored`);
   keys.forEach((key,i)=>{
    const p=byKey[key],start=[...defaults];
    for(const [cm,ck,other,value] of CONTEXTS)if(cm===mode&&ck===key)start[keys.indexOf(other)]=value;

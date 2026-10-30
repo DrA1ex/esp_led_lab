@@ -71,8 +71,9 @@ The **Reaction** tab's audio modes are grouped by what drives them:
 - **Visualizations** draw the picture themselves (`src/viz_engine.h`, shared
   with the firmware): *spectrum* (Spectrum Bars, Flow, Fire, Juggle, Radial
   Spectrum, Melody — Melody follows the dominant frequency), *bass, mid,
-  treble* (the meters, Pulses, Sparkles, Blobs) and *loudness* (VU Meter,
-  Waveform, Mood, Aurora).
+  treble* (the meters, Pulses, Sparkles, Blobs), *loudness* (VU Meter,
+  Waveform, Mood, Aurora) and *beat* (Groove: rings, spiral arms, stripes or
+  a swinging ball move one step per beat, locked to the beat phase).
 - **Constructors**: Particles, Field and Zones, whose parameters pick the
   shape, what launches or lights it, the motion and the colors.
 
@@ -80,7 +81,7 @@ The hint under the list says what drives the selected mode. **Effect
 parameters** (under Visualization) are the selected mode's own settings:
 up to 11 values per mode, e.g. Fire's fuel, height and wind, Particles'
 shape, trigger, speed and gravity, Zones' layout and pattern. Particles,
-Field, Zones and Melody end with **Brightness** (×1 = as drawn, up to ×2).
+Field, Zones, Melody and Groove end with **Brightness** (×1 = as drawn, up to ×2).
 They are ordinary settings: remembered, reset by the section's ↺, set per
 lamp, and sent to lamps whose firmware has the `params` capability (older
 firmware draws the mode with its defaults; see
@@ -252,7 +253,7 @@ normal builds work offline. To regenerate its browser bundle, run
 ```
 src/                 C++ sources compiled to WebAssembly
   render.cpp         effect renderer (ported color/brightness/audio effects)
-  viz_engine.h       visualizations 13..29 and their parameters (integer only), shared byte-for-byte with the firmware
+  viz_engine.h       visualizations 13..30 and their parameters (integer only), shared byte-for-byte with the firmware
   dsp.cpp            FFT/onset/BPM DSP (+ the firmware's original analyzers, used by tests)
   fastled_compat.h   FastLED 3.6.0 fixed-point math port
   tables.h           lookup tables
