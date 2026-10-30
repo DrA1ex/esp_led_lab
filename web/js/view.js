@@ -12,14 +12,24 @@ function refreshLabels(){
  $('mix-value').textContent=s.mix+'%';
  for(const id of ['spectrum-shape','spectrum-onset','line-response'])$(id+'-value').textContent=s[id]+'%';
  $('audio-min-value').textContent=s['audio-min'];$('audio-max-value').textContent=s['audio-max'];
- $('agc-value').textContent=s.agc+' ms';$('compression-value').textContent=s.compression+'%';
+ $('agc-value').textContent=s.agc+' ms';$('compression-value').textContent=s.compression<0?`−${-s.compression}% · expands`:s.compression+'%';
  $('attack-value').textContent=s.attack+' ms';$('release-value').textContent=s.release+' ms';
  $('noise-value').textContent=(s.noise/1000).toFixed(3);$('adaptive-floor-value').textContent=s['adaptive-floor']+'%';
  $('gain-value').textContent=(s.gain/10).toFixed(1)+'×';$('transient-value').textContent=(s.transient/10).toFixed(1)+'×';
+ $('tilt-value').textContent=s.tilt?`${s.tilt>0?'+':'−'}${Math.abs(s.tilt/2).toFixed(1)} dB/oct`:'0 dB/oct';$('balance-value').textContent=s.balance+'%';
+ for(const id of ['eq-bass','eq-mid','eq-high'])$(id+'-value').textContent=s[id]?`${s[id]>0?'+':'−'}${Math.abs(s[id])} dB`:'0 dB';
+ $('smoothing-value').textContent=s.smoothing+'%';$('peak-hold-value').textContent=s['peak-hold']?s['peak-hold']+' ms':'off';
+ $('onset-memory-value').textContent=(s['onset-memory']/10).toFixed(1)+' s';
+ for(let g=0;g<3;g++){$(`onset-trim-${g}-value`).textContent=(s[`onset-trim-${g}`]/10).toFixed(1)+'×';$(`holdoff-${g}-value`).textContent=s[`holdoff-${g}`]+' ms';$(`flash-${g}-value`).textContent=s[`flash-${g}`]+' ms';}
+ $('bpm-min-value').textContent=s['bpm-min'];$('bpm-max-value').textContent=s['bpm-max'];
  $('matrix-label').textContent=geometryLabel(g);
  $('gamma-value').textContent=s.gamma===0?'off':(2.2+(s.gamma-128)/128).toFixed(2);
  $('master-brightness-value').textContent=s['master-brightness'];const range=frequencyRange(s);
  $('freq-min-value').textContent=formatHz(range.lo);$('freq-max-value').textContent=formatHz(range.hi);
+ const {mid,high}=groupSplits(s),edge=i=>formatHz(roundHz(range.lo*Math.pow(range.hi/range.lo,i/16)));
+ $('groups-value').textContent=`${mid} · ${high-mid} · ${16-high} bands`;
+ $('groups-hint').innerHTML=`<b class="g-bass">Bass</b> ${edge(0)}–${edge(mid)} · <b class="g-mid">Mid</b> to ${edge(high)} · <b class="g-high">High</b> to ${edge(16)}`;
+ refreshOnsetGroups(s);
  $('fft-display').textContent=`FFT ${s.fft} / ${formatHz(fs)} · ${formatHz(range.lo)}–${formatHz(range.hi)}`;
  for(const o of $('fft').options)o.textContent=`${o.value} · ${+(+o.value*1000/fs).toFixed(2)} ms`;
  $('fft-hint').textContent=`${(fs/s.fft).toFixed(1)} Hz per bin · ${(s.fft*1000/fs).toFixed(2)} ms window. Larger FFTs separate nearby frequencies better; smaller FFTs react faster.`;

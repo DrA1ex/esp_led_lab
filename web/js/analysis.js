@@ -56,14 +56,19 @@ function spectrumPlan(){
  SPECTRUM.key=key;STATE.displaySpectrum=[];
  return SPECTRUM;
 }
+// The same shaping as the DSP bands: tilt at the group's center, the trim of
+// the band group it lies in, the reference of that band (Band balance),
+// compression / expansion.
 function readDisplaySpectrum(d,s){
  const plan=spectrumPlan(),raw=new Float32Array(d.memory.buffer,d.new_spectrum_ptr(),s.fft/2);
- const ref=Math.max(.003,new Float32Array(d.memory.buffer,d.new_metrics_ptr(),10)[5]);
- const scale=s.fft/512*16000/fs,compression=s.compression/100;
- STATE.displaySpectrum=plan.groups.map(({from,to})=>{
+ const bandRef=new Float32Array(d.memory.buffer,d.new_band_ref_ptr(),16),{lo,hi}=frequencyRange(s);
+ const scale=s.fft/512*16000/fs,c=s.compression/100,tilt=s.tilt/2/(20*Math.log10(2)),{mid,high}=groupSplits(s);
+ const trim=[s['eq-bass'],s['eq-mid'],s['eq-high']].map(db=>Math.pow(10,db/20));
+ STATE.displaySpectrum=plan.groups.map(({from,to,low,high})=>{
+  const fc=Math.sqrt(low*high),b=Math.max(0,Math.min(15,Math.floor(16*Math.log(fc/lo)/Math.log(hi/lo))));
   let sum=0;for(let k=from;k<to;k++)sum+=raw[k]*raw[k];
-  const level=Math.max(0,Math.sqrt(sum/(to-from)*scale)-s.noise/1000)*(s.gain/10)/(ref*6.5);
-  const value=(1-compression)*level+compression*Math.sqrt(level);
+  const level=Math.max(0,Math.sqrt(sum/(to-from)*scale)*Math.pow(fc/1000,tilt)*trim[b<mid?0:b<high?1:2]-s.noise/1000)*(s.gain/10)/(Math.max(1e-4,bandRef[b])*6.5);
+  const value=c>=0?(1-c)*level+c*Math.sqrt(level):(1+c)*level-c*level*level;
   return value/(.85+value);
  });
 }

@@ -163,6 +163,46 @@ with sync_playwright() as p:
     page.evaluate("resetControls(['release']);refreshLabels()")
     print('PASS DSP views: Chain / Map stay while tuning, A/B matches until a setting changes, then differs')
 
+    # Bands, Tempo and Spectrogram draw; their controls open them; the Onsets section's
+    # group buttons pick the DSP group and show that group's settings.
+    for panel in ['bands', 'tempo', 'spectrogram']:
+        page.locator(f'[data-dsp="{panel}"]').click()
+        page.wait_for_timeout(300)
+        assert page.evaluate("DSP.panel") == panel
+        assert page.evaluate("(()=>{const c=$('dsp-canvas'),d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let n=0;for(let i=3;i<d.length;i+=4)if(d[i])n++;return n/(c.width*c.height);})()") > .01, panel
+    page.locator('[data-dsp="level"]').click()
+    for control, panel in [('tilt', 'bands'), ('eq-high', 'bands'), ('smoothing', 'bands'), ('bpm-min', 'tempo'), ('holdoff-0', 'onsets'),
+                           ('onset-memory', 'onsets'), ('peak-hold', 'envelope'), ('window', 'resolution')]:
+        page.locator(f'#{control}').focus()
+        assert page.evaluate('DSP.panel') == panel, (control, page.evaluate('DSP.panel'))
+    page.locator('#onset-groups button', has_text='High').click()
+    assert page.evaluate('DSP.group') == 2 and page.locator('#dsp-groups [data-group="2"]').get_attribute('aria-pressed') == 'true'
+    assert page.locator('#onset-trim-2').is_visible() and page.locator('#onset-trim-0').is_hidden()
+    assert 'Bass: 1.0×, hold-off 160 ms' in page.locator('#onset-summary').inner_text()
+    page.wait_for_timeout(300)
+    assert 'High threshold' in page.locator('#dsp-caption').inner_text()
+    # Groups keep a band each; the tempo range stays 10 BPM wide; negative compression expands.
+    page.evaluate("for(const [id,v] of [['split-mid',15],['bpm-max',60]]){$(id).value=v;$(id).dispatchEvent(new Event('input',{bubbles:true}));}")
+    assert page.evaluate("[+$('split-mid').value,+$('split-high').value,+$('bpm-min').value,+$('bpm-max').value]") == [14, 15, 50, 60]
+    assert page.locator('#groups-value').inner_text() == '14 · 1 · 1 bands'
+    page.evaluate("$('compression').value=-40;$('compression').dispatchEvent(new Event('input',{bubbles:true}))")
+    assert page.locator('#compression-value').inner_text() == '−40% · expands'
+    page.evaluate('pinCompare()')
+    page.evaluate("$('tilt').value=6;$('tilt').dispatchEvent(new Event('input',{bubbles:true}))")
+    assert page.evaluate('abDiffs(settings())') == ['Tilt 0 dB/oct → 3 dB/oct']
+    page.evaluate('clearCompare()')
+    # The window's leakage is on the Resolution panel and in its caption; peak hold reads "off" at 0.
+    page.evaluate("$('window').value=2;$('window').dispatchEvent(new Event('change',{bubbles:true}))")
+    page.locator('#window').focus()
+    page.wait_for_timeout(300)
+    assert 'Blackman-Harris' in page.locator('#dsp-caption').inner_text() and '−92 dB' in page.locator('#dsp-caption').inner_text(), page.locator('#dsp-caption').inner_text()
+    assert page.locator('#peak-hold-value').inner_text() == 'off'
+    page.evaluate("for(const [id,v] of [['eq-bass',-6],['peak-hold',120]]){$(id).value=v;$(id).dispatchEvent(new Event('input',{bubbles:true}));}")
+    assert page.locator('#peak-hold-value').inner_text() == '120 ms'
+    page.locator('#defaults').click()
+    assert page.evaluate("['tilt','split-mid','split-high','bpm-min','bpm-max','compression','holdoff-0','window','eq-bass','peak-hold','onset-memory','smoothing'].map(id=>+$(id).value)") == [0, 5, 12, 65, 180, 82, 160, 0, 0, 0, 7, 0]
+    print('PASS Bands / Tempo / Spectrogram views, per-group onset settings, group and tempo ranges, expansion, analyzer reset')
+
     if stored:
         # Remembered: effect, mode, layout, volume; the music column state. Reset all forgets them.
         page.evaluate("$('speed').value=40;$('speed').dispatchEvent(new Event('input',{bubbles:true}))")

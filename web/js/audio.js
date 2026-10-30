@@ -240,8 +240,17 @@ function sampleAt(index){
  if(STATE.loopDemo&&STATE.pcm?.length)return STATE.pcm[index%STATE.pcm.length]||0;
  return STATE.pcm?.[index]||0;
 }
+// Analyzer settings that are not new_process() arguments (the A/B copy gets its own).
+function applyDspSettings(d,s){
+ d.set_window(s.window);d.set_group_gains(s['eq-bass'],s['eq-mid'],s['eq-high']);d.set_band_smoothing(s.smoothing/100);
+ d.set_peak_hold(s['peak-hold']);d.set_onset_memory(s['onset-memory']/10);
+ d.set_spectral_tilt(s.tilt/2);d.set_band_balance(s.balance/100);d.set_band_groups(s['split-mid'],s['split-high']);
+ for(let g=0;g<3;g++)d.set_onset_group(g,s[`onset-trim-${g}`]/10,s[`holdoff-${g}`],s[`flash-${g}`]);
+ d.set_tempo_range(s['bpm-min'],s['bpm-max']);
+}
 function processAudio(nowSample){const d=STATE.modules.dsp.exports,s=settings(),n=s.fft,inbuf=new Float32Array(d.memory.buffer,d.new_input_ptr(),d.max_fft_size());
 for(let j=0;j<n;j++)inbuf[j]=sampleAt(nowSample-n+j);
+applyDspSettings(d,s);
 d.new_process(n,hop/fs,s.attack,s.release,s.noise/1000,s.transient/10,s.gain/10,s.compression/100,s.agc,s['adaptive-floor']/100);STATE.newParam=d.new_param_value();STATE.newLoudness=d.new_loudness_value();STATE.newLine=d.new_line_value();
 readDisplaySpectrum(d,s);
 const stats=new Float32Array(d.memory.buffer,d.new_metrics_ptr(),10);

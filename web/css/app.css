@@ -262,6 +262,15 @@ body.dsp-stage .stage-view{display:flex;place-items:stretch;background:var(--ins
 .dsp-groups [data-group="1"][aria-pressed=true]{color:var(--mid)}
 .dsp-groups [data-group="2"][aria-pressed=true]{color:var(--high)}
 .dsp-plot{position:relative;flex:1;min-height:140px}
+/* Analyzer settings: the groups slider in the group colors, the per-group onset settings. */
+.dual.groups::before{background:linear-gradient(to right,var(--bass) calc(var(--thumb)/2 + (100% - var(--thumb))*var(--a)),var(--mid) 0 calc(var(--thumb)/2 + (100% - var(--thumb))*var(--b)),var(--high) 0);opacity:.85}
+.groups-hint b{font-weight:650}
+.g-bass{color:var(--bass)}.g-mid{color:var(--mid)}.g-high{color:var(--high)}
+.seg.onset-groups{display:flex}
+.seg.onset-groups button{flex:1;justify-content:center}
+.seg.onset-groups button[data-group="0"].active{color:var(--bass)}
+.seg.onset-groups button[data-group="1"].active{color:var(--mid)}
+.seg.onset-groups button[data-group="2"].active{color:var(--high)}
 .dsp-plot canvas{position:absolute;inset:0;display:block;width:100%;height:100%}
 .dsp-caption{flex:none;margin:0;max-width:110ch;color:var(--text-2);font-size:12px;line-height:1.5}
 .dsp-caption b{color:var(--text);font-weight:650}
@@ -326,6 +335,9 @@ body.dsp-stage .stage-view{display:flex;place-items:stretch;background:var(--ins
 .val{color:var(--text-2);font-variant-numeric:tabular-nums;font-weight:500;font-size:12px;white-space:nowrap}
 .field-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .field-pair+.hint{margin-top:10px}
+.field-trio{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+.window-field{margin-top:12px}
+.per-group{margin-top:12px}
 .callout{margin:12px 0 0;padding:9px 11px;border-left:2px solid var(--accent);border-radius:0 var(--r-sm) var(--r-sm) 0;background:var(--accent-soft);color:var(--text-2);font-size:12.5px;line-height:1.5}
 .callout:empty{display:none}
 .transfer{display:block;width:100%;height:128px;margin:0 0 12px;border-radius:var(--r);background:var(--inset);border:1px solid var(--line)}
@@ -525,8 +537,10 @@ label.mini input,label.mini select{height:30px;font-size:12.5px}
  body.dsp-stage .analyzer,body.dsp-stage #geometry-button{display:none}
  body.dsp-stage .dsp-view{padding:8px}
  .dsp-panels,.dsp-groups{flex:1 1 100%}
- .dsp-panels button,.dsp-groups button{flex:1;padding:0 6px}
- .dsp-sep{flex-basis:100%;height:0;margin:0}
+ .dsp-panels{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
+ .dsp-panels button,.dsp-groups button{flex:1;padding:0 3px;overflow:hidden;text-overflow:ellipsis}
+ .dsp-panels button{font-size:11.5px}
+ .dsp-sep{grid-column:1/-1;height:0;margin:0}
  .dsp-ab{flex:1 1 40%}
  .dsp-ab:not([hidden])~.dsp-groups{flex:1 1 50%}
  .dsp-ab .btn{flex:1;padding:0 6px}

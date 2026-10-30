@@ -38,6 +38,40 @@ static float bpm=0.f,bpm_confidence=0.f,beat_phase=0.f,beat_pulse=0.f;
 static float new_wave_elapsed=0.f;
 static float level_ref = 0.04f;
 static unsigned int warm_count=0;
+// Analyzer settings outside new_process()'s arguments (set_*). They survive
+// reset_dsp(); the defaults reproduce the fixed values used before.
+// Tilt: dB per octave around 1 kHz, applied to every band before anything else.
+static float tilt_db=0.f,tilt16[BANDS],tilt32[32],tilt64[64];
+// Band balance: the share of each band's own reference (its average over
+// ~4 s) in the reference it is normalised to; 0 = the global AGC only.
+static float band_balance=0.f,band_avg[BANDS],band_ref[BANDS];
+// Groups: first band of mid and of high (16 bands).
+static int split_mid=5,split_high=12;
+// Onsets per group: threshold trim, hold-off after a hit, flash decay (seconds).
+static float onset_trim[3]={1.f,1.f,1.f},holdoff[3]={.16f,.085f,.085f},flash_decay[3]={.22f,.13f,.13f};
+// Tempo search range; the lags of 16 ms novelty steps it covers.
+static int tempo_minlag=21,tempo_maxlag=58;
+// For the lab's tempo view: the periodicity score of every lag searched and
+// [first lag, last lag, best lag, best score] of the last search.
+static float tempo_scores[128],tempo_info[4];
+// Window: generalized cosine a0 - a1 cos x + a2 cos 2x - a3 cos 3x + a4 cos 4x.
+// The spectrum is divided by a0 (the coherent gain), so a tone reads the same
+// in every window; the frame RMS is scaled to the Hann window's power.
+static const float WINDOWS[5][5]={
+    {.5f,.5f,0,0,0},                                             // Hann
+    {.54f,.46f,0,0,0},                                           // Hamming
+    {.35875f,.48829f,.14128f,.01168f,0},                         // Blackman-Harris
+    {.21557895f,.41663158f,.277263158f,.083578947f,.006947368f}, // flat-top
+    {1.f,0,0,0,0}};                                              // rectangular
+static int window_type=0;
+// Group trims in front of the analyzer (with the tilt), as amplitude gains.
+static float group_gain[3]={1.f,1.f,1.f};
+// Band smoothing: share of the neighbors' average in each band's level.
+static float band_smoothing=0.f;
+// Peak hold: seconds a band stays at its peak before it releases; per band.
+static float peak_hold=0.f,hold16[BANDS],hold32[32],hold64[64];
+// Onset threshold memory: the time scale of the flux mean and deviation.
+static float onset_memory=.7f;
 
 // VolumeAnalyzer<16> @40Hz and VolumeAnalyzer<64> @30Hz (different from spectrum @10Hz).
 static unsigned short old_wave_input[16],old_param_input[64];
@@ -84,29 +118,91 @@ static float band_magnitude(float lo_hz,float hi_hz,int n){
     }
     return sqrt_fast(sum/weight*scale);
 }
-static void remote_spectrum(int count,float* out,int n,
-                            float ref,float attack,float release,float noise_gate,
+// Compression > 0 blends toward the square root (quiet bands come up, less
+// contrast); < 0 toward the square (expansion: quiet bands go down, more contrast).
+static inline float dynamics(float x,float c){
+    return c>=0.f?(1.f-c)*x+c*sqrt_fast(x):(1.f+c)*x-c*x*x;
+}
+// The 32/64 remote bands use the tilt of their own center and the reference
+// of the 16-band they lie in.
+static inline int group_of(int b){return b<split_mid?0:(b<split_high?1:2);}
+// Neighbor blend of the targets (Band smoothing); edges blend their one neighbor.
+static void smooth_targets(float* t,int count){
+    if(band_smoothing<=0.f)return;
+    float prev=t[0];
+    for(int b=0;b<count;b++){
+        const float here=t[b],next=b+1<count?t[b+1]:here,left=b?prev:here;
+        // Toward the binomial ¼ ½ ¼ at full smoothing: a lone peak spreads, never vanishes.
+        t[b]=(1.f-.5f*band_smoothing)*here+band_smoothing*.25f*(left+next);
+        prev=here;
+    }
+}
+// Attack, or hold the peak for peak_hold seconds, then release.
+static inline void envelope(float& out,float& hold,float target,float attack,float release,float hop_seconds){
+    if(target>out){out+=(target-out)*attack;hold=peak_hold;}
+    else if(hold>0.f)hold-=hop_seconds;
+    else out+=(target-out)*release;
+}
+static void remote_spectrum(int count,float* out,float* hold,const float* tilt,int n,float hop_seconds,
+                            float attack,float release,float noise_gate,
                             float gain,float compression){
     const int step=64/count;
+    float target[64];
     for(int b=0;b<count;b++){
-        float raw=band_magnitude(edges64[b*step],edges64[(b+1)*step],n);
+        const int b16=b*BANDS/count;
+        float raw=band_magnitude(edges64[b*step],edges64[(b+1)*step],n)*tilt[b]*group_gain[group_of(b16)];
         float v=maxf(0.f,raw-noise_gate);
-        float normalized=v*gain/(ref*6.5f);
-        float compressed=(1.f-compression)*normalized+compression*sqrt_fast(normalized);
-        float target=compressed/(.85f+compressed);
-        out[b]+= (target-out[b])*(target>out[b]?attack:release);
+        float normalized=v*gain/(band_ref[b16]*6.5f);
+        float compressed=dynamics(normalized,compression);
+        target[b]=compressed/(.85f+compressed);
+    }
+    smooth_targets(target,count);
+    for(int b=0;b<count;b++){
+        envelope(out[b],hold[b],target[b],attack,release,hop_seconds);
         out[b]=clamp(out[b],0.f,1.f);
     }
 }
 
 // Logarithmic edges between range_lo and range_hi: q = (hi/lo)^(1/64) by six
 // square roots (no libm).
+// ln / exp without libm, for the tilt gains (recomputed only on a change).
+static double ln_d(double x){
+    int e=0;
+    while(x>2.0){x*=.5;e++;}
+    while(x<1.0){x*=2.0;e--;}
+    const double s=(x-1.0)/(x+1.0),s2=s*s;
+    double t=s,sum=0;
+    for(int k=1;k<40;k+=2){sum+=t/k;t*=s2;}
+    return 2.0*sum+e*0.69314718055994531;
+}
+static double exp_d(double y){
+    int n=(int)(y/0.69314718055994531);
+    const double r=y-n*0.69314718055994531;
+    double term=1,sum=1;
+    for(int k=1;k<30;k++){term*=r/k;sum+=term;}
+    for(;n>0;n--)sum*=2.0;
+    for(;n<0;n++)sum*=.5;
+    return sum;
+}
+// Amplitude gain of the tilt at a band's geometric center: tilt_db per octave
+// from 1 kHz, i.e. (f / 1000) ^ (tilt_db / 20 / log10(2)).
+static void compute_tilt(){
+    for(int count=16;count<=64;count*=2){
+        float* out=count==16?tilt16:count==32?tilt32:tilt64;
+        const int step=64/count;
+        for(int b=0;b<count;b++){
+            const double fc=__builtin_sqrt((double)edges64[b*step]*edges64[(b+1)*step]);
+            out[b]=tilt_db==0.f?1.f:(float)exp_d(tilt_db*0.16609640474436813*ln_d(fc/1000.0));
+        }
+    }
+}
 static void compute_edges(){
     double q=range_hi/range_lo;
     for(int i=0;i<6;i++)q=__builtin_sqrt(q);
     double edge=range_lo;
     for(int i=0;i<64;i++){edges64[i]=(float)edge;edge*=q;}
     edges64[64]=(float)range_hi;
+    compute_tilt();
 }
 // Twiddles for every FFT size: cos/sin(2*pi*k/MAX_N). Anchored on the
 // 1024-entry tables every 8th entry (sizes <= 1024 use exactly the table
@@ -139,6 +235,45 @@ __attribute__((visibility("default"))) void set_sample_rate(int rate){
     if(rate<8000||rate>48000)return;
     sample_rate=(float)rate;set_frequency_range((float)range_lo,(float)range_hi);
 }
+// Spectral tilt in dB per octave around 1 kHz (-12..+12); +3 makes pink noise flat.
+__attribute__((visibility("default"))) void set_spectral_tilt(float db_per_octave){
+    const float t=clamp(db_per_octave,-12.f,12.f);
+    ensure_tables();
+    if(t!=tilt_db){tilt_db=t;compute_tilt();}
+}
+// 0..1: how far each band is normalised to its own average instead of the global one.
+__attribute__((visibility("default"))) void set_band_balance(float amount){band_balance=clamp(amount,0.f,1.f);}
+// First band of the mid and of the high group; every group keeps at least one band.
+__attribute__((visibility("default"))) void set_band_groups(int mid_start,int high_start){
+    split_mid=mid_start<1?1:(mid_start>BANDS-2?BANDS-2:mid_start);
+    split_high=high_start<=split_mid?split_mid+1:(high_start>BANDS-1?BANDS-1:high_start);
+}
+// FFT window: 0 Hann, 1 Hamming, 2 Blackman-Harris, 3 flat-top, 4 rectangular.
+__attribute__((visibility("default"))) void set_window(int type){window_type=type<0||type>4?0:type;}
+// Trims of the bass / mid / high group in dB (-24..+24), in front of the analyzer.
+__attribute__((visibility("default"))) void set_group_gains(float bass_db,float mid_db,float high_db){
+    const float db[3]={bass_db,mid_db,high_db};
+    for(int g=0;g<3;g++){const float d=clamp(db[g],-24.f,24.f);group_gain[g]=d==0.f?1.f:(float)exp_d(d*0.11512925464970229);}
+}
+__attribute__((visibility("default"))) void set_band_smoothing(float amount){band_smoothing=clamp(amount,0.f,1.f);}
+__attribute__((visibility("default"))) void set_peak_hold(float ms){peak_hold=clamp(ms,0.f,2000.f)/1000.f;}
+__attribute__((visibility("default"))) void set_onset_memory(float seconds){onset_memory=clamp(seconds,.1f,5.f);}
+__attribute__((visibility("default"))) int group_first_band(int g){return g<=0?0:g==1?split_mid:g==2?split_high:BANDS;}
+// One group's onsets: threshold trim (x), hold-off after a hit and flash decay (ms).
+__attribute__((visibility("default"))) void set_onset_group(int g,float trim,float holdoff_ms,float flash_ms){
+    if(g<0||g>2)return;
+    onset_trim[g]=clamp(trim,.1f,5.f);
+    holdoff[g]=clamp(holdoff_ms,10.f,2000.f)/1000.f;
+    flash_decay[g]=clamp(flash_ms,20.f,3000.f)/1000.f;
+}
+// Tempo search range in BPM (40..240, at least 10 BPM wide).
+__attribute__((visibility("default"))) void set_tempo_range(float lo_bpm,float hi_bpm){
+    const float lo=clamp(lo_bpm,40.f,230.f),hi=clamp(hi_bpm,lo+10.f,240.f);
+    tempo_minlag=(int)(60.f/(hi*NOVELTY_STEP)+0.5f);
+    tempo_maxlag=(int)(60.f/(lo*NOVELTY_STEP)+0.5f);
+    if(tempo_maxlag>120)tempo_maxlag=120;
+    if(tempo_maxlag<=tempo_minlag)tempo_maxlag=tempo_minlag+1;
+}
 __attribute__((visibility("default"))) int max_fft_size(){return MAX_N;}
 __attribute__((visibility("default"))) float* new_input_ptr(){return input_pcm;}
 __attribute__((visibility("default"))) float* new_spectrum_ptr(){return spectrum;}
@@ -149,6 +284,12 @@ __attribute__((visibility("default"))) float* new_raw_ptr(){return raw_bands;}
 __attribute__((visibility("default"))) float* new_targets_ptr(){return targets;}
 __attribute__((visibility("default"))) float* new_floor_ptr(){return noise_floor;}
 __attribute__((visibility("default"))) float* new_thresholds_ptr(){return thresholds;}
+__attribute__((visibility("default"))) float* new_tilt_ptr(){return tilt16;}
+__attribute__((visibility("default"))) float* new_band_ref_ptr(){return band_ref;}
+__attribute__((visibility("default"))) float* new_novelty_ptr(){return novelty_ring;}
+__attribute__((visibility("default"))) int new_novelty_head(){return novelty_pos;}
+__attribute__((visibility("default"))) float* new_tempo_scores_ptr(){return tempo_scores;}
+__attribute__((visibility("default"))) float* new_tempo_info_ptr(){return tempo_info;}
 __attribute__((visibility("default"))) float* new_pulses_ptr(){return pulse;}
 __attribute__((visibility("default"))) float* new_levels_ptr(){return group_levels;}
 __attribute__((visibility("default"))) float* new_events_ptr(){return events;}
@@ -167,7 +308,10 @@ __attribute__((visibility("default"))) unsigned short* old_bands_ptr(){return ol
 __attribute__((visibility("default"))) void reset_dsp() {
     ensure_tables();
     for(int i=0;i<MAX_N;i++){input_pcm[i]=0;real_fft[i]=0;imag_fft[i]=0;}
-    for(int i=0;i<BANDS;i++){bands[i]=0;raw_bands[i]=0;targets[i]=0;prev_bands[i]=0;baseline[i]=0.003f;noise_floor[i]=0;old_out[i]=0;}
+    for(int i=0;i<BANDS;i++){bands[i]=0;raw_bands[i]=0;targets[i]=0;prev_bands[i]=0;baseline[i]=0.003f;noise_floor[i]=0;old_out[i]=0;band_avg[i]=band_ref[i]=0.04f;}
+    for(int i=0;i<128;i++)tempo_scores[i]=0;
+    for(int i=0;i<4;i++)tempo_info[i]=0;
+    for(int i=0;i<64;i++){hold64[i]=0;if(i<32)hold32[i]=0;if(i<BANDS)hold16[i]=0;}
     for(int i=0;i<32;i++)remote32[i]=0;
     for(int i=0;i<64;i++)remote64[i]=0;
     for(int i=0;i<3;i++){thresholds[i]=0;pulse[i]=events[i]=flux_avg[i]=flux_dev[i]=refractory[i]=raw_group[i]=group_levels[i]=0;}
@@ -195,15 +339,23 @@ __attribute__((visibility("default"))) void new_process(int n,float hop_seconds,
     for(int i=0;i<n;i++)mean+=input_pcm[i];
     mean/=n;
     float frame_rms=0;
+    const float* wc=WINDOWS[window_type];
     for(int i=0;i<n;i++){
-        // Hann window, fixed lookup with <1-sample phase rounding.
+        // Cosine window from the fixed lookup, <1-sample phase rounding.
         const int ci=(int)((long long)i*(MAX_N-1)/(n-1));
-        const float win=0.5f-0.5f*twiddle_cos[(int)((long long)ci*MAX_N/(MAX_N-1))%MAX_N];
+        const int k=(int)((long long)ci*MAX_N/(MAX_N-1))%MAX_N;
+        float win=wc[0]-wc[1]*twiddle_cos[k];
+        if(window_type>=2)win+=wc[2]*twiddle_cos[(2*k)%MAX_N]-wc[3]*twiddle_cos[(3*k)%MAX_N]+wc[4]*twiddle_cos[(4*k)%MAX_N];
         float v=(input_pcm[i]-mean)*win;
         frame_rms+=v*v;
         real_fft[i]=v;imag_fft[i]=0;
     }
     frame_rms=sqrt_fast(frame_rms/n);
+    if(window_type){ // the loudness envelopes keep the Hann window's scale
+        float power=wc[0]*wc[0];
+        for(int j=1;j<5;j++)power+=wc[j]*wc[j]*.5f;
+        frame_rms*=sqrt_fast(.375f/power);
+    }
     // A slowly decaying reference prevents the line/parameter modes from
     // sitting near a constant spectral mean. A fast envelope retains the
     // separate attack/release dynamics of musical hits.
@@ -240,13 +392,13 @@ __attribute__((visibility("default"))) void new_process(int n,float hop_seconds,
         }
     }
     for(int k=0;k<n/2;k++){
-        spectrum[k]=2.0f*sqrt_fast(real_fft[k]*real_fft[k]+imag_fft[k]*imag_fft[k])/(0.5f*n);
+        spectrum[k]=2.0f*sqrt_fast(real_fft[k]*real_fft[k]+imag_fft[k]*imag_fft[k])/(wc[0]*n);
     }
     spectrum[0]=0;
-    // Average spectral magnitudes in 16 logarithmic bands of the range.
+    // Average spectral magnitudes in 16 logarithmic bands of the range, after the tilt.
     float total=0;
     for(int b=0;b<BANDS;b++){
-        float raw=band_magnitude(edges64[b*4],edges64[b*4+4],n);
+        float raw=band_magnitude(edges64[b*4],edges64[b*4+4],n)*tilt16[b]*group_gain[group_of(b)];
         raw_bands[b]=raw;
         total+=raw;
     }
@@ -258,12 +410,22 @@ __attribute__((visibility("default"))) void new_process(int n,float hop_seconds,
     float agc_alpha=clamp(hop_seconds / maxf(0.02f,agc_ms/1000.0f),0.002f,0.4f);
     if(!silent)level_ref+=(average-level_ref)*agc_alpha;
     const float ref=maxf(0.003f,level_ref);
+    // Band balance: each band's own average (~4 s, also gated) pulls its
+    // reference away from the global one, by at most 18 dB either way.
+    const float band_alpha=clamp(hop_seconds/4.f,0.0005f,0.05f);
+    for(int b=0;b<BANDS;b++){
+        if(!silent)band_avg[b]+=(raw_bands[b]-band_avg[b])*band_alpha;
+        band_ref[b]=(1.f-band_balance)*ref+band_balance*clamp(band_avg[b],ref*.125f,ref*8.f);
+    }
+    const int group_size[3]={split_mid,split_high-split_mid,BANDS-split_high};
     float attack=clamp(hop_seconds/maxf(0.005f,attack_ms/1000.0f),0.005f,1);
     float release=clamp(hop_seconds/maxf(0.015f,release_ms/1000.0f),0.005f,1);
     float activity=0;
     for(int g=0;g<3;g++)group_levels[g]=0;
+    float smoothed[BANDS];
     for(int b=0;b<BANDS;b++){
         float raw=raw_bands[b];
+        const int g=group_of(b);
         baseline[b]+=(raw-baseline[b])*clamp(hop_seconds/1.2f,0.002f,0.08f);
         // Optional slow-adapting noise estimate: follows quieter conditions
         // quickly but rises only over ~8s, to avoid interpreting music as noise.
@@ -275,45 +437,47 @@ __attribute__((visibility("default"))) void new_process(int n,float hop_seconds,
         // Use a continuous soft knee: the response stays monotonic for loud audio
         // and still has headroom for rhythmic peaks. Global AGC (not per-frame max)
         // preserves relative energy between frequency bands.
-        float normalized=maxf(0.f,v*user_gain/(ref*6.5f));
-        float compressed=(1-compression)*normalized+compression*sqrt_fast(normalized);
+        float normalized=maxf(0.f,v*user_gain/(band_ref[b]*6.5f));
+        float compressed=dynamics(normalized,compression);
         float target=compressed/(0.85f+compressed);
-        targets[b]=target;
-        float coeff=target>bands[b]?attack:release;
-        bands[b]+=(target-bands[b])*coeff;
-        activity+=bands[b];
-        group_levels[b<5?0:b<12?1:2]+=bands[b]/(b<5?5.f:b<12?7.f:4.f);
+        targets[b]=smoothed[b]=target;
         // Relative onset = rising spectral energy above slowly tracked baseline.
         float flux=maxf(0.0f,raw-prev_bands[b]);
         float rel=flux/(baseline[b]+0.008f);
-        int g= (b<5)?0:((b<12)?1:2);
-        raw_group[g]+=rel/(g==0?5.0f:(g==1?7.0f:4.0f));
+        raw_group[g]+=rel/group_size[g];
         prev_bands[b]=raw;
+    }
+    // Band smoothing, then the attack / peak hold / release envelope.
+    smooth_targets(smoothed,BANDS);
+    for(int b=0;b<BANDS;b++){
+        envelope(bands[b],hold16[b],smoothed[b],attack,release,hop_seconds);
+        activity+=bands[b];
+        group_levels[group_of(b)]+=bands[b]/group_size[group_of(b)];
     }
     for(int g=0;g<3;g++){
         const float flux=raw_group[g];
-        // Adaptive mean and deviation on a ~0.7s time scale.
-        float a=clamp(hop_seconds/0.7f,0.005f,0.12f);
+        // Adaptive mean and deviation over the onset memory (default ~0.7 s).
+        float a=clamp(hop_seconds/onset_memory,0.005f,0.12f);
         flux_avg[g]+=(flux-flux_avg[g])*a;
         flux_dev[g]+=(absf(flux-flux_avg[g])-flux_dev[g])*a;
-        float threshold=0.07f+sensitivity*(flux_avg[g]+1.2f*flux_dev[g]);
+        float threshold=0.07f+sensitivity*onset_trim[g]*(flux_avg[g]+1.2f*flux_dev[g]);
         thresholds[g]=threshold;
         refractory[g]=maxf(0,refractory[g]-hop_seconds);
         events[g]=0;
         if(warm_count>5 && flux>threshold && refractory[g]<=0 && activity>0.035f){
             events[g]=1;
             pulse[g]=clamp(flux/(threshold+0.0001f),0.6f,1.0f);
-            refractory[g]=(g==0)?0.16f:0.085f;
+            refractory[g]=holdoff[g];
         } else {
-            pulse[g]=maxf(0,pulse[g]-hop_seconds/(g==0?0.22f:0.13f));
+            pulse[g]=maxf(0,pulse[g]-hop_seconds/flash_decay[g]);
         }
         raw_group[g]=0;
         metrics[g]=flux;
     }
     // Remote 32/64 bands are calculated after the original 16-band AGC update.
     // They do not influence or change the local 16-band visualizer.
-    remote_spectrum(32,remote32,n,ref,attack,release,noise_gate,user_gain,compression);
-    remote_spectrum(64,remote64,n,ref,attack,release,noise_gate,user_gain,compression);
+    remote_spectrum(32,remote32,hold32,tilt32,n,hop_seconds,attack,release,noise_gate,user_gain,compression);
+    remote_spectrum(64,remote64,hold64,tilt64,n,hop_seconds,attack,release,noise_gate,user_gain,compression);
     metrics[3]=frame_rms;
     metrics[4]=activity/BANDS;
     metrics[5]=level_ref;
@@ -334,8 +498,9 @@ __attribute__((visibility("default"))) void new_process(int n,float hop_seconds,
             mean/=192.f;
             for(int i=0;i<192;i++){float v=novelty_ring[(novelty_pos-1-i)&255]-mean;variance+=v*v;}
             float best=-1.f;int best_lag=0;
-            const int minlag=(int)(60.f/(180.f*NOVELTY_STEP)+0.5f);
-            const int maxlag=(int)(60.f/(65.f*NOVELTY_STEP)+0.5f);
+            // Lags of the tempo range (default 65..180 BPM: lags 21..58).
+            const int minlag=tempo_minlag,maxlag=tempo_maxlag;
+            for(int i=0;i<128;i++)tempo_scores[i]=0;
             for(int lag=minlag;lag<=maxlag;lag++){
                 float dot=0;
                 for(int i=0;i<192-lag;i++){
@@ -344,10 +509,12 @@ __attribute__((visibility("default"))) void new_process(int n,float hop_seconds,
                     dot+=a*b;
                 }
                 float score=dot/maxf(0.00001f,variance)*(192.f/(192-lag));
+                tempo_scores[lag]=score;
                 if(score>best){best=score;best_lag=lag;}
             }
+            tempo_info[0]=(float)minlag;tempo_info[1]=(float)maxlag;tempo_info[2]=(float)best_lag;tempo_info[3]=best;
             float observed=best_lag>0?60.f/(best_lag*NOVELTY_STEP):0;
-            if(best>0.17f && observed>60.f && observed<190.f){
+            if(best>0.17f && observed>0.f){
                 if(bpm==0 || absf(bpm-observed)>45.f)bpm=observed;
                 else bpm+=(observed-bpm)*0.20f;
                 bpm_confidence=clamp(best*1.7f,0.f,1.f);
@@ -362,8 +529,13 @@ __attribute__((visibility("default"))) void new_process(int n,float hop_seconds,
         float advanced=beat_phase+hop_seconds*bpm/60.f;
         if(advanced>=1.f){advanced-=1.f;beat_pulse=1.f;}
         beat_phase=advanced;
-        // Phase-lock to bass onsets only close to the predicted beat.
-        if(events[0]>0 && (beat_phase<0.18f||beat_phase>0.82f))beat_phase=0.f;
+        // Phase-lock to bass onsets only close to the predicted beat. A hit
+        // just before the predicted beat is that beat: it pulses now (the
+        // phase restarting at 0 would otherwise skip the pulse).
+        if(events[0]>0 && (beat_phase<0.18f||beat_phase>0.82f)){
+            if(beat_phase>0.82f)beat_pulse=1.f;
+            beat_phase=0.f;
+        }
     }else beat_phase=0.f;
     metrics[6]=bpm;metrics[7]=bpm_confidence;metrics[8]=beat_phase;metrics[9]=beat_pulse;
     // Normalized envelope for parameter control; independent from audio brightness overlay.

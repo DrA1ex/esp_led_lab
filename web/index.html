@@ -88,7 +88,7 @@
   <div class="dsp-view" id="dsp-view" hidden>
    <div class="dsp-bar">
     <div class="dsp-panels" id="dsp-panels" role="tablist" aria-label="What the analyzer settings do">
-     <button type="button" role="tab" data-dsp="resolution">Resolution</button><button type="button" role="tab" data-dsp="level">Level</button><button type="button" role="tab" data-dsp="envelope">Envelope</button><button type="button" role="tab" data-dsp="onsets">Onsets</button><button type="button" role="tab" data-dsp="noise">Noise</button><span class="dsp-sep" aria-hidden="true"></span><button type="button" role="tab" data-dsp="chain" title="One band group through every stage">Chain</button><button type="button" role="tab" data-dsp="map" title="All bands over time and how often each LED level occurs">Map</button><button type="button" role="tab" data-dsp="ab" title="Pinned settings against the current ones on the same audio">A/B</button>
+     <button type="button" role="tab" data-dsp="resolution">Resolution</button><button type="button" role="tab" data-dsp="bands">Bands</button><button type="button" role="tab" data-dsp="level">Level</button><button type="button" role="tab" data-dsp="envelope">Envelope</button><button type="button" role="tab" data-dsp="onsets">Onsets</button><button type="button" role="tab" data-dsp="tempo">Tempo</button><button type="button" role="tab" data-dsp="noise">Noise</button><span class="dsp-sep" aria-hidden="true"></span><button type="button" role="tab" data-dsp="spectrogram" title="The FFT over time with the bands and groups on it">Spectrogram</button><button type="button" role="tab" data-dsp="chain" title="One band group through every stage">Chain</button><button type="button" role="tab" data-dsp="map" title="All bands over time and how often each LED level occurs">Map</button><button type="button" role="tab" data-dsp="ab" title="Pinned settings against the current ones on the same audio">A/B</button>
     </div>
     <div class="dsp-ab" id="dsp-ab" hidden><button type="button" class="btn" id="dsp-pin">Pin as A</button><button type="button" class="btn" id="dsp-unpin" hidden>Clear A</button></div>
     <div class="dsp-groups" id="dsp-groups" role="group" aria-label="Band group"><button type="button" data-group="0">Bass</button><button type="button" data-group="1">Mid</button><button type="button" data-group="2">High</button></div>
@@ -258,6 +258,7 @@
     <div class="field"><label for="fft">FFT size</label><select id="fft"><option value="64">64 · 4 ms</option><option value="128">128 · 8 ms</option><option value="256">256 · 16 ms</option><option value="512" selected>512 · 32 ms</option><option value="1024">1024 · 64 ms</option><option value="2048">2048 · 128 ms</option><option value="4096">4096 · 256 ms</option><option value="8192">8192 · 512 ms</option></select></div>
     <div class="field"><label for="sample-rate">Sample rate</label><select id="sample-rate"><option value="8000">8 kHz</option><option value="16000" selected>16 kHz</option><option value="32000">32 kHz</option><option value="48000">48 kHz</option></select></div>
    </div>
+   <div class="field window-field"><label for="window">Window</label><select id="window"><option value="0" selected>Hann · balanced</option><option value="1">Hamming · lower near leakage</option><option value="2">Blackman-Harris · least leakage</option><option value="3">Flat-top · exact levels</option><option value="4">Rectangular · sharpest, most leakage</option></select></div>
    <p class="hint" id="fft-hint"></p>
    <p class="hint" id="sample-rate-hint"></p>
   </div>
@@ -267,9 +268,25 @@
    <p class="hint">Bands are spread logarithmically inside this range; sound outside it is ignored. Example: 200 Hz – 4 kHz for vocals and leads, 40–250 Hz for bass only.</p>
   </div>
   <div class="section">
+   <div class="section-head"><h3 class="eyebrow">Bands</h3></div>
+   <div class="field"><label for="tilt">Tilt <span class="val" id="tilt-value">0 dB/oct</span></label><input id="tilt" type="range" min="-12" max="12" value="0" data-center></div>
+   <div class="field-trio">
+    <div class="field"><label for="eq-bass">Bass <span class="val" id="eq-bass-value">0 dB</span></label><input id="eq-bass" type="range" min="-12" max="12" value="0" data-center></div>
+    <div class="field"><label for="eq-mid">Mid <span class="val" id="eq-mid-value">0 dB</span></label><input id="eq-mid" type="range" min="-12" max="12" value="0" data-center></div>
+    <div class="field"><label for="eq-high">High <span class="val" id="eq-high-value">0 dB</span></label><input id="eq-high" type="range" min="-12" max="12" value="0" data-center></div>
+   </div>
+   <div class="field"><span class="field-label">Groups <span class="val" id="groups-value">5 · 7 · 4 bands</span></span>
+    <div class="dual groups"><input id="split-mid" type="range" min="1" max="15" value="5" aria-label="Mid starts at band"><input id="split-high" type="range" min="1" max="15" value="12" aria-label="High starts at band"></div></div>
+   <p class="hint groups-hint" id="groups-hint"></p>
+   <div class="field-pair">
+    <div class="field"><label for="balance">Band balance <span class="val" id="balance-value">0%</span></label><input id="balance" type="range" min="0" max="100" value="0"></div>
+    <div class="field"><label for="smoothing">Band smoothing <span class="val" id="smoothing-value">0%</span></label><input id="smoothing" type="range" min="0" max="100" value="0"></div>
+   </div>
+  </div>
+  <div class="section">
    <div class="section-head"><h3 class="eyebrow">Level</h3></div>
    <div class="field"><label for="gain">Sensitivity <span class="val" id="gain-value">1.6×</span></label><input id="gain" type="range" min="5" max="50" value="16"></div>
-   <div class="field"><label for="compression">Compression <span class="val" id="compression-value">82%</span></label><input id="compression" type="range" min="0" max="100" value="82"></div>
+   <div class="field"><label for="compression">Compression <span class="val" id="compression-value">82%</span></label><input id="compression" type="range" min="-100" max="100" value="82" data-center></div>
    <div class="field"><label for="agc">Auto gain (AGC) <span class="val" id="agc-value">900 ms</span></label><input id="agc" type="range" min="100" max="3500" step="50" value="900"></div>
   </div>
   <div class="section">
@@ -278,17 +295,55 @@
     <div class="field"><label for="attack">Attack <span class="val" id="attack-value">25 ms</span></label><input id="attack" type="range" min="5" max="200" step="5" value="25"></div>
     <div class="field"><label for="release">Release <span class="val" id="release-value">210 ms</span></label><input id="release" type="range" min="25" max="850" step="5" value="210"></div>
    </div>
+   <div class="field"><label for="peak-hold">Peak hold <span class="val" id="peak-hold-value">off</span></label><input id="peak-hold" type="range" min="0" max="400" step="10" value="0"></div>
   </div>
   <div class="section">
-   <div class="section-head"><h3 class="eyebrow">Onsets and noise</h3></div>
-   <div class="field"><label for="transient">Onset threshold <span class="val" id="transient-value">1.0×</span></label><input id="transient" type="range" min="3" max="30" value="10"></div>
+   <div class="section-head"><h3 class="eyebrow">Onsets</h3></div>
+   <div class="field-pair">
+    <div class="field"><label for="transient">Onset threshold <span class="val" id="transient-value">1.0×</span></label><input id="transient" type="range" min="3" max="30" value="10"></div>
+    <div class="field"><label for="onset-memory">Memory <span class="val" id="onset-memory-value">0.7 s</span></label><input id="onset-memory" type="range" min="2" max="40" value="7"></div>
+   </div>
+   <div class="field per-group"><span class="field-label" id="onset-groups-title">Per group</span>
+    <div class="seg onset-groups" id="onset-groups" role="group" aria-labelledby="onset-groups-title"><button type="button" data-group="0">Bass</button><button type="button" data-group="1">Mid</button><button type="button" data-group="2">High</button></div></div>
+   <div class="onset-group" data-onset-group="0">
+    <div class="field"><label for="onset-trim-0">Bass threshold <span class="val" id="onset-trim-0-value">1.0×</span></label><input id="onset-trim-0" type="range" min="3" max="30" value="10"></div>
+    <div class="field-pair">
+     <div class="field"><label for="holdoff-0">Hold-off <span class="val" id="holdoff-0-value">160 ms</span></label><input id="holdoff-0" type="range" min="30" max="500" step="5" value="160"></div>
+     <div class="field"><label for="flash-0">Flash decay <span class="val" id="flash-0-value">220 ms</span></label><input id="flash-0" type="range" min="40" max="800" step="10" value="220"></div>
+    </div>
+   </div>
+   <div class="onset-group" data-onset-group="1" hidden>
+    <div class="field"><label for="onset-trim-1">Mid threshold <span class="val" id="onset-trim-1-value">1.0×</span></label><input id="onset-trim-1" type="range" min="3" max="30" value="10"></div>
+    <div class="field-pair">
+     <div class="field"><label for="holdoff-1">Hold-off <span class="val" id="holdoff-1-value">85 ms</span></label><input id="holdoff-1" type="range" min="30" max="500" step="5" value="85"></div>
+     <div class="field"><label for="flash-1">Flash decay <span class="val" id="flash-1-value">130 ms</span></label><input id="flash-1" type="range" min="40" max="800" step="10" value="130"></div>
+    </div>
+   </div>
+   <div class="onset-group" data-onset-group="2" hidden>
+    <div class="field"><label for="onset-trim-2">High threshold <span class="val" id="onset-trim-2-value">1.0×</span></label><input id="onset-trim-2" type="range" min="3" max="30" value="10"></div>
+    <div class="field-pair">
+     <div class="field"><label for="holdoff-2">Hold-off <span class="val" id="holdoff-2-value">85 ms</span></label><input id="holdoff-2" type="range" min="30" max="500" step="5" value="85"></div>
+     <div class="field"><label for="flash-2">Flash decay <span class="val" id="flash-2-value">130 ms</span></label><input id="flash-2" type="range" min="40" max="800" step="10" value="130"></div>
+    </div>
+   </div>
+   <p class="hint" id="onset-summary"></p>
+  </div>
+  <div class="section">
+   <div class="section-head"><h3 class="eyebrow">Tempo</h3><span class="section-value"><span id="bpm-min-value">65</span> – <span id="bpm-max-value">180</span> BPM</span></div>
+   <div class="dual"><input id="bpm-min" type="range" min="40" max="240" value="65" aria-label="Tempo from (BPM)"><input id="bpm-max" type="range" min="40" max="240" value="180" aria-label="Tempo to (BPM)"></div>
+   <p class="hint">The tempo estimate looks for a beat only in this range. Narrowing it around the music (e.g. 115–135 for house) keeps it from locking onto half or double the tempo.</p>
+  </div>
+  <div class="section">
+   <div class="section-head"><h3 class="eyebrow">Noise</h3></div>
    <div class="field-pair">
     <div class="field"><label for="noise">Noise floor <span class="val" id="noise-value">0.008</span></label><input id="noise" type="range" min="0" max="50" value="8"></div>
     <div class="field"><label for="adaptive-floor">Adaptive floor <span class="val" id="adaptive-floor-value">0%</span></label><input id="adaptive-floor" type="range" min="0" max="100" value="0"></div>
    </div>
   </div>
   <details class="disclosure"><summary>Details</summary>
-   <p class="hint">Hann-windowed FFT at the selected analysis rate (the top frequency is half that rate), 16 logarithmic bands for the classic preview modes (16/32/64 for the lamp and the lab-preview modes), envelope attack/release, adaptive noise floor, spectral-flux onset detector and an experimental tempo estimate (may be wrong on complex music).</p>
+   <p class="hint">Hann-windowed FFT at the selected analysis rate (the top frequency is half that rate), 16 logarithmic bands for the classic preview modes (16/32/64 for the lamp and the lab-preview modes) with a spectral tilt and an optional per-band reference, a level curve with compression or expansion, envelope attack/release, adaptive noise floor, a spectral-flux onset detector per band group and an experimental tempo estimate (may be wrong on complex music).</p>
+   <p class="hint"><b>Tilt</b> lifts the highs (or the lows) by that many dB per octave from 1 kHz: music loses energy toward the top, so +3…+4.5 dB/oct lets the high bands move as much as the low ones. <b>Band balance</b> normalises each band to its own average of the last few seconds instead of the song's: every band then uses its full range, at the cost of the true balance between them. <b>Bass / Mid / High</b> trim one group by up to ±12 dB. <b>Groups</b> set which bands make up bass, mid and high — their levels, hits and the tempo. <b>Band smoothing</b> blends every band with its neighbors for a calmer spectrum.</p>
+   <p class="hint"><b>Window</b> shapes each frame before the FFT: Hann is the balanced choice; Blackman-Harris keeps a loud bass from leaking into the bands next to it (wider peaks); flat-top reads tone levels exactly but blurs frequencies; rectangular is the sharpest and leaks the most. Tones read the same level in every window. <b>Peak hold</b> keeps a band at its peak before the release starts. <b>Memory</b> is how long the onset threshold remembers the flux: short adapts quickly to quiet and busy parts, long keeps it steady.</p>
   </details>
  </section>
  </div>

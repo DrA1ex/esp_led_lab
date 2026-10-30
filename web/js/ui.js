@@ -80,6 +80,11 @@ for(const [lo,hi] of [['audio-min','audio-max']]){
  $(lo).addEventListener('input',()=>{if(+$(lo).value>+$(hi).value)$(hi).value=$(lo).value;});
  $(hi).addEventListener('input',()=>{if(+$(hi).value<+$(lo).value)$(lo).value=$(hi).value;});
 }
+// Analyzer groups keep at least one band each; the tempo range stays 10 BPM wide.
+for(const [lo,hi,gap] of [['split-mid','split-high',1],['bpm-min','bpm-max',10]]){
+ $(lo).addEventListener('input',()=>{if(+$(lo).value>+$(hi).value-gap){const v=Math.min(+$(lo).value,+$(lo).max-gap);$(lo).value=v;$(hi).value=v+gap;}});
+ $(hi).addEventListener('input',()=>{if(+$(hi).value<+$(lo).value+gap){const v=Math.max(+$(hi).value,+$(hi).min+gap);$(hi).value=v;$(lo).value=v-gap;}});
+}
 
 // Popovers: native [popover] placed under (or above) their button; bottom sheets on phones.
 const POPOVER_API=typeof HTMLElement!=='undefined'&&Object.prototype.hasOwnProperty.call(HTMLElement.prototype,'popover');
