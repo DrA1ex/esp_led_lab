@@ -4,10 +4,10 @@
 // curve, mode-dependent visibility and picking the origin on the preview.
 // The rules mirror firmware audioTransfer() and RemoteReactive::OriginMap.
 
-const ORIGIN_MODES=[1,2,3,4,6,7,11,12,13,14,15,16,18,19,20,21,22,23,24,25];
+const ORIGIN_MODES=[1,2,3,4,6,7,11,12,13,14,15,16,18,19,20,21,22,23,24,25,26,27,28,29];
 // Visualizations (viz_engine.h, shared with the firmware). A lamp renders the
 // ones its hello_ack lists in "visualizations"; older firmware gets Off.
-const LAB_MODES=[13,14,15,16,17,18,19,20,21,22,23,24,25];
+const LAB_MODES=[13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29];
 const CENTERED_MODES=[2,4,7,12];
 const MODE_HINTS={
  0:'Audio does not affect the picture.',
@@ -23,19 +23,23 @@ const MODE_HINTS={
  10:'The signal drives the Light parameter (effect brightness / tint).',
  11:'Upper half follows bass, lower half mids; a strip blends both. Experimental.',
  12:'Band lighting plus a ring on each beat. Experimental.',
- 13:'Level meter with a falling peak dot. Strip: fills from the start (or both ways from the center). Matrix: rises from the bottom, from the middle row, or as a circle with the 2D center.',
- 14:'Strip: all bands spread smoothly along the LEDs, bass to treble. Matrix: a bar per column with falling peaks. Uses the band count sent to the lamp.',
- 15:'Strip: a river of loudness flowing from the start, colored by tone (bass → treble). Matrix: a scrolling spectrogram, newest row at the top (or in the middle).',
- 16:'Each onset launches a comet along the strip (bass, mid and treble in their own colors); on a matrix it is a ring growing from the center.',
- 17:'Treble and onsets sprinkle sparks, bass is a soft glow. Looks the same on any geometry.',
- 18:'The whole lamp breathes with the level, the color follows the tone. Good for short strips and small lamps.',
- 19:'Strip: the loudness history in palette colors. Matrix: the history as bars, or a mirrored waveform.',
- 20:'Three meters for bass, mid and treble: three parts of a strip (or ring), three bars on a matrix.',
- 21:'Fire fed by the music: on a strip it burns from the start (or the center), on a matrix every column is a flame fed by its band. Onsets throw up flares. Try the Flames or Fiery palette.',
- 22:'Aurora: a slow, soft noise curtain that grows, brightens and speeds up with the music; the color follows the tone.',
- 23:'Juggle: eight dots, one per band range, swing along the strip (Lissajous paths on a matrix) and leave trails; louder bands are bigger.',
- 24:'Radial spectrum: on a matrix a rotating “sun” whose rays are the bands, with a bass core; on a strip or ring a symmetric spectrum that rolls along.',
- 25:'Blobs: a lava lamp of four blobs (bass, bass, mid, treble) that swell with their band, drift and merge.'
+ 13:'Loudness. Level meter with a falling peak dot. Strip: fills from the start (or both ways from the center). Matrix: rises from the bottom, from the middle row, or as a circle with the 2D center.',
+ 14:'Spectrum. Strip: all bands spread smoothly along the LEDs, bass to treble. Matrix: a bar per column with falling peaks. Uses the band count sent to the lamp.',
+ 15:'Spectrum on a matrix, loudness on a strip. Strip: a river of loudness flowing from the start, colored by tone (bass → treble). Matrix: a scrolling spectrogram, newest row at the top (or in the middle).',
+ 16:'Bass, mid and treble onsets. Each onset launches a comet along the strip (bass, mid and treble in their own colors); on a matrix it is a ring growing from the center.',
+ 17:'Bass, mid and treble. Treble and onsets sprinkle sparks, bass is a soft glow. Looks the same on any geometry.',
+ 18:'Loudness, or the spectrum (Effect parameters → Drawn from). The whole lamp breathes with the level, the color follows the tone; with the spectrum every place breathes with its own band. Good for short strips and small lamps.',
+ 19:'Loudness. Strip: the loudness history in palette colors. Matrix: the history as bars, or a mirrored waveform.',
+ 20:'Bass, mid and treble. Three meters for bass, mid and treble: three parts of a strip (or ring), three bars on a matrix.',
+ 21:'Spectrum (or bass, loudness, hits: Effect parameters → Fuel). On a strip it burns from the start (or the center), on a matrix every column is a flame fed by its band; onsets throw up flares. Height, wind, embers and real heat colors are in the effect parameters.',
+ 22:'Loudness, or the spectrum (Effect parameters → Drawn from). Aurora: a slow, soft noise curtain that grows, brightens and speeds up with the music; with the spectrum each part of the curtain follows its band.',
+ 23:'Spectrum. Juggle: eight dots, one per band range, swing along the strip (Lissajous paths on a matrix) and leave trails; louder bands are bigger.',
+ 24:'Spectrum. Radial spectrum: on a matrix a rotating “sun” whose rays are the bands, with a bass core; on a strip or ring a symmetric spectrum that rolls along.',
+ 25:'Bass, mid and treble. Blobs: a lava lamp of four blobs (bass, bass, mid, treble) that swell with their band, drift and merge.',
+ 26:'Constructor. Particles: hits launch sparks — fountains, rain, bursts, bubbles or comets. By default every band hit launches from its own place (bass on the left / at the start, treble on the right / further), colored by its frequency.',
+ 27:'Constructor. Field: a moving pattern (clouds, plasma, rings, stripes, spiral). By default every value of the pattern is a band, so each part lights with its own frequency; the bass pumps the motion and kicks it on hits.',
+ 28:'Constructor. Zones: the lamp split into columns, rows, rings, sectors or tiles. By default every zone is an equalizer band; or zones flash on hits in a pattern (chase, random, bounce, build up).',
+ 29:'Spectrum: follows the dominant frequency (the loudest band, refined between bands) — the melody or the bass line, inside a part of the spectrum you choose. A dot, a bar or a scrolling trace.'
 };
 
 // Origin shift: the slider counts LEDs (columns); the wire format and the
@@ -104,7 +108,7 @@ function refreshTuningUi(s,g){
  $('viz-decay-value').textContent=s['viz-decay']+'%';$('viz-speed-value').textContent=s['viz-speed']+'%';
  $('viz-hint').textContent=(strip?`Strip (${g.w}×${g.h}): every row shows the same.`:`Matrix (${g.w}×${g.h}).`)+
   ` Spectrum uses ${previewBands()} bands, the count sent to the lamp (Lamps → Stream settings).`+
-  ' Lab preview only: the lamp is sent Off until the mode is added to the firmware.';
+  ' A lamp whose firmware does not list this mode in hello_ack is sent Off.';
  const centered=CENTERED_MODES.includes(mode)||(strip&&LAB_MODES.includes(mode)&&s['viz-mirror']),at=originColumn(s,g,centered),unit=isStrip(g)?'LED':'column';
  const where=at<0?'off the edge':`${unit} ${at+1} of ${g.w}`;
  $('origin-hint').textContent=(centered?`Center: ${where}. `:`Start: ${where}, running ${s['origin-reverse']?'left':'right'}. `)+

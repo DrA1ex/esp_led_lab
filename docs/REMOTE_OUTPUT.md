@@ -180,8 +180,8 @@ Changes made together with the firmware (`esp_led_lamp`, `feature/remote-audio-d
 ## Visualizations on the lamp (2026-10-29)
 
 `src/viz_engine.h` is shared byte-for-byte with the firmware
-(`esp_led_lamp/src/remote_audio/viz_engine.h`, effect ids 12–24 = lab modes
-13–25). `render.cpp` and the firmware only supply the inputs and the pixel
+(`esp_led_lamp/src/remote_audio/viz_engine.h`, effect ids 12–28 = lab modes
+13–29; 12–24 before 2026-10-30). `render.cpp` and the firmware only supply the inputs and the pixel
 output, so the lamp draws what the preview shows (random sparks aside).
 The engine is integer only (Q12 levels, ms, 1/16-LED positions), because the
 ESP8266 has no FPU; the lab host converts its float features to Q12.
@@ -211,3 +211,28 @@ per lamp instead of one stream for all:
 
 Geometry itself stays in the firmware: the stream carries audio features, not
 pixels, and every lamp maps them onto its own WIDTH × HEIGHT.
+
+## Effect parameters (2026-10-30)
+
+Four more visualizations — Particles, Field, Zones (the constructors) and
+Melody, lab modes 26–29 = firmware ids 25–28 — and per-mode **effect
+parameters** for all of them: up to 11 values 0–255 in the order of
+`Viz::paramDefaults()`, named in `web/js/fx-params.js`. Defaults reproduce
+the earlier picture of the existing modes (Fire has a new look).
+
+Firmware with them adds `"params"` to `hello_ack.capabilities` and
+`"params_version":1`. The lab then sends, after the `config` and again only
+when a value changes:
+
+```json
+{"type":"params","session":12345,"version":1,"effect":26,"values":[0,0,100,100,170,90,110,90,0,128]}
+```
+
+`effect` is the lab's mode number (26 = Particles; the firmware subtracts 1 for the lab
+client, like `audio_effect`); `values` are at most the mode's count, missing
+ones are defaults. The lamp replies `params_ack` or `error`/`invalid_params`.
+Older firmware gets no `params` (and Off for the four new modes, which it
+does not list in `visualizations`). The parameter table per mode is in the
+firmware's `docs/REMOTE_AUDIO_PROTOCOL.md` (*Effect parameters*);
+`tools/remote_audio_sender.py --effect 25 --params 0,4,200` sends them
+without the lab.

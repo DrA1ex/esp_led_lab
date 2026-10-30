@@ -17,7 +17,7 @@ static unsigned char gamma_lut[256];
 static float features[225]; // 0..15 spectrum; 16..21 onset; 22..23 volume; 24..151 wave; 152..155 tempo; 156..158 low/mid/high levels; 159 line; 160..223 lamp bands; 224 lamp band count
 static int W=16,H=16;
 static int color_fx=0,bright_fx=0,speed=82,scale=190,light=180;
-static int audio_fx=3; // Off, 10 firmware modes, 2 experimental modes, 13 lab-only visualizations (13..25)
+static int audio_fx=3; // Off, 10 firmware modes, 2 experimental modes, 17 lab-only visualizations (13..29)
 static float audio_mix=1.f;
 static int audio_min=0,audio_max=255;
 // New-DSP-only expressive modulation; the legacy WASM instance receives zeros
@@ -159,9 +159,9 @@ static inline float provider_at(int index){
 }
 static int pulse_phase(float phase,int offset){int value=fl_round(phase+offset)%1024;if(value<0)value+=1024;if(value<256)return 255-value;if(value<512)return 0;if(value<768)return value-512;return 255;}
 
-// ---- Geometry-aware visualizations, audio modes 13..25 ----
+// ---- Geometry-aware visualizations, audio modes 13..29 ----
 // The engine (viz_engine.h) is shared with the firmware, which implements
-// the same modes as AudioEffectEnum 12..24. Here it reads the preview
+// the same modes as AudioEffectEnum 12..28. Here it reads the preview
 // features: bands sent to the lamp (features[160..], count at [224]; 0 falls
 // back to the 16 preview bands), levels through scaled_audio(), so the
 // reaction range and curve apply.
@@ -183,6 +183,8 @@ struct VizHost {
  int lineSource()const{return q12((1.f-line_expression)*features[23]+line_expression*features[159]);}
  int level(int g)const{return q12(features[156+g]);}
  int pulse(int g)const{return q12(features[16+g]);}
+ // Predicted beat pulse x tempo confidence (the Beat signal source).
+ int beat()const{return q12(features[155]*features[153]);}
  int bandCount()const{const int n=band_count();return n?n:16;}
  int band(int i)const{return q12(band_count()?features[160+i]:features[i]);}
  int wave(int index,int span)const{return q12(wave_value(index,span));}
@@ -193,6 +195,12 @@ struct VizHost {
  void put(int x,int y,uint8_t v,uint8_t hue){
   if(viz_color){multiply_pixel(x,y,1.f-audio_mix+audio_mix*v/255.f);return;}
   const unsigned c=pal(unsigned(hue)*15,v);
+  if(audio_mix>=1.f)pixel(x,y,c);else rgb_lerp_pixel(x,y,c,u8((int)(audio_mix*255.f)));
+ }
+ // A colour of the mode's own (Fire's heat colours); the mask keeps its brightness.
+ void rgb(int x,int y,uint8_t r,uint8_t g,uint8_t b){
+  if(viz_color){multiply_pixel(x,y,1.f-audio_mix+audio_mix*maxi(r,maxi(g,b))/255.f);return;}
+  const unsigned c=(unsigned(r)<<16)|(unsigned(g)<<8)|b;
   if(audio_mix>=1.f)pixel(x,y,c);else rgb_lerp_pixel(x,y,c,u8((int)(audio_mix*255.f)));
  }
 };
@@ -315,7 +323,7 @@ __attribute__((visibility("default"))) int max_width(){return MAX_W;}
 __attribute__((visibility("default"))) int max_height(){return MAX_H;}
 __attribute__((visibility("default"))) void set_dimensions(int w,int h){w=maxi(1,mini(w,MAX_W));h=maxi(1,mini(h,MAX_H));if(w*h>MAX_PIX)h=maxi(1,MAX_PIX/w);if(w==W&&h==H)return;W=w;H=h;for(int i=0;i<MAX_PIX*4;i++)rgba[i]=0;}
 __attribute__((visibility("default"))) void set_palette(int index){index=maxi(0,mini(index,78));const int n=stop_counts[index];for(int j=0;j<16;j++){float pos=(float)j*(n-1)/15.f;int lo=(int)pos;int hi=mini(lo+1,n-1);palette[j]=blend(stops[index][lo],stops[index][hi],u8((int)((pos-lo)*255)));}}
-__attribute__((visibility("default"))) void set_effects(int cf,int bf,int af){if(cf!=color_fx){phase_color=0;}if(bf!=bright_fx)phase_bright=0;color_fx=maxi(0,mini(cf,9));bright_fx=maxi(0,mini(bf,4));audio_fx=maxi(0,mini(af,25));}
+__attribute__((visibility("default"))) void set_effects(int cf,int bf,int af){if(cf!=color_fx){phase_color=0;}if(bf!=bright_fx)phase_bright=0;color_fx=maxi(0,mini(cf,9));bright_fx=maxi(0,mini(bf,4));audio_fx=maxi(0,mini(af,VIZ_FIRST+Viz::MODE_COUNT-1));}
 __attribute__((visibility("default"))) void set_parameters(int s,int sc,int l,float mix){speed=maxi(0,mini(s,255));scale=maxi(0,mini(sc,255));light=maxi(0,mini(l,255));audio_mix=clampf(mix,0.f,1.f);}
 __attribute__((visibility("default"))) void set_audio_range(int lo,int hi){audio_min=maxi(0,mini(lo,255));audio_max=maxi(0,mini(hi,255));}
 __attribute__((visibility("default"))) void set_reaction_tuning(float spectrum_shape,float onset_boost,float line_response,int floor_speed){
@@ -329,6 +337,15 @@ __attribute__((visibility("default"))) void set_audio_window(int lo,int hi,int g
 __attribute__((visibility("default"))) uint16_t* curve_table_ptr(){return curve_table;}
 // Lab-only modes 13..20: palette (0) or effect (1) colours, mirror, decay and speed 0..1, auto-level.
 __attribute__((visibility("default"))) void set_visualization(int color,int mirror,float decay,float motion,int autolevel_on){viz_color=color!=0;viz.settings.mirror=mirror!=0;viz.settings.autolevel=autolevel_on!=0;viz.settings.decay=uint8_t(clampf(decay,0.f,1.f)*100.f+.5f);viz.settings.speed=uint8_t(clampf(motion,0.f,1.f)*100.f+.5f);}
+// Effect parameters (viz_engine.h), by engine mode id = audio mode - 13: fill
+// viz_params_ptr() and call set_viz_params(mode); other modes keep their defaults.
+__attribute__((visibility("default"))) uint8_t* viz_params_ptr(){return viz.settings.params;}
+__attribute__((visibility("default"))) void set_viz_params(int mode){viz.settings.paramsMode=mode>=0&&mode<Viz::MODE_COUNT?uint8_t(mode):0xff;}
+__attribute__((visibility("default"))) int viz_mode_count(){return Viz::MODE_COUNT;}
+__attribute__((visibility("default"))) int viz_max_params(){return Viz::MAX_PARAMS;}
+__attribute__((visibility("default"))) int viz_params_version(){return Viz::PARAMS_VERSION;}
+__attribute__((visibility("default"))) int viz_param_count(int mode){return mode>=0&&mode<Viz::MODE_COUNT?Viz::paramCount(uint8_t(mode)):0;}
+__attribute__((visibility("default"))) int viz_param_default(int mode,int i){return mode>=0&&mode<Viz::MODE_COUNT&&i>=0&&i<Viz::MAX_PARAMS?Viz::paramDefaults(uint8_t(mode))[i]:0;}
 __attribute__((visibility("default"))) void set_origin(int shift,int y,int reverse,int ring,int radial){origin_shift=maxi(-500,mini(shift,500));origin_y=maxi(0,mini(y,1000));origin_reverse=reverse!=0;origin_ring=ring!=0;origin_radial=radial!=0;}
 __attribute__((visibility("default"))) void reset_render(){time_ms=phase_color=phase_bright=0;fastled_seed=1337;viz.invalidate();for(int i=0;i<100;i++)particles[i].brightness=0;for(int i=0;i<MAX_PIX*4;i++)rgba[i]=0;}
 __attribute__((visibility("default"))) void render_frame(float dt){

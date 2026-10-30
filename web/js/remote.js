@@ -54,7 +54,9 @@ const RemoteAudio = (() => {
    this.sent=0;this.dropped=0;this.buffered=0;this.received=0;this.delay=NaN;this.syncId=0;this.pending=new Map();this.syncSamples=[];
    this.reconnectAttempts=0;this.reconnectAt=0;this.manual=false;this.lastSync=0;this.lastStatus=0;this.lastConfig='';this.clockSamples=0;
    this.receiverPlaying=false;this.started=false;this.lastError='';this.receiverDropped=0;this.receiverStale=0;this.lastStartAt=0;
-   this.width=0;this.height=0;this.capabilities=[];this.visualizations=[];this.power=null;this.brightness=null;}
+   this.width=0;this.height=0;this.capabilities=[];this.visualizations=[];this.paramsVersion=0;this.lastParams='';this.power=null;this.brightness=null;}
+  // Effect parameters ("params" capability) in this layout version.
+  acceptsParams(version){return this.capabilities.includes('params')&&this.paramsVersion===version;}
   // Lamp power / brightness as last reported (null: unknown, e.g. older firmware).
   lampState(msg){
    if(typeof msg.power==='boolean')this.power=msg.power;
@@ -109,6 +111,7 @@ const RemoteAudio = (() => {
     this.capabilities=Array.isArray(msg.capabilities)?msg.capabilities.map(String):[];
     // Visualization effect ids (firmware numbering) -> lab audio modes (+1).
     this.visualizations=Array.isArray(msg.visualizations)?msg.visualizations.map(n=>Number(n)+1).filter(Number.isInteger):[];
+    this.paramsVersion=Number(msg.params_version)||0;this.lastParams='';
     this.power=null;this.brightness=null;this.lampState(msg);
     this.status='synchronizing';this.reconnectAttempts=0;this.syncBurst();this.notify();
    }else if(type==='sync_ack'){
@@ -171,7 +174,7 @@ const RemoteAudio = (() => {
    if(this.pending.size>10)this.pending.delete(this.pending.keys().next().value);
    this.lastSync=t0;this.sendText({type:'sync',id,t0});
   }
-  stop(){if(this.session!==null)this.sendText({type:'stop',session_id:this.session});this.session=null;this.started=false;this.receiverPlaying=false;this.lastConfig='';}
+  stop(){if(this.session!==null)this.sendText({type:'stop',session_id:this.session});this.session=null;this.started=false;this.receiverPlaying=false;this.lastConfig='';this.lastParams='';}
   tick(t){
    // Handshake watchdogs: a lamp that never answers otherwise looks like a hang.
    if(this.socket&&this.status==='connecting'&&t-this.stageAt>5000){
@@ -184,7 +187,9 @@ const RemoteAudio = (() => {
     if(t-this.lastStatus>2000){this.lastStatus=t;this.sendText({type:'status'});}
    }
   }
-  stream(frame,config){
+  // params: {version, effect, values} for the effect in config, or null. Sent
+  // after the config on a change, only to firmware that takes that version.
+  stream(frame,config,params=null){
    if(!this.selected||this.status!=='ready'||!this.synced||this.socket?.readyState!==1)return;
    if(!this.supported.includes(frame.bands.length)){this.dropped++;this.notify();return;}
    if(this.socket.bufferedAmount>8192){this.dropped++;this.notify();return;}
@@ -192,6 +197,10 @@ const RemoteAudio = (() => {
    if(this.session!==frame.session){this.stop();this.sendText({type:'config',...config});
     this.sendText({type:'start',session_id:frame.session,band_count:frame.bands.length,rate_hz:50});this.session=frame.session;this.sessionBands=frame.bands.length;this.lastStartAt=now();this.started=false;this.lastConfig=serialized;
    }else if(serialized!==this.lastConfig){this.lastConfig=serialized;this.sendText({type:'config',...config});}
+   if(params&&this.acceptsParams(params.version)){
+    const p=JSON.stringify(params);
+    if(p!==this.lastParams){this.lastParams=p;this.sendText({type:'params',...params});}
+   }
    this.socket.send(serialize(frame));this.sent++;
   }
  }
@@ -202,8 +211,8 @@ const RemoteAudio = (() => {
   remove(d){d.disconnect();this.devices=this.devices.filter(x=>x!==d);this.onChange();}
   tick(){const t=now();for(const d of this.devices)d.tick(t);}
   stop(){for(const d of this.devices)d.stop();this.onChange();}
-  // frame / config may be functions of the device (per-lamp adaptation).
-  stream(frame,config){for(const d of this.devices)d.stream(typeof frame==='function'?frame(d):frame,typeof config==='function'?config(d):config);}
+  // frame / config / params may be functions of the device (per-lamp adaptation).
+  stream(frame,config,params=null){const of=(v,d)=>typeof v==='function'?v(d):v;for(const d of this.devices)d.stream(of(frame,d),of(config,d),of(params,d));}
   get available(){return this.devices.some(d=>d.selected&&d.status==='ready'&&d.synced);}
   // Lamps that take power / brightness commands right now.
   get controllable(){return this.devices.filter(d=>d.controllable);}

@@ -28,13 +28,14 @@ with sync_playwright() as p:
     page.wait_for_function('STATE.ready', timeout=15000)
 
     # Choices: one radio per option, grouped; picking one drives the select and the renderer.
-    assert page.locator('[name="choice-audio-mode"]').count() == page.locator('#audio-mode option').count() == 26
+    assert page.locator('[name="choice-audio-mode"]').count() == page.locator('#audio-mode option').count() == 30
     assert page.locator('#audio-mode-hint').inner_text() == 'Audio does not affect the picture.'
     page.locator('#tab-reaction').click()
     page.locator('.choices[data-for="audio-mode"] label', has_text='Fire').click()
     assert page.evaluate("$('audio-mode').value==='21' && settings()['audio-mode']===21")
-    assert 'Fire fed by the music' in page.locator('#audio-mode-hint').inner_text()
-    assert page.locator('#viz-decay').is_visible() and page.locator('[data-for="param-source"]').is_visible()
+    assert 'every column is a flame fed by its band' in page.locator('#audio-mode-hint').inner_text()
+    assert page.locator('#viz-speed').is_visible() and page.locator('[data-for="param-source"]').is_visible()
+    assert page.locator('#viz-decay').is_hidden(), 'Fire has no fall-off: its height and intensity parameters set it'
     # A section with no field for the mode disappears (Spectrum Bars has no signal settings).
     page.locator('.choices[data-for="audio-mode"] label', has_text='Spectrum Bars').click()
     assert page.locator('#signal-title').is_hidden() and page.locator('#viz-decay').is_visible()

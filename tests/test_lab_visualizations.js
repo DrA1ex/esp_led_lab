@@ -1,9 +1,9 @@
-// Lab-only visualizations 13..25 on every geometry class: silence stays dark,
+// Lab-only visualizations 13..29 on every geometry class: silence stays dark,
 // sound lights the LEDs, strips show the same on every row (except random Sparkles), the lamp band
 // count is used, and mirroring is symmetric.
 const fs=require('fs'),path=require('path'),assert=require('node:assert/strict');
 const mod=new WebAssembly.Module(fs.readFileSync(path.join(__dirname,'../web/wasm/render.wasm')));
-const MODES=[13,14,15,16,17,18,19,20,21,22,23,24,25];
+const MODES=[13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29];
 
 // Palette colours on a white base; `fill(f, frame)` sets the features per frame.
 function run(w,h,mode,fill,{frames=40,mirror=0,bands=32,auto=0,setup}={}){
@@ -79,4 +79,4 @@ for(const mode of [13,14,19,20]){
  if(fs.existsSync(lamp))assert.equal(fs.readFileSync(lamp,'utf8'),fs.readFileSync(path.join(__dirname,'../src/viz_engine.h'),'utf8'),
   'src/viz_engine.h differs from esp_led_lamp/src/remote_audio/viz_engine.h: copy it over');
 }
-console.log('PASS lab visualizations 13..25 on strips 7/153, 72x2, matrices 16/128: silence, music, rows, mirror, bands');
+console.log('PASS lab visualizations 13..29 on strips 7/153, 72x2, matrices 16/128: silence, music, rows, mirror, bands');

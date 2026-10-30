@@ -108,7 +108,7 @@ function remoteTick(){
   for(let i=0;i<3;i++)if(f.events[i]>0)mask|=(1<<i);
  RS.lastSentSample=pick.sample;
  const seq=RS.seq++,frames={};
- REMOTE.stream(d=>{const n=lampBands(d);return frames[n]||=remoteFrame(pick,timestamp,mask,n,seq);},lampConfig);
+ REMOTE.stream(d=>{const n=lampBands(d);return frames[n]||=remoteFrame(pick,timestamp,mask,n,seq);},lampConfig,lampParams);
 }
 
 const modeName=v=>[...$('audio-mode').options].find(o=>+o.value===+v)?.textContent||String(v);
@@ -199,6 +199,7 @@ function updateLampCard(d){
   if(!d.capabilities.includes('control'))stats.push('<span class="warn">older firmware: power and brightness over HTTP, state unknown</span>');
   if(!d.capabilities.includes('tuning'))stats.push('<span class="warn">older firmware: no reaction tuning</span>');
   else if(!d.visualizations.length)stats.push('<span class="warn">older firmware: no visualizations</span>');
+  else if(!d.acceptsParams(FX_PARAMS_VERSION))stats.push('<span class="warn">older firmware: effect parameters stay at their defaults</span>');
   const mode=lampConfig(d).audio_effect;
   stats.push(`sends ${lampBands(d)} bands · ${mode?modeName(mode):'audio off'}`);
  }

@@ -10,6 +10,7 @@ const LAMP_GROUPS={
  Effect:['color','palette','brightness','speed','scale','light'],
  Reaction:['audio-mode','param-source','spectrum-shape','spectrum-onset','viz-color','viz-auto','viz-mirror','viz-decay','viz-speed',
   'input-min','input-max','input-curve','input-gate','audio-min','audio-max'],
+ Parameters:FX_IDS,
  Start:['origin-shift','origin-y','origin-reverse','origin-ring','origin-radial']
 };
 const LAMP_KEYS=Object.values(LAMP_GROUPS).flat();
@@ -107,6 +108,14 @@ function lampConfig(d){
  // A visualization this lamp's firmware does not render: Off instead.
  if(LAB_MODES.includes(c.audio_effect)&&!d.visualizations.includes(c.audio_effect))c.audio_effect=0;
  return c;
+}
+
+// Effect parameters of the visualization this lamp runs, for lamps with the
+// "params" capability ({type:'params'} message), else null.
+function lampParams(d){
+ const effect=lampConfig(d).audio_effect;
+ if(!FX_MODES.includes(effect))return null;
+ return {version:FX_PARAMS_VERSION,effect,values:fxValues(lampSettings(d),effect)};
 }
 
 // Editing: the controls show the target; changes go back to it.

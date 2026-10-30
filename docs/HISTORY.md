@@ -5,6 +5,29 @@ Dated notes from the lab's development before it became a git repository
 `dist/`, WASM binaries in `web/wasm/`, `app.js` was split into `web/js/*.js`
 and `build_standalone.py` moved to `scripts/`.
 
+## Effect parameters, four new modes, the library loader (2026-10-30)
+
+- **Effect parameters**: every visualization takes up to 11 values (the
+  `params` message, `PARAMS_VERSION` 1); the Reaction tab shows the running
+  mode's ones. Existing modes keep their picture by default; Fire was
+  rewritten (heat colors of its own via the host's `rgb()`, wind, flame
+  height, embers, a choice of fuel).
+- **New modes** 26–29: Particles, Field, Zones, Melody. The audio modes are
+  grouped by what drives them (spectrum / bass, mid, treble / loudness /
+  constructors) and each hint says so.
+- **Brightness** for Particles, Field, Zones and Melody (×1 = as drawn, up
+  to ×2), after they looked dim next to the other modes: a spark now keeps
+  its full light for most of its life and its sub-LED spread no longer
+  halves it (Particles ~3× brighter on the demo), a quiet Melody note shows
+  (its light follows the square root of the level, size 100), Field reads
+  eight averaged parts of the spectrum so neighbouring pixels no longer land
+  on unrelated bands (a speckle) and starts with Clouds, Particles' fountain
+  speed 100 keeps the arcs inside a 16×16 matrix.
+- **Library loader**: opening or restoring a folder shows the tracks and
+  folders found so far, the folder being read and Cancel (the list stays as
+  it was; a cancelled restore offers *Reopen*). `tests/test_loader_browser.py`
+  drives it with a slow fake directory handle.
+
 ## UI and audio overlay corrections (revision 2026-10-28)
 
 - On desktop, the compact, two-column matrix/player/Remote Output workspace stays sticky beside the effects panel. Matrix previews are capped at 208 px instead of stretching to fill the left column. On narrow screens the compact floating mirror follows scrolling.

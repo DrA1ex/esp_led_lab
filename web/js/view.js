@@ -45,8 +45,12 @@ function refreshLabels(){
   const curve=curveExponent(s);fillCurveTable(m,curve);
   m.set_audio_window(s['input-min'],s['input-max'],s['input-gate']?1:0,curve);
   m.set_visualization(+s['viz-color'],s['viz-mirror']?1:0,s['viz-decay']/100,s['viz-speed']/100,s['viz-auto']?1:0);m.set_origin(...originArgs(s,g.w));
+  // Effect parameters of the running visualization (engine mode = audio mode - 13).
+  const mode=s['audio-mode'];
+  if(FX_MODES.includes(mode)){new Uint8Array(m.memory.buffer,m.viz_params_ptr(),FX_MAX).set(fxValues(s,mode));m.set_viz_params(mode-13);}
+  else m.set_viz_params(-1);
  }
- refreshTuningUi(s,g);
+ refreshTuningUi(s,g);refreshFxUi(s,g);
  commitEditor(settings()); // after refreshTuningUi, which may narrow the start offset
  syncChoices();paintRanges();scheduleThumbs(s);scheduleSave();
  refreshEffective();
@@ -198,7 +202,7 @@ function drawStrip(canvas,data,n,h,dots){
 function meters(){
  const vals=STATE.newSpectrum;
  renderSpectrum();
- const mode=+($('audio-mode').value),isWave=[1,2].includes(mode),isParam=[5,6,7,8,9,10,13,15,16,18,21,22,23,24,25].includes(mode);
+ const mode=+($('audio-mode').value),isWave=[1,2].includes(mode),isParam=[5,6,7,8,9,10,13,15,16,18,21,22,23,24,25,26,27,28].includes(mode);
  const strength=isParam?newControlSource():(isWave?STATE.newLoudness:Math.max(...vals));
  $('new-label').textContent=`Signal ${Math.round(strength*100)}% · LEDs ${Math.round(STATE.output.new*100)}%`;
  drawTransfer(mode?strength:NaN);

@@ -27,7 +27,9 @@ The window is a music player around an LED preview:
   playlist. **Open folder** replaces the list with a folder's audio files
   (recursive, natural sort; Chrome/Edge remember it between reloads, other
   browsers use a folder upload), **Add files** and drag-and-drop of files or
-  folders anywhere on the page append. The **⋯** menu holds the demo beat, the
+  folders anywhere on the page append. While a folder is read (a big library
+  or a slow disk can take seconds) the column shows the tracks and folders
+  found so far with a **Cancel** that keeps the list as it was. The **⋯** menu holds the demo beat, the
   microphone and clearing the list. The playlist button at the right of the
   player hides or shows the column.
 - **Stage** (center): with lamps added, a switcher on top picks **All lamps**
@@ -59,6 +61,30 @@ Settings, lamps with their own settings, names and max brightness, the LED
 layout, the open tab and whether the music column is hidden are remembered in
 the browser; **? → Reset all settings** returns to the defaults (lamps and
 their names stay).
+
+## Audio modes and effect parameters
+
+The **Reaction** tab's audio modes are grouped by what drives them:
+
+- **Spectrum**, **Loudness**, **Drives a parameter**, **Experimental**: the
+  firmware's own audio modes 1–12, which modulate the color effect.
+- **Visualizations** draw the picture themselves (`src/viz_engine.h`, shared
+  with the firmware): *spectrum* (Spectrum Bars, Flow, Fire, Juggle, Radial
+  Spectrum, Melody — Melody follows the dominant frequency), *bass, mid,
+  treble* (the meters, Pulses, Sparkles, Blobs) and *loudness* (VU Meter,
+  Waveform, Mood, Aurora).
+- **Constructors**: Particles, Field and Zones, whose parameters pick the
+  shape, what launches or lights it, the motion and the colors.
+
+The hint under the list says what drives the selected mode. **Effect
+parameters** (under Visualization) are the selected mode's own settings:
+up to 11 values per mode, e.g. Fire's fuel, height and wind, Particles'
+shape, trigger, speed and gravity, Zones' layout and pattern. Particles,
+Field, Zones and Melody end with **Brightness** (×1 = as drawn, up to ×2).
+They are ordinary settings: remembered, reset by the section's ↺, set per
+lamp, and sent to lamps whose firmware has the `params` capability (older
+firmware draws the mode with its defaults; see
+[Remote Output](docs/REMOTE_OUTPUT.md#effect-parameters-2026-10-30)).
 
 ## Lamps
 
@@ -226,7 +252,7 @@ normal builds work offline. To regenerate its browser bundle, run
 ```
 src/                 C++ sources compiled to WebAssembly
   render.cpp         effect renderer (ported color/brightness/audio effects)
-  viz_engine.h       visualizations 13..25 (integer only), shared byte-for-byte with the firmware
+  viz_engine.h       visualizations 13..29 and their parameters (integer only), shared byte-for-byte with the firmware
   dsp.cpp            FFT/onset/BPM DSP (+ the firmware's original analyzers, used by tests)
   fastled_compat.h   FastLED 3.6.0 fixed-point math port
   tables.h           lookup tables
@@ -239,6 +265,7 @@ web/                 development page (served as-is)
   js/lamps.js        per-lamp settings: All lamps vs a lamp's own values, the edited target, max brightness
   js/remote-ui.js    feature snapshots, presentation timing, lamp cards, power / brightness, target switcher
   js/tuning.js       reaction range, start point, transfer curve, mode hints
+  js/fx-params.js    effect parameters: names, ranges and defaults per mode, their controls
   js/view.js         settings → WASM, canvas painting, meters
   js/dsp-view.js     the Analyzer tab's DSP view: what each analyzer setting does to the signal
   js/ui.js           choices bound to the selects, sliders, popovers, tabs, music column,

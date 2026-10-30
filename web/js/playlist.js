@@ -108,32 +108,77 @@ function renderPlaylist(){
  if(list.dataset.html!==html){list.innerHTML=html;list.dataset.html=html;list.querySelector('.current')?.scrollIntoView?.({block:'nearest'});}
  const n=PL.tracks.length;
  $('pl-count').textContent=n?(q?`${rows.length} of ${n}`:`${n} track${n===1?'':'s'}`):'';
- $('pl-empty').hidden=n>0;$('pl-search-box').hidden=n<8&&!q;$('pl-clear').disabled=!n&&!PL.folder;
+ $('pl-empty').hidden=n>0||!$('pl-loading').hidden;$('pl-search-box').hidden=n<8&&!q;$('pl-clear').disabled=!n&&!PL.folder;
  $('next').disabled=!n;
 }
 let lastPlaying=null;
 setInterval(()=>{if(STATE.playing!==lastPlaying){lastPlaying=STATE.playing;renderPlaylist();mediaSession();}},250);
 
+// Library loader: reading a large folder (or a slow disk) takes seconds, so
+// the music column and the player status show what is going on, with counts
+// (the total is unknown until the end) and a Cancel button. One job at a time;
+// a newer one replaces the older.
+const LOAD={job:null};
+const count=n=>n.toLocaleString('en-US');
+function startLoading(text){
+ if(LOAD.job)LOAD.job.cancelled=true;
+ const job={text,tracks:0,folders:0,where:'',cancelled:false,painted:0};
+ LOAD.job=job;$('pl-loading-text').textContent=text;$('pl-loading-detail').textContent='';
+ $('pl-loading').hidden=false;$('pl-empty').hidden=true;$('status').textContent=text;
+ return job;
+}
+function paintLoading(job,force){
+ if(job!==LOAD.job)return;
+ const t=performance.now();if(!force&&t-job.painted<100)return;job.painted=t;
+ const found=`${count(job.tracks)} track${job.tracks===1?'':'s'} · ${count(job.folders)} folder${job.folders===1?'':'s'}`;
+ $('pl-loading-detail').textContent=job.where?`${found} · ${job.where}`:found;
+ $('status').textContent=`${job.text} ${count(job.tracks)} tracks`;
+}
+function stopLoading(job){
+ if(job!==LOAD.job)return;
+ LOAD.job=null;$('pl-loading').hidden=true;renderPlaylist();
+}
+$('pl-loading-cancel').onclick=()=>{const job=LOAD.job;if(!job)return;job.cancelled=true;stopLoading(job);$('status').textContent='Reading the folder was cancelled';};
+const yieldToPage=()=>new Promise(ok=>setTimeout(ok,0));
+class Cancelled extends Error{constructor(){super('cancelled');this.name='Cancelled';}}
+
 // Folder: the directory picker (Chrome / Edge) or <input webkitdirectory>.
-async function scanDirectory(dir,prefix=''){
- const out=[];
+// job: the loader's counters; the scan gives the page a chance to paint now and then.
+async function scanDirectory(dir,prefix='',job={tracks:0,folders:0}){
+ const out=[];let seen=0;
+ job.folders++;job.where=prefix.replace(/\/$/,'');
  for await(const [name,h] of dir.entries()){
-  if(h.kind==='directory')out.push(...await scanDirectory(h,prefix+name+'/'));
-  else if(AUDIO_EXT.test(name))out.push({path:prefix+name,handle:h});
+  if(job.cancelled)throw new Cancelled();
+  if(h.kind==='directory')out.push(...await scanDirectory(h,prefix+name+'/',job));
+  else if(AUDIO_EXT.test(name)){out.push({path:prefix+name,handle:h});job.tracks++;}
+  if(++seen%64===0){paintLoading(job);await yieldToPage();}
  }
+ paintLoading(job);
  return out;
 }
-async function openDirectory(dir){
- $('status').textContent='Reading the folder…';
- const items=await scanDirectory(dir);
- PL.folder=dir.name;addTracks(items,true);rememberFolder(dir);showReopen(null);
- $('status').textContent=items.length?`Folder «${dir.name}»: ${items.length} tracks`:`No audio files in «${dir.name}»`;
- return items.length;
+// Lists the folder; false when the job was cancelled (the list stays as it was).
+async function openDirectory(dir,job=startLoading(`Reading «${dir.name}»…`)){
+ job.text=`Reading «${dir.name}»…`;$('pl-loading-text').textContent=job.text;
+ try{
+  let items;
+  try{items=await scanDirectory(dir,'',job);}
+  catch(err){if(err instanceof Cancelled)return false;throw err;}
+  if(job.cancelled)return false;
+  PL.folder=dir.name;addTracks(items,true);rememberFolder(dir);showReopen(null);
+  $('status').textContent=items.length?`Folder «${dir.name}»: ${count(items.length)} tracks`:`No audio files in «${dir.name}»`;
+  return items.length;
+ }finally{stopLoading(job);}
 }
 async function pickFolder(){
  if(typeof window.showDirectoryPicker==='function'){
-  try{const dir=await window.showDirectoryPicker({id:'esp-led-lab-music',mode:'read'});if(await openDirectory(dir))autoplay(0);return;}
+  let dir;
+  try{dir=await window.showDirectoryPicker({id:'esp-led-lab-music',mode:'read'});}
   catch(err){if(err?.name==='AbortError')return;console.warn('Directory picker unavailable, using the file input:',err);}
+  if(dir){
+   try{if(await openDirectory(dir))autoplay(0);}
+   catch(err){console.warn(err);$('status').textContent='Could not read the folder: '+err.message;}
+   return;
+  }
  }
  $('folder-input').click();
 }
@@ -183,15 +228,19 @@ function showReopen(dir){
   catch(err){console.warn(err);showReopen(null);$('status').textContent='The folder is no longer available';}
  };
 }
-(async()=>{
+// On page open: the folder of the last visit. Permission kept by the browser:
+// list it (with the loader); otherwise one click asks again.
+async function restoreFolder(dir){
+ if(!dir||typeof dir.queryPermission!=='function'||PL.tracks.length)return;
+ const job=startLoading(`Opening «${dir.name}»…`);
  try{
-  const dir=await idb('readonly',s=>s.get(FOLDER_KEY));
-  if(!dir||typeof dir.queryPermission!=='function'||PL.tracks.length)return;
-  // Permission kept by the browser: just list the folder; otherwise one click asks again.
-  if(await dir.queryPermission({mode:'read'})==='granted')await openDirectory(dir);
-  else showReopen(dir);
- }catch(_){}
-})();
+  if(await dir.queryPermission({mode:'read'})!=='granted'){stopLoading(job);showReopen(dir);return;}
+  if(!await openDirectory(dir,job)&&!PL.tracks.length&&job.cancelled)showReopen(dir);
+ }catch(err){
+  console.warn(err);stopLoading(job);showReopen(dir);$('status').textContent='The folder of the last visit is not available';
+ }
+}
+idb('readonly',s=>s.get(FOLDER_KEY)).then(restoreFolder,()=>{});
 
 // Drag and drop of files and folders anywhere on the page (appends).
 async function entryItems(entry,prefix=''){
@@ -218,7 +267,14 @@ document.addEventListener('drop',async e=>{
  const entries=[...e.dataTransfer.items].map(i=>i.webkitGetAsEntry?.()).filter(Boolean);
  const loose=entries.length?[]:[...e.dataTransfer.files].map(f=>({file:f,path:f.name}));
  const items=[...loose];
- for(const entry of entries)items.push(...await entryItems(entry));
+ // Folders in the drop are read with the loader; plain files are there at once.
+ const job=entries.some(x=>x.isDirectory)?startLoading('Reading the dropped folder…'):null;
+ try{
+  for(const entry of entries){
+   items.push(...await entryItems(entry));
+   if(job){if(job.cancelled)return;job.tracks=items.length;job.folders++;job.where=entry.name;paintLoading(job);}
+  }
+ }finally{if(job)stopLoading(job);}
  if(!items.length){$('status').textContent='No audio files in the drop';return;}
  autoplay(addTracks(items,false));
 });
