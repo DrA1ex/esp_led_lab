@@ -108,6 +108,9 @@ function refreshTuningUi(s,g){
  const strip=g.h<4;
  $('viz-mirror-label').textContent=strip?'From the center, both ways':'Mirror vertically (from the middle row)';
  $('viz-decay-value').textContent=s['viz-decay']+'%';$('viz-speed-value').textContent=s['viz-speed']+'%';
+ // Contrast works on the auto-levelled range; blur 100% = a Gaussian of 3 LEDs (sigma, as in the engine).
+ $('viz-contrast').disabled=!s['viz-auto'];$('viz-contrast-value').textContent=s['viz-auto']?s['viz-contrast']+'%':'needs auto-level';
+ $('viz-blur-value').textContent=s['viz-blur']?`${(s['viz-blur']*.03).toFixed(1)} LED`:'off';
  $('viz-hint').textContent=(strip?`Strip (${g.w}×${g.h}): every row shows the same.`:`Matrix (${g.w}×${g.h}).`)+
   ` Spectrum uses ${previewBands()} bands, the count sent to the lamp (Lamps → Stream settings).`+
   ' A lamp whose firmware does not list this mode in hello_ack is sent Off.';
@@ -189,7 +192,7 @@ function initTuning(){
  for(const id of ['input-min','input-max'])$(id).addEventListener('input',()=>keepWindow(id));
  // Defaults on All lamps, the shared values on a lamp (resetSection in lamps.js).
  $('range-reset').onclick=()=>resetSection(['input-min','input-max','input-curve','audio-min','audio-max','input-gate']);
- $('viz-reset').onclick=()=>resetSection(['viz-color','viz-auto','viz-mirror','viz-decay','viz-speed']);
+ $('viz-reset').onclick=()=>resetSection(['viz-color','viz-auto','viz-contrast','viz-mirror','viz-decay','viz-speed','viz-blur']);
  $('origin-reset').onclick=()=>resetSection(['origin-shift','origin-y','origin-reverse','origin-ring','origin-radial']);
  $('canvas-new').addEventListener('click',pickOrigin);
 }

@@ -208,6 +208,9 @@ struct VizHost {
   const unsigned c=(unsigned(r)<<16)|(unsigned(g)<<8)|b;
   if(audio_mix>=1.f)pixel(x,y,c);else rgb_lerp_pixel(x,y,c,u8((int)(audio_mix*255.f)));
  }
+ // The frame blur reads the drawn LEDs back and overwrites them.
+ void get(int x,int y,uint8_t &r,uint8_t &g,uint8_t &b)const{const unsigned c=get_pixel(x,y);r=uint8_t(c>>16);g=uint8_t(c>>8);b=uint8_t(c);}
+ void set(int x,int y,uint8_t r,uint8_t g,uint8_t b){pixel(x,y,(unsigned(r)<<16)|(unsigned(g)<<8)|b);}
 };
 static VizHost viz_host;
 static Viz::Engine<VizHost,MAX_PIX> viz;
@@ -341,7 +344,7 @@ __attribute__((visibility("default"))) void set_reaction_tuning(float spectrum_s
 __attribute__((visibility("default"))) void set_audio_window(int lo,int hi,int gate,int curve){in_min=maxi(0,mini(lo,255));in_max=maxi(0,mini(hi,255));in_gate=gate!=0;in_curve=curve<=0?100:maxi(25,mini(curve,400));}
 __attribute__((visibility("default"))) uint16_t* curve_table_ptr(){return curve_table;}
 // Lab-only modes 13..20: palette (0) or effect (1) colours, mirror, decay and speed 0..1, auto-level.
-__attribute__((visibility("default"))) void set_visualization(int color,int mirror,float decay,float motion,int autolevel_on){viz_color=color!=0;viz.settings.mirror=mirror!=0;viz.settings.autolevel=autolevel_on!=0;viz.settings.decay=uint8_t(clampf(decay,0.f,1.f)*100.f+.5f);viz.settings.speed=uint8_t(clampf(motion,0.f,1.f)*100.f+.5f);}
+__attribute__((visibility("default"))) void set_visualization(int color,int mirror,float decay,float motion,int autolevel_on,float contrast,float blur){viz_color=color!=0;viz.settings.mirror=mirror!=0;viz.settings.autolevel=autolevel_on!=0;viz.settings.decay=uint8_t(clampf(decay,0.f,1.f)*100.f+.5f);viz.settings.speed=uint8_t(clampf(motion,0.f,1.f)*100.f+.5f);viz.settings.contrast=uint8_t(clampf(contrast,0.f,1.f)*100.f+.5f);viz.settings.blur=uint8_t(clampf(blur,0.f,1.f)*100.f+.5f);}
 // Effect parameters (viz_engine.h), by engine mode id = audio mode - 13: fill
 // viz_params_ptr() and call set_viz_params(mode); other modes keep their defaults.
 __attribute__((visibility("default"))) uint8_t* viz_params_ptr(){return viz.settings.params;}

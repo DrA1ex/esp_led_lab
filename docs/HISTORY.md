@@ -5,6 +5,22 @@ Dated notes from the lab's development before it became a git repository
 `dist/`, WASM binaries in `web/wasm/`, `app.js` was split into `web/js/*.js`
 and `build_standalone.py` moved to `scripts/`.
 
+## Contrast and blur for visualizations (2026-10-31)
+
+- **Blur** (Visualization section, `viz_blur`): a Gaussian of the drawn frame,
+  sigma 0–3 LEDs, like LedFx's per-effect blur. It runs after every mode in
+  `viz_engine.h` as [1 2 1] passes along the strip and down the columns of a
+  matrix, reading the frame back through the host's new `get()` / `set()`.
+  It removes the comb-like trails fast dots left on strips (Juggle,
+  Particles, Melody) and smooths band edges.
+- **Contrast** (`viz_contrast`, with Auto-level): the auto-level floor rises
+  to the average of the last 2 s at 50 % and halfway on to the recent peak
+  at 100 %, the way LedFx subtracts the running average from its bands. On a
+  dense, compressed rock track (153-LED strip, contrast 60 %) the VU meter
+  lights 76 % of the LEDs instead of 92 %, the Bass · Mid · Treble meters 34 %
+  instead of 62 %.
+- Both default to 0: the stock picture. Firmware before this change ignores them.
+
 ## Chroma and Chromatic Flow (2026-10-31)
 
 - **Chroma**: the DSP (`chroma_process()` in `src/dsp.cpp`) measures how

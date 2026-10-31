@@ -192,9 +192,11 @@
     <select id="viz-color" hidden><option value="0" selected data-short="Palette">Palette</option><option value="1" data-short="Effect as a mask">Color effect (audio as a mask)</option></select>
     <div class="choices segmented" data-for="viz-color" aria-labelledby="viz-color-title"></div></div>
    <label class="check" data-modes="13,14,15,18,19,20,21,22,23,24,25,26,27,28,30"><input type="checkbox" id="viz-auto" checked><span>Auto-level<small>each band and meter uses its own recent range</small></span></label>
+   <div class="field" data-modes="13,14,15,18,19,20,21,22,23,24,25,26,27,28,30"><label for="viz-contrast">Contrast <span class="val" id="viz-contrast-value">0%</span></label><input id="viz-contrast" type="range" min="0" max="100" value="0"><p class="hint" id="viz-contrast-hint">50%: only what rises above the last 2 s average lights; 100%: only the peaks. Keeps loud, dense music from holding the meters at the top.</p></div>
    <label class="check"><input type="checkbox" id="viz-mirror"><span id="viz-mirror-label">From the center, both ways</span></label>
    <div class="field" data-modes="13,14,16,17,18,20,22,23,24,25,30"><label for="viz-decay">Fall-off <span class="val" id="viz-decay-value">50%</span></label><input id="viz-decay" type="range" min="0" max="100" value="50"></div>
    <div class="field" data-modes="15,16,21,22,23,24,25,27,31"><label for="viz-speed">Motion speed <span class="val" id="viz-speed-value">50%</span></label><input id="viz-speed" type="range" min="0" max="100" value="50"></div>
+   <div class="field"><label for="viz-blur">Blur <span class="val" id="viz-blur-value">off</span></label><input id="viz-blur" type="range" min="0" max="100" value="0"></div>
    <p class="hint" id="viz-hint"></p>
   </div>
   <div class="section" data-modes="13,14,16,17,18,19,21,22,23,24,25,26,27,28,29,30,31">

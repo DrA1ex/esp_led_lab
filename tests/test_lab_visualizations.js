@@ -74,6 +74,37 @@ for(const mode of [13,14,19,20]){
  assert(bar(0,2)<6,'treble meter barely moves without auto-level');
  assert(bar(1,2)>15,'auto-level lifts the treble meter');
 }
+// Contrast: a dense, steady track (the level wobbling between .85 and .95
+// every 1.3 s) pins the VU meter; at 50 % contrast it follows the wobble above
+// the average, at 100 % only the peaks light.
+{
+ const fills=contrast=>{
+  const m=new WebAssembly.Instance(mod).exports;
+  m.set_dimensions(100,1);m.set_palette(41);m.set_effects(9,0,13);m.set_parameters(0,0,255,1);m.set_visualization(0,0,.5,.5,1,contrast,0);
+  const f=new Float32Array(m.memory.buffer,m.audio_features_ptr(),237),out=new Uint8Array(m.memory.buffer,m.framebuffer_ptr(),400),seen=[];
+  for(let k=0;k<500;k++){f.fill(0);f[224]=32;f[23]=f[159]=.9+.05*Math.sin(k*.08);m.render_frame(16.7);
+   if(k>=250){let n=0;for(let x=0;x<100;x++)if(out[x*4]+out[x*4+1]+out[x*4+2]>30)n++;seen.push(n);}}
+  return {low:Math.min(...seen),high:Math.max(...seen),mean:seen.reduce((a,b)=>a+b)/seen.length};
+ };
+ const stock=fills(0),contrast=fills(.5),peaks=fills(1);
+ assert(stock.low>70,`stock auto-level keeps the meter up: ${stock.low}`);
+ assert(contrast.low<30&&contrast.high>90,`contrast: the meter swings ${contrast.low}..${contrast.high}`);
+ assert(peaks.mean<contrast.mean*.7,`100 % contrast: peaks only (${peaks.mean} vs ${contrast.mean})`);
+}
+// Blur: a Gaussian of the drawn frame (0..3 LEDs). One lit band spreads to its
+// neighbours, down the columns of a matrix too; mirrored strips stay symmetric.
+{
+ const strip=blur=>run(64,1,14,f=>{f[160+32]=1;},{bands:64,setup:m=>m.set_visualization(0,0,.5,.5,0,0,blur)});
+ const sharp=strip(0),soft=strip(1);
+ assert(sharp.at(29)===0&&soft.at(29)>10,'blur spreads a lit LED along the strip');
+ assert(soft.at(32)<sharp.at(32)&&soft.at(0)===0,'the peak softens, far LEDs stay dark');
+ const col=run(32,16,14,f=>{f[160+31]=1;},{setup:m=>m.set_visualization(0,0,.5,.5,0,0,1)});
+ assert(col.at(28,8)>10&&col.at(31,8)>col.at(28,8),'matrix blur spreads across the columns');
+ for(const mode of [13,14,19]){
+  const r=run(61,1,mode,music,{mirror:1,setup:m=>m.set_visualization(0,1,.5,.5,0,0,.6)});
+  for(let x=0;x<30;x++)assert.equal(r.at(x),r.at(60-x),`mode ${mode} blurred and mirrored at ${x}`);
+ }
+}
 // Groove follows the beat phase (features[154]) of a confident tempo: at 100 BPM
 // (30 frames of 20 ms a beat) the picture comes back every two beats (half a
 // period per beat), not after one or half a beat; without the confidence it rests.
@@ -133,4 +164,4 @@ for(const mode of [13,14,19,20]){
  if(fs.existsSync(lamp))assert.equal(fs.readFileSync(lamp,'utf8'),fs.readFileSync(path.join(__dirname,'../src/viz_engine.h'),'utf8'),
   'src/viz_engine.h differs from esp_led_lamp/src/remote_audio/viz_engine.h: copy it over');
 }
-console.log('PASS lab visualizations 13..31 on strips 7/153, 72x2, matrices 16/128: silence, music, rows, mirror, bands, Groove beat lock, Chromatic Flow colours');
+console.log('PASS lab visualizations 13..31 on strips 7/153, 72x2, matrices 16/128: silence, music, rows, mirror, bands, Groove beat lock, Chromatic Flow colours, contrast, blur');

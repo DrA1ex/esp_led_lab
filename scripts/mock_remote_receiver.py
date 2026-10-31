@@ -99,7 +99,7 @@ def receiver(ws):
                   and 25 <= msg.get('input_curve', 100) <= 400
                   and (effect <= 12 or (not ARGS.no_viz and effect <= 31))
                   and msg.get('viz_color', 0) in (0, 1)
-                  and 0 <= msg.get('viz_decay', 50) <= 100 and 0 <= msg.get('viz_motion', 50) <= 100)
+                  and all(0 <= msg.get(k, 0) <= 100 for k in ('viz_contrast', 'viz_decay', 'viz_motion', 'viz_blur')))
             print('config', msg)
             ws.send(json.dumps(dict(type='config_ack', session=1) if ok
                                else dict(type='error', reason='invalid_config')))

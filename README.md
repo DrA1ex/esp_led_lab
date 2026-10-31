@@ -80,6 +80,13 @@ The **Reaction** tab's audio modes are grouped by what drives them:
 - **Constructors**: Particles, Field and Zones, whose parameters pick the
   shape, what launches or lights it, the motion and the colors.
 
+Two settings of the Visualization section apply to every visualization
+(both 0 by default, the stock picture): **Contrast** (with Auto-level) lights
+only what rises above the last 2 s average at 50 % and only the peaks at
+100 %, so loud, dense music no longer holds the meters at the top; **Blur**
+softens the drawn frame with a Gaussian of up to 3 LEDs, along a strip and
+across a matrix, which removes the comb-like trails of fast dots on strips.
+
 The hint under the list says what drives the selected mode. **Effect
 parameters** (under Visualization) are the selected mode's own settings:
 up to 11 values per mode, e.g. Fire's fuel, height and wind, Particles'

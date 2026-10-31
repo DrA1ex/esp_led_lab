@@ -186,8 +186,8 @@ output, so the lamp draws what the preview shows (random sparks aside).
 The engine is integer only (Q12 levels, ms, 1/16-LED positions), because the
 ESP8266 has no FPU; the lab host converts its float features to Q12.
 Firmware with them lists the ids in `hello_ack.visualizations`; the lab sends
-the mode and `viz_color`, `viz_mirror`, `viz_auto`, `viz_decay`,
-`viz_motion` (percent) to those lamps and Off to older ones (the lamp card
+the mode and `viz_color`, `viz_mirror`, `viz_auto`, `viz_contrast`,
+`viz_decay`, `viz_motion`, `viz_blur` (percent) to those lamps and Off to older ones (the lamp card
 says "older firmware: no visualizations"). *LED reaction* (mix) and *Fast line
 response* stay preview-only: the lamp follows the control source.
 `scripts/mock_remote_receiver.py` advertises them; `--no-viz` acts like older

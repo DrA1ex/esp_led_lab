@@ -8,7 +8,7 @@
 // stored values (lampConfig), never from the controls.
 const LAMP_GROUPS={
  Effect:['color','palette','brightness','speed','scale','light'],
- Reaction:['audio-mode','param-source','spectrum-shape','spectrum-onset','viz-color','viz-auto','viz-mirror','viz-decay','viz-speed',
+ Reaction:['audio-mode','param-source','spectrum-shape','spectrum-onset','viz-color','viz-auto','viz-contrast','viz-mirror','viz-decay','viz-speed','viz-blur',
   'input-min','input-max','input-curve','input-gate','audio-min','audio-max'],
  Parameters:FX_IDS,
  Start:['origin-shift','origin-y','origin-reverse','origin-ring','origin-radial']
@@ -97,7 +97,7 @@ function runtimeConfig(s,width){return {
  // The reaction range replaces the separate speed floor (0 = stock mapping).
  speed_floor:0,spectrum_shape:s['spectrum-shape'],spectrum_onset:s['spectrum-onset'],
  viz_color:+s['viz-color'],viz_mirror:Boolean(s['viz-mirror']),viz_auto:Boolean(s['viz-auto']),
- viz_decay:+s['viz-decay'],viz_motion:+s['viz-speed'],
+ viz_contrast:+s['viz-contrast'],viz_decay:+s['viz-decay'],viz_motion:+s['viz-speed'],viz_blur:+s['viz-blur'],
  ...tuningConfig(s,width)
 };}
 function lampConfig(d){

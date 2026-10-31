@@ -44,7 +44,7 @@ function refreshLabels(){
   m.set_effects(s.color,s.brightness,s['audio-mode']);m.set_parameters(s.speed,s.scale,s.light,s.mix/100);m.set_audio_range(s['audio-min'],s['audio-max']);
   const curve=curveExponent(s);fillCurveTable(m,curve);
   m.set_audio_window(s['input-min'],s['input-max'],s['input-gate']?1:0,curve);
-  m.set_visualization(+s['viz-color'],s['viz-mirror']?1:0,s['viz-decay']/100,s['viz-speed']/100,s['viz-auto']?1:0);m.set_origin(...originArgs(s,g.w));
+  m.set_visualization(+s['viz-color'],s['viz-mirror']?1:0,s['viz-decay']/100,s['viz-speed']/100,s['viz-auto']?1:0,s['viz-contrast']/100,s['viz-blur']/100);m.set_origin(...originArgs(s,g.w));
   // Effect parameters of the running visualization (engine mode = audio mode - 13).
   const mode=s['audio-mode'];
   if(FX_MODES.includes(mode)){new Uint8Array(m.memory.buffer,m.viz_params_ptr(),FX_MAX).set(fxValues(s,mode));m.set_viz_params(mode-13);}
