@@ -334,7 +334,8 @@ function renderRemoteDevices(){
  chip.title=!all?'Lamps over Wi-Fi: add a lamp':`Lamps over Wi-Fi: ${ready.length} of ${all} ready`+(live?', streaming':'');
  chip.classList.toggle('on',ready.length>0&&remoteEnabled());
  chip.classList.toggle('live',live);
- $('lamps-badge').hidden=!live;
+ $('tab-lamps').classList.toggle('lamps-on',ready.length>0&&remoteEnabled());
+ $('tab-lamps').classList.toggle('lamps-live',live);
  $('lamps-empty').hidden=all>0;
  const text=$('remote-state');
  if(!remoteEnabled()){text.textContent='Off · the preview only';return;}

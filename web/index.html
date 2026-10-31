@@ -123,7 +123,7 @@
   <button role="tab" type="button" id="tab-music" data-tab="music" aria-controls="panel-music" aria-selected="false"><svg class="ico" aria-hidden="true"><use href="#i-music"/></svg><span>Music</span></button>
   <button role="tab" type="button" id="tab-effect" data-tab="effect" aria-controls="panel-effect" aria-selected="true"><svg class="ico" aria-hidden="true"><use href="#i-sparkle"/></svg><span>Effect</span></button>
   <button role="tab" type="button" id="tab-reaction" data-tab="reaction" aria-controls="panel-reaction" aria-selected="false"><svg class="ico" aria-hidden="true"><use href="#i-wave"/></svg><span>Reaction</span></button>
-  <button role="tab" type="button" id="tab-lamps" data-tab="lamps" aria-controls="panel-lamps" aria-selected="false"><svg class="ico" aria-hidden="true"><use href="#i-bulb"/></svg><span>Lamps</span><b class="tab-badge" id="lamps-badge" hidden></b></button>
+  <button role="tab" type="button" id="tab-lamps" data-tab="lamps" aria-controls="panel-lamps" aria-selected="false"><svg class="ico" aria-hidden="true"><use href="#i-bulb"/></svg><span>Lamps</span></button>
   <button role="tab" type="button" id="tab-analyzer" data-tab="analyzer" aria-controls="panel-analyzer" aria-selected="false"><svg class="ico" aria-hidden="true"><use href="#i-bars"/></svg><span>Analyzer</span></button>
   <button role="tab" type="button" id="tab-layout" data-tab="layout" aria-controls="panel-layout" aria-selected="false"><svg class="ico" aria-hidden="true"><use href="#i-target"/></svg><span>Layout</span></button>
  </nav>
@@ -218,7 +218,7 @@
     <p class="hint">Curve bends the stretch: LED brightness looks logarithmic (50% → 100% barely changes), so a curve of ×2–×2.5 keeps quiet and mid signals dim and makes the reaction look even. Below linear it lifts quiet signals.</p>
    </details>
   </div>
-  <div class="section" data-modes="1,2,3,4,6,7,11,12,13,14,15,16,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35" data-requires-matrix>
+  <div class="section" data-modes="2,4,7,12,13,16,24,27,28,30,31,32,33,34" data-requires-matrix>
    <div class="section-head"><h3 class="eyebrow">Center on a matrix</h3><button class="reset" id="origin-reset" type="button" data-reset="Reset the center" title="Reset the center" aria-label="Reset the center"><svg class="ico" aria-hidden="true"><use href="#i-reset"/></svg></button></div>
    <label class="check"><input type="checkbox" id="origin-radial"><span>Center modes as a circle<small>2D, around an adjustable row</small></span></label>
    <div class="field" data-requires="origin-radial"><label for="origin-y">Circle center Y <span class="val" id="origin-y-value">50%</span></label><input id="origin-y" type="range" min="0" max="1000" value="500"></div>
