@@ -259,7 +259,7 @@ and the live traces come from the running DSP:
 | Envelope | Attack, Release, Peak hold | a band group (bass / mid / high) before and after the envelope over the last 5 s, and the response to a sound that starts and stops, with the time to 63 % / 90 %, the hold and back to 37 % |
 | Onsets | Onset threshold, memory, per-group threshold / hold-off / flash | the group's energy rise (flux) against its adaptive threshold, the hits with their hold-off and the flash they trigger, and a histogram of the time between hits (double triggers, hits cut by the hold-off) |
 | Tempo | Tempo range | the onset strength the tracker hears with the predicted beats and the bass hits, the periodicity at every beat length (½× and 2× marked), the tempo and confidence over time, and the beat phase |
-| Noise | Noise floor (dB of full scale, 1 dB a step, −90 = off), Adaptive floor (0–200 %), Floor learns in / drops in | each band's level against the noise floor, the background each band has learned and what the adaptive floor removes |
+| Noise | Noise floor (dB of full scale, 1 dB a step, −90 = off), Adaptive floor (share of the learned background in dB: −39 … +6, 0 dB = 100 %, −40 = off), Floor learns in / drops in | each band's level against the noise floor, the background each band has learned and what the adaptive floor removes |
 
 Three more views look across all the settings; they stay open while the
 settings are changed:

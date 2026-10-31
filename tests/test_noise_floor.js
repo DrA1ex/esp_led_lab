@@ -31,8 +31,13 @@ assert(learn(1,.1,2).bands<fast.bands,'200% leaves less than 100%');
 
 // The page: 1 dB a step, the lowest position off.
 const ctx={document:{getElementById:()=>null}};vm.createContext(ctx);
-vm.runInContext(fs.readFileSync(path.join(__dirname,'../web/js/state.js'),'utf8')+';this.noiseGate=noiseGate;this.NOISE_OFF_DB=NOISE_OFF_DB;',ctx);
+vm.runInContext(fs.readFileSync(path.join(__dirname,'../web/js/state.js'),'utf8')+';this.noiseGate=noiseGate;this.NOISE_OFF_DB=NOISE_OFF_DB;this.adaptiveAmount=adaptiveAmount;this.ADAPTIVE_OFF_DB=ADAPTIVE_OFF_DB;',ctx);
 assert.equal(ctx.noiseGate({'noise-db':ctx.NOISE_OFF_DB}),0);
 assert(Math.abs(ctx.noiseGate({'noise-db':-42})-.00794)<1e-4);
 assert(Math.abs(ctx.noiseGate({'noise-db':-61})/ctx.noiseGate({'noise-db':-60})-Math.pow(10,-1/20))<1e-9);
-console.log('PASS adaptive floor learn / drop times and strength, dB noise floor');
+// Adaptive floor in dB: lowest position off, 0 dB all of the background, -20 dB a tenth, +6 dB within the DSP's 2x.
+assert.equal(ctx.adaptiveAmount({'adaptive-db':ctx.ADAPTIVE_OFF_DB}),0);
+assert.equal(ctx.adaptiveAmount({'adaptive-db':0}),1);
+assert(Math.abs(ctx.adaptiveAmount({'adaptive-db':-20})-.1)<1e-9);
+assert(ctx.adaptiveAmount({'adaptive-db':-39})<.012&&ctx.adaptiveAmount({'adaptive-db':6})<=2);
+console.log('PASS adaptive floor learn / drop times and strength, dB noise floor and adaptive floor');

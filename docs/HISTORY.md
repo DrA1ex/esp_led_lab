@@ -50,6 +50,10 @@ and `build_standalone.py` moved to `scripts/`.
   0.1 s) how fast it follows a quieter one. The strength now goes to 200 %:
   above 100 % it also cuts what barely rises above the background
   (`set_noise_floor_timing()` in `dsp.cpp`).
+- **Adaptive floor** strength is in dB too (−40 off, −39 … +6, 0 dB = all
+  of the learned background): in percent 5 % was the first step and the
+  small shares that matter on quiet input could not be set. Saved
+  percentages are converted (50 % → −6 dB).
 
 ## Contrast and blur for visualizations (2026-10-31)
 

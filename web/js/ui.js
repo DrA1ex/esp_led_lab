@@ -275,6 +275,8 @@ function restoreSettings(){
  if(STANDARD_RATES.includes(rate)&&rate!==fs){fs=rate;$('sample-rate').value=rate;updateAnalysisHop();}
  // Noise floor was a linear level x 1000 (0..50) before it moved to dB.
  if(!('noise-db' in saved)&&Number.isFinite(+saved.noise))saved['noise-db']=+saved.noise>0?Math.round(20*Math.log10(+saved.noise/1000)):NOISE_OFF_DB;
+ // Adaptive floor was a percentage (0..200) before it moved to dB.
+ if(!('adaptive-db' in saved)&&Number.isFinite(+saved['adaptive-floor']))saved['adaptive-db']=+saved['adaptive-floor']>0?Math.max(ADAPTIVE_OFF_DB+1,Math.round(20*Math.log10(+saved['adaptive-floor']/100))):ADAPTIVE_OFF_DB;
  for(const id of PERSISTED)if(id!=='sample-rate'&&id in saved&&$(id))setControl($(id),saved[id]);
  $('playback-volume-value').textContent=$('playback-volume').value+'%';
  $('remote-latency-value').textContent=$('remote-latency').value+' ms';
