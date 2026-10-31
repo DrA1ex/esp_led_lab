@@ -67,7 +67,7 @@ function readDisplaySpectrum(d,s){
  STATE.displaySpectrum=plan.groups.map(({from,to,low,high})=>{
   const fc=Math.sqrt(low*high),b=Math.max(0,Math.min(15,Math.floor(16*Math.log(fc/lo)/Math.log(hi/lo))));
   let sum=0;for(let k=from;k<to;k++)sum+=raw[k]*raw[k];
-  const level=Math.max(0,Math.sqrt(sum/(to-from)*scale)*Math.pow(fc/1000,tilt)*trim[b<mid?0:b<high?1:2]-s.noise/1000)*(s.gain/10)/(Math.max(1e-4,bandRef[b])*6.5);
+  const level=Math.max(0,Math.sqrt(sum/(to-from)*scale)*Math.pow(fc/1000,tilt)*trim[b<mid?0:b<high?1:2]-noiseGate(s))*(s.gain/10)/(Math.max(1e-4,bandRef[b])*6.5);
   const value=c>=0?(1-c)*level+c*Math.sqrt(level):(1+c)*level-c*level*level;
   return value/(.85+value);
  });

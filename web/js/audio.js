@@ -247,11 +247,12 @@ function applyDspSettings(d,s){
  d.set_spectral_tilt(s.tilt/2);d.set_band_balance(s.balance/100);d.set_band_groups(s['split-mid'],s['split-high']);
  for(let g=0;g<3;g++)d.set_onset_group(g,s[`onset-trim-${g}`]/10,s[`holdoff-${g}`],s[`flash-${g}`]);
  d.set_tempo_range(s['bpm-min'],s['bpm-max']);
+ d.set_noise_floor_timing(s['floor-rise'],s['floor-fall']/1000);
 }
 function processAudio(nowSample){const d=STATE.modules.dsp.exports,s=settings(),n=s.fft,inbuf=new Float32Array(d.memory.buffer,d.new_input_ptr(),d.max_fft_size());
 for(let j=0;j<n;j++)inbuf[j]=sampleAt(nowSample-n+j);
 applyDspSettings(d,s);
-d.new_process(n,hop/fs,s.attack,s.release,s.noise/1000,s.transient/10,s.gain/10,s.compression/100,s.agc,s['adaptive-floor']/100);STATE.newParam=d.new_param_value();STATE.newLoudness=d.new_loudness_value();STATE.newLine=d.new_line_value();
+d.new_process(n,hop/fs,s.attack,s.release,noiseGate(s),s.transient/10,s.gain/10,s.compression/100,s.agc,s['adaptive-floor']/100);STATE.newParam=d.new_param_value();STATE.newLoudness=d.new_loudness_value();STATE.newLine=d.new_line_value();
 readDisplaySpectrum(d,s);
 const stats=new Float32Array(d.memory.buffer,d.new_metrics_ptr(),10);
 STATE.bpm=stats[6];STATE.beatConfidence=stats[7];STATE.beatPhase=stats[8];STATE.beatPulse=stats[9];

@@ -14,7 +14,9 @@ function refreshLabels(){
  $('audio-min-value').textContent=s['audio-min'];$('audio-max-value').textContent=s['audio-max'];
  $('agc-value').textContent=s.agc+' ms';$('compression-value').textContent=s.compression<0?`−${-s.compression}% · expands`:s.compression+'%';
  $('attack-value').textContent=s.attack+' ms';$('release-value').textContent=s.release+' ms';
- $('noise-value').textContent=(s.noise/1000).toFixed(3);$('adaptive-floor-value').textContent=s['adaptive-floor']+'%';
+ $('noise-db-value').textContent=noiseGate(s)?`−${-s['noise-db']} dB`:'off';$('adaptive-floor-value').textContent=s['adaptive-floor']+'%';
+ $('floor-rise-value').textContent=s['floor-rise']+' s';$('floor-fall-value').textContent=(s['floor-fall']/1000).toFixed(s['floor-fall']<1000?2:1)+' s';
+ for(const id of ['floor-rise','floor-fall'])$(id).disabled=!s['adaptive-floor'];
  $('gain-value').textContent=(s.gain/10).toFixed(1)+'×';$('transient-value').textContent=(s.transient/10).toFixed(1)+'×';
  $('tilt-value').textContent=s.tilt?`${s.tilt>0?'+':'−'}${Math.abs(s.tilt/2).toFixed(1)} dB/oct`:'0 dB/oct';$('balance-value').textContent=s.balance+'%';
  for(const id of ['eq-bass','eq-mid','eq-high'])$(id+'-value').textContent=s[id]?`${s[id]>0?'+':'−'}${Math.abs(s[id])} dB`:'0 dB';

@@ -11,7 +11,7 @@ const DSP_GROUP_PANELS=['envelope','onsets','chain','ab'];
 const DSP_CONTROL_PANEL={fft:'resolution','sample-rate':'resolution',window:'resolution','freq-min':'resolution','freq-max':'resolution',
  tilt:'bands','eq-bass':'bands','eq-mid':'bands','eq-high':'bands',balance:'bands',smoothing:'bands','split-mid':'bands','split-high':'bands',
  gain:'level',compression:'level',agc:'level',attack:'envelope',release:'envelope','peak-hold':'envelope',transient:'onsets','onset-memory':'onsets',
- 'bpm-min':'tempo','bpm-max':'tempo',noise:'noise','adaptive-floor':'noise'};
+ 'bpm-min':'tempo','bpm-max':'tempo','noise-db':'noise','adaptive-floor':'noise','floor-rise':'noise','floor-fall':'noise'};
 for(let g=0;g<3;g++)for(const k of ['onset-trim','holdoff','flash'])DSP_CONTROL_PANEL[`${k}-${g}`]='onsets';
 const GROUP_NAMES=['Bass','Mid','High'],GROUP_COLORS=['#ff9161','#ffd166','#6fd3ff'];
 // The bands of the bass / mid / high groups as the running DSP has them (Groups).
@@ -79,7 +79,7 @@ function recordDsp(d,hopSeconds,s,nowSample){
  if(H.elapsed+1e-6<DSP_STEP)return;
  H.elapsed=Math.max(0,H.elapsed-DSP_STEP);
  const raw=new Float32Array(mem,d.new_raw_ptr(),16),targets=new Float32Array(mem,d.new_targets_ptr(),16),thresholds=new Float32Array(mem,d.new_thresholds_ptr(),3),i=H.pos;
- const floor=new Float32Array(mem,d.new_floor_ptr(),16),gate=s.noise/1000,adaptive=s['adaptive-floor']/100,gb=groupBands(d);
+ const floor=new Float32Array(mem,d.new_floor_ptr(),16),gate=noiseGate(s),adaptive=s['adaptive-floor']/100,gb=groupBands(d);
  for(let k=0;k<16;k++){H.bands[k*DSP_LEN+i]=STATE.newSpectrum[k];H.rawBands[k*DSP_LEN+i]=raw[k];}
  H.beat[i]=H.beatHit;H.beatHit=0;H.bpm[i]=metrics[6];H.confidence[i]=metrics[7];
  recordSpectrum(d,s.fft,i);
@@ -99,7 +99,7 @@ function recordDsp(d,hopSeconds,s,nowSample){
 // A/B: a second DSP instance runs the pinned settings (A) on the same audio
 // as the live one (B). Pinning copies the live instance's memory, so both
 // start from the same state and differ only by what is changed afterwards.
-const AB_KEYS=['fft','window','attack','release','peak-hold','noise','adaptive-floor','gain','transient','onset-memory','agc','compression',
+const AB_KEYS=['fft','window','attack','release','peak-hold','noise-db','adaptive-floor','floor-rise','floor-fall','gain','transient','onset-memory','agc','compression',
  'tilt','eq-bass','eq-mid','eq-high','balance','smoothing','split-mid','split-high',
  ...[0,1,2].flatMap(g=>[`onset-trim-${g}`,`holdoff-${g}`,`flash-${g}`]),'bpm-min','bpm-max'];
 function pinCompare(){
@@ -126,7 +126,7 @@ function processCompare(now){
  const input=new Float32Array(c.memory.buffer,c.new_input_ptr(),c.max_fft_size());
  for(let j=0;j<n;j++)input[j]=sampleAt(now-n+j);
  applyDspSettings(c,a);
- c.new_process(n,hop/fs,a.attack,a.release,a.noise/1000,a.transient/10,a.gain/10,a.compression/100,a.agc,a['adaptive-floor']/100);
+ c.new_process(n,hop/fs,a.attack,a.release,noiseGate(a),a.transient/10,a.gain/10,a.compression/100,a.agc,a['adaptive-floor']/100);
  const events=new Float32Array(c.memory.buffer,c.new_events_ptr(),3);
  for(let g=0;g<3;g++)if(events[g])DSP_HIST.abHit[g]=1;
  return {levels:new Float32Array(c.memory.buffer,c.new_levels_ptr(),3),bands:new Float32Array(c.memory.buffer,c.new_bands_ptr(),16)};
@@ -282,7 +282,7 @@ function drawResolution(ctx,W,H,s,d){
 // Level: the curve from a band's level to its LED level, the 16 bands on it
 // right now, and the AGC reference following the music's average level.
 function drawLevel(ctx,W,H,s,d){
- const mem=d.memory.buffer,ref=Math.max(.003,new Float32Array(mem,d.new_metrics_ptr(),10)[5]),gate=s.noise/1000,gain=s.gain/10,comp=s.compression/100;
+ const mem=d.memory.buffer,ref=Math.max(.003,new Float32Array(mem,d.new_metrics_ptr(),10)[5]),gate=noiseGate(s),gain=s.gain/10,comp=s.compression/100;
  const LO=-72,HI=0,stripH=Math.max(40,Math.min(80,H*.2));
  const b=plotBox(40,24,W-54,Math.max(60,H-24-stripH-46)),strip=plotBox(40,H-stripH-8,W-54,stripH-10);
  const xOf=raw=>b.X(dbNorm(raw,LO,HI)),rawAt=x=>Math.pow(10,(LO+(x-b.x)/b.w*(HI-LO))/20);
@@ -446,7 +446,7 @@ function drawOnsets(ctx,W,H,s){
 // learned per band) that is subtracted before anything else.
 function drawNoise(ctx,W,H,s,d){
  const mem=d.memory.buffer,raw=new Float32Array(mem,d.new_raw_ptr(),16),floor=new Float32Array(mem,d.new_floor_ptr(),16);
- const ref=Math.max(.003,new Float32Array(mem,d.new_metrics_ptr(),10)[5]),gate=s.noise/1000,adaptive=s['adaptive-floor']/100;
+ const ref=Math.max(.003,new Float32Array(mem,d.new_metrics_ptr(),10)[5]),gate=noiseGate(s),adaptive=s['adaptive-floor']/100;
  const LO=-84,HI=-12,b=plotBox(40,24,W-52,H-24-34),Yd=v=>b.Y(dbNorm(v,LO,HI)),bw=b.w/16,{lo,hi}=frequencyRange(s),gb=groupBands(d);
  dspText(ctx,'Band levels now, dB',b.x,13,{color:DSP_COLORS.text2,weight:600});
  ctx.strokeStyle=DSP_COLORS.grid;ctx.lineWidth=1;ctx.beginPath();
@@ -858,8 +858,8 @@ function drawNotes(ctx,W,H,s,d){
 }
 
 // A/B: the pinned settings (A) against the live ones (B) on the same audio.
-const AB_LABELS={fft:['FFT',v=>v],attack:['Attack',v=>v+' ms'],release:['Release',v=>v+' ms'],noise:['Noise floor',v=>(v/1000).toFixed(3)],
- 'adaptive-floor':['Adaptive floor',v=>v+'%'],gain:['Sensitivity',v=>(v/10).toFixed(1)+'×'],transient:['Onset threshold',v=>(v/10).toFixed(1)+'×'],
+const AB_LABELS={fft:['FFT',v=>v],attack:['Attack',v=>v+' ms'],release:['Release',v=>v+' ms'],'noise-db':['Noise floor',v=>v<=NOISE_OFF_DB?'off':`${v} dB`],
+ 'adaptive-floor':['Adaptive floor',v=>v+'%'],'floor-rise':['Floor learns in',v=>v+' s'],'floor-fall':['Floor drops in',v=>(v/1000).toFixed(2)+' s'],gain:['Sensitivity',v=>(v/10).toFixed(1)+'×'],transient:['Onset threshold',v=>(v/10).toFixed(1)+'×'],
  agc:['Auto gain',v=>v+' ms'],compression:['Compression',v=>v+'%'],tilt:['Tilt',v=>`${v/2} dB/oct`],balance:['Band balance',v=>v+'%'],
  'split-mid':['Mid from band',v=>v+1],window:['Window',v=>['Hann','Hamming','Blackman-Harris','Flat-top','Rectangular'][v]],
  'eq-bass':['Bass trim',v=>v+' dB'],'eq-mid':['Mid trim',v=>v+' dB'],'eq-high':['High trim',v=>v+' dB'],smoothing:['Band smoothing',v=>v+'%'],
@@ -926,7 +926,7 @@ function dspCaption(s,info){
   case 'chain':return `The ${g} signal after every stage, on one time axis — read it top to bottom to see which setting shapes it. (1) the <b>noise floor</b> decides when the input counts at all; (2) <b>Sensitivity</b>, <b>Compression</b> and <b>Auto gain</b> map it to 0–100%; (3) <b>Attack</b> and <b>Release</b> smooth that into what the LEDs show; (4) <b>Onset threshold</b> picks the hits that flash. The bars on the right are the range each stage uses: a narrow range in 2 or 3 means little contrast on the lamp, a range stuck high means it is always bright.`;
   case 'map':return `Every band over the last 5 s: before the analyzer (top) and what the LEDs get (bottom), low frequencies at the bottom. Rows that stay dark never light the lamp — lower the <b>noise floor</b> or raise <b>Sensitivity</b>; a mostly bright map leaves no room for peaks — lower <b>Sensitivity</b> or <b>Compression</b>; smeared vertical stripes mean a long <b>Release</b>. The histogram shows how often each LED level occurs: a good setting spreads it out${info.count?` (now ${pct(info.dark)} dark, ${pct(info.bright)} bright)`:''}.`;
   case 'ab':return DSP.ab?`<b>A</b> is a copy of the analyzer with the settings you pinned, <b>B</b> follows the sliders; both hear the same audio${info.diffs?'':' and still match'}. Dashed: A, filled: B. Compare the range each one uses, the hits and the bands, then keep B or go back to A's values. The sample rate is shared.`:`Pin the analyzer as it is now, then change settings and watch the old (A) and the new (B) side by side on the same music.`;
-  case 'noise':return `The <b>noise floor</b> (${(s.noise/1000).toFixed(3)}) is subtracted from every band: a band under it counts as silence (grey)${info.silent?` — ${info.silent} of 16 now`:''}. Raise it until the bars stay grey in quiet parts or with nothing playing. <b>Adaptive floor</b> ${s['adaptive-floor']}% also subtracts that share of each band's own steady background (dotted, learned over about 8 s) — for a constant hum, fan or room noise.`;
+  case 'noise':return `The <b>noise floor</b> (${noiseGate(s)?formatDb(noiseGate(s)):'off'}) is subtracted from every band: a band under it counts as silence (grey)${info.silent?` — ${info.silent} of 16 now`:''}. Raise it until the bars stay grey in quiet parts or with nothing playing. <b>Adaptive floor</b> ${s['adaptive-floor']}% also subtracts that share of each band's own steady background (dotted): it learns a louder background in ${s['floor-rise']} s and follows a quieter one in ${(s['floor-fall']/1000).toFixed(2)} s — for a constant hum, fan or room noise. Over 100% it also cuts what barely rises above that background.`;
  }
  return '';
 }

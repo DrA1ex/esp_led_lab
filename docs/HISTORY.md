@@ -22,6 +22,19 @@ and `build_standalone.py` moved to `scripts/`.
 - **Lava Lamp**: three slow waves multiplied into blobs; hues fold there and
   back along the palette instead of wrapping from its end to its start.
 
+## Noise floor in dB, adaptive floor timing (2026-10-31)
+
+- **Noise floor** is a slider in dB of full scale (−90 off … −20, 1 dB a
+  step) instead of a linear 0–0.050: the old first step, 0 → 0.001, jumped
+  straight to −60 dB, and the useful −70…−50 range had two positions.
+  Saved values are converted (0.008 → −42 dB).
+- **Adaptive floor** gets its timing: *Floor learns in* (1–60 s, was a fixed
+  8 s) is how long the learned background takes to follow a louder one, so
+  sustained music is not taken for noise; *Floor drops in* (0.02–3 s, was
+  0.1 s) how fast it follows a quieter one. The strength now goes to 200 %:
+  above 100 % it also cuts what barely rises above the background
+  (`set_noise_floor_timing()` in `dsp.cpp`).
+
 ## Contrast and blur for visualizations (2026-10-31)
 
 - **Blur** (Visualization section, `viz_blur`): a Gaussian of the drawn frame,

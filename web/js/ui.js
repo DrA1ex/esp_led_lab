@@ -252,6 +252,8 @@ function restoreSettings(){
  const rate=+saved['sample-rate'];
  if(STANDARD_RATES.includes(rate)&&rate!==fs){fs=rate;$('sample-rate').value=rate;updateAnalysisHop();}
  $('origin-shift').min=-512;$('origin-shift').max=512; // refreshTuningUi narrows it to the LED count
+ // Noise floor was a linear level x 1000 (0..50) before it moved to dB.
+ if(!('noise-db' in saved)&&Number.isFinite(+saved.noise))saved['noise-db']=+saved.noise>0?Math.round(20*Math.log10(+saved.noise/1000)):NOISE_OFF_DB;
  for(const id of PERSISTED)if(id!=='sample-rate'&&id in saved&&$(id))setControl($(id),saved[id]);
  $('playback-volume-value').textContent=$('playback-volume').value+'%';
  $('remote-latency-value').textContent=$('remote-latency').value+' ms';

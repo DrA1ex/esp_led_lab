@@ -133,7 +133,7 @@ with sync_playwright() as p:
     assert page.locator('#canvas-new').is_hidden()
     page.locator('#attack').focus()
     assert page.locator('[data-dsp="envelope"]').get_attribute('aria-selected') == 'true' and page.locator('#dsp-groups').is_visible()
-    page.locator('#noise').focus()
+    page.locator('#noise-db').focus()
     assert page.locator('[data-dsp="noise"]').get_attribute('aria-selected') == 'true' and page.locator('#dsp-groups').is_hidden()
     page.locator('[data-dsp="level"]').click()
     page.wait_for_timeout(400)

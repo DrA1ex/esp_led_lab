@@ -353,9 +353,14 @@
   <div class="section">
    <div class="section-head"><h3 class="eyebrow">Noise</h3></div>
    <div class="field-pair">
-    <div class="field"><label for="noise">Noise floor <span class="val" id="noise-value">0.008</span></label><input id="noise" type="range" min="0" max="50" value="8"></div>
-    <div class="field"><label for="adaptive-floor">Adaptive floor <span class="val" id="adaptive-floor-value">0%</span></label><input id="adaptive-floor" type="range" min="0" max="100" value="0"></div>
+    <div class="field"><label for="noise-db">Noise floor <span class="val" id="noise-db-value">−42 dB</span></label><input id="noise-db" type="range" min="-90" max="-20" value="-42"></div>
+    <div class="field"><label for="adaptive-floor">Adaptive floor <span class="val" id="adaptive-floor-value">0%</span></label><input id="adaptive-floor" type="range" min="0" max="200" step="5" value="0"></div>
    </div>
+   <div class="field-pair">
+    <div class="field"><label for="floor-rise">Floor learns in <span class="val" id="floor-rise-value">8 s</span></label><input id="floor-rise" type="range" min="1" max="60" value="8"></div>
+    <div class="field"><label for="floor-fall">Floor drops in <span class="val" id="floor-fall-value">0.1 s</span></label><input id="floor-fall" type="range" min="20" max="3000" step="20" value="100"></div>
+   </div>
+   <p class="hint">Noise floor: a fixed level in dB of full scale, subtracted from every band; −90 is off. Adaptive floor subtracts each band's own learned background (100% = all of it, more also cuts what barely rises above it). It learns a louder background in <i>learns in</i> — longer keeps sustained music from being taken for noise — and follows a quieter one in <i>drops in</i>.</p>
   </div>
   <details class="disclosure"><summary>Details</summary>
    <p class="hint">Hann-windowed FFT at the selected analysis rate (the top frequency is half that rate), 16 logarithmic bands for the classic preview modes (16/32/64 for the lamp and the lab-preview modes) with a spectral tilt and an optional per-band reference, a level curve with compression or expansion, envelope attack/release, adaptive noise floor, a spectral-flux onset detector per band group and an experimental tempo estimate (may be wrong on complex music).</p>

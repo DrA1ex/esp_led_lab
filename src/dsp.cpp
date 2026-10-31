@@ -45,6 +45,9 @@ static float tilt_db=0.f,tilt16[BANDS],tilt32[32],tilt64[64];
 // Band balance: the share of each band's own reference (its average over
 // ~4 s) in the reference it is normalised to; 0 = the global AGC only.
 static float band_balance=0.f,band_avg[BANDS],band_ref[BANDS];
+// Adaptive floor: seconds the learned background takes to rise to a louder
+// background, and to fall back when it gets quieter.
+static float floor_rise=8.f,floor_fall=.1f;
 // Groups: first band of mid and of high (16 bands).
 static int split_mid=5,split_high=12;
 // Onsets per group: threshold trim, hold-off after a hit, flash decay (seconds).
@@ -312,6 +315,7 @@ __attribute__((visibility("default"))) void set_spectral_tilt(float db_per_octav
 }
 // 0..1: how far each band is normalised to its own average instead of the global one.
 __attribute__((visibility("default"))) void set_band_balance(float amount){band_balance=clamp(amount,0.f,1.f);}
+__attribute__((visibility("default"))) void set_noise_floor_timing(float rise_s,float fall_s){floor_rise=clamp(rise_s,.5f,120.f);floor_fall=clamp(fall_s,.02f,10.f);}
 // First band of the mid and of the high group; every group keeps at least one band.
 __attribute__((visibility("default"))) void set_band_groups(int mid_start,int high_start){
     split_mid=mid_start<1?1:(mid_start>BANDS-2?BANDS-2:mid_start);
@@ -484,10 +488,12 @@ __attribute__((visibility("default"))) void new_process(int n,float hop_seconds,
         const int g=group_of(b);
         baseline[b]+=(raw-baseline[b])*clamp(hop_seconds/1.2f,0.002f,0.08f);
         // Optional slow-adapting noise estimate: follows quieter conditions
-        // quickly but rises only over ~8s, to avoid interpreting music as noise.
-        float floor_alpha=clamp(hop_seconds/(raw<noise_floor[b]?0.1f:8.f),0.0003f,0.25f);
+        // quickly (floor_fall, 0.1 s) but rises only slowly (floor_rise, 8 s),
+        // to avoid interpreting music as noise. adaptive_floor 0..2 is how much
+        // of it is subtracted (above 1 also part of what rises just above it).
+        float floor_alpha=clamp(hop_seconds/(raw<noise_floor[b]?floor_fall:floor_rise),0.00005f,0.5f);
         if(!silent)noise_floor[b]+=(raw-noise_floor[b])*floor_alpha;
-        float v=maxf(0,raw-noise_gate-noise_floor[b]*clamp(adaptive_floor,0.f,1.f));
+        float v=maxf(0,raw-noise_gate-noise_floor[b]*clamp(adaptive_floor,0.f,2.f));
         // Previous implementation hard-clipped most active bands to 1.0 after AGC,
         // causing the display and parameter-control envelope to remain constant.
         // Use a continuous soft knee: the response stays monotonic for loud audio

@@ -118,7 +118,7 @@ for(const id of ['freq-min','freq-max'])$(id).addEventListener('input',()=>{
 });
 // Analyzer defaults: 40 Hz is set in Hz so it survives the change back to 16 kHz.
 function resetAnalyzer(){
- resetControls(['fft','attack','release','noise','adaptive-floor','gain','transient','agc','compression','window','tilt','eq-bass','eq-mid','eq-high','balance','smoothing','split-mid','split-high','peak-hold','onset-memory',
+ resetControls(['fft','attack','release','noise-db','adaptive-floor','floor-rise','floor-fall','gain','transient','agc','compression','window','tilt','eq-bass','eq-mid','eq-high','balance','smoothing','split-mid','split-high','peak-hold','onset-memory',
   'onset-trim-0','onset-trim-1','onset-trim-2','holdoff-0','holdoff-1','holdoff-2','flash-0','flash-1','flash-2','bpm-min','bpm-max']);
  $('freq-min').value=hzSlider(40);$('freq-max').value=1000;refreshLabels();
  if(STATE.ready)resetDSP(Math.max(0,STATE.inputMode==='microphone'?STATE.mic?.written||0:Math.floor((STATE.playing&&STATE.context?STATE.context.currentTime-STATE.playStart:STATE.pausedAt)*fs)));
