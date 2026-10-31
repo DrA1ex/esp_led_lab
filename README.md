@@ -49,8 +49,8 @@ The window is a music player around an LED preview:
 - **Player** (bottom): ⏮ (restarts the track after 3 s, otherwise previous),
   play/pause, ⏭, shuffle, position, repeat off / all / one, volume.
 
-Hotkeys: Space play/pause, ←/→ seek ±5 s, N / P next / previous, 1–5 open
-Music, Effect, Reaction, Lamps, Analyzer. Headphone buttons, keyboard media
+Hotkeys: Space play/pause, ←/→ seek ±5 s, N / P next / previous, 1–6 open
+Music, Effect, Reaction, Lamps, Analyzer, Layout. Headphone buttons, keyboard media
 keys and the OS media controls drive the player too (Media Session; a silent
 looped `<audio>` keeps the browser routing them to the page).
 
@@ -148,34 +148,52 @@ The **LED layout** menu above the preview selects what it renders:
 Addressing is always row-serpentine, exactly like `Led::get_index(x, y)`.
 Strips are drawn as they are built: one line of LEDs per row (a 2-row strip
 is two lines), LEDs up to 32 px apart and at least 12 px across, so a dense
-strip shows as touching segments. A closed strip (**Ring** under Reaction →
-Start and direction) is drawn round a rectangle with the stage's proportions,
-from the top-left corner clockwise, a second row inside the first. Clicking
-an LED works on both. The choice is remembered in the browser.
+strip shows as touching segments. A closed strip (**Ring** on the Layout
+tab) is drawn round a rectangle with the stage's proportions, from the
+top-left corner clockwise, a second row inside the first. The preview draws
+the lamp's layout (flips, a ring's turn) as the lamp does. Clicking the
+preview changes nothing. The choice is remembered in the browser.
 
 Audio modes on strips behave like the firmware: Spectrum maps the bands along
 the strip, Wave scrolls loudness along it (longer strips stretch the 3.2 s
 history instead of repeating it), Bass / Mid / High blends bass and mid on a
 single row, Line fills the strip from the start (or from the center).
 
-## Reaction range and start point
+## Reaction range
 
-The **Reaction** tab has two sections that are sent to the lamp with the
-stream (firmware with the `tuning` capability):
-
-- **Reaction range** — a signal window. The *Signal window* (a two-thumb
-  slider) is stretched onto the *Reaction* range: above the window the
-  reaction is always at maximum, below it at the minimum, or 0 with *Silence
-  below the window*. Example: signal 0–60 % → reaction 150–250. The curve
-  shows the mapping and the live input.
-- **Start and direction** — moves the start of Wave, Spectrum, Line and
-  Bass / Mid / High, and the center of the Center modes and Beat-aware.
-  *Reverse direction* runs the effect from the other end, *Ring* lets a
-  shifted effect wrap past the end of a closed strip, and on matrices the
-  Center modes can spread as a circle around an adjustable row. Clicking the
-  preview puts the start (or center) on the clicked LED.
-
+The **Reaction** tab's **Reaction range** is sent to the lamp with the stream
+(firmware with the `tuning` capability): a signal window. The *Signal window*
+(a two-thumb slider) is stretched onto the *Reaction* range: above the
+window the reaction is always at maximum, below it at the minimum, or 0 with
+*Silence below the window*. Example: signal 0–60 % → reaction 150–250. The
+curve shows the mapping and the live input. On matrices, *Center on a
+matrix* lets the Center modes spread as a circle around an adjustable row.
 Both default to the stock firmware picture.
+
+## Layout
+
+The **Layout** tab (key 6) says how the LEDs are mounted. Firmware with the
+`layout` capability saves it on the lamp and applies it to every effect,
+the built-in ones too; the lab reads it from `hello_ack` and writes back only
+the field you change. Edit one lamp in the switcher, or All lamps to write
+the change to every connected lamp (an offset as the same share of each
+lamp's width).
+
+- **Ring** — a closed strip, or a matrix wrapped round a cylinder.
+- **Center offset** — on a ring the whole picture turns this many LEDs along
+  the wiring, so the center faces you; ‹ › move it one LED. On an open strip
+  it moves the start and center of the audio modes instead, and LEDs past
+  the end stay dark.
+- **Flip horizontally / vertically** — the first LED (row) at the other end.
+- **Orientation test** — red first LED, green the end of the first row, blue
+  and white the ends of the last row, yellow the center: in the preview and
+  on the edited lamp(s) until switched off. Turn the center offset until
+  yellow faces you.
+
+The old *Start and direction* settings (start offset, reverse, ring) and
+picking the start by clicking the preview are gone; the layout replaces
+them. *First row at the bottom* in the View menu only changes how the
+preview shows a matrix.
 
 ## Analyzer
 
@@ -342,6 +360,8 @@ Keep these in sync with `esp_led_lamp`:
   (Bass / Mid / High, Beat-aware, spectrum shaping, control sources);
 - `scaled_audio()` ↔ `audioTransfer()` in `src/audio/transfer.h`, and
   `origin_*()` ↔ `RemoteReactive::OriginMap` (signal window, start point);
+  `render_test_pattern()` and `layoutMapper()` (`web/js/layout.js`) ↔
+  `Layout::testPattern` / `Layout::index` in `src/misc/layout.h`;
 - Wave history length and stretching ↔ `RemoteSignalProvider` / `Timeline`;
 - `web/js/remote.js` ↔ `docs/REMOTE_AUDIO_PROTOCOL.md` and
   `src/network/protocol/server/remote_audio_ws.cpp`.

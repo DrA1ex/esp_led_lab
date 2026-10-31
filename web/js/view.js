@@ -46,14 +46,14 @@ function refreshLabels(){
   m.set_effects(s.color,s.brightness,s['audio-mode']);m.set_parameters(s.speed,s.scale,s.light,s.mix/100);m.set_audio_range(s['audio-min'],s['audio-max']);
   const curve=curveExponent(s);fillCurveTable(m,curve);
   m.set_audio_window(s['input-min'],s['input-max'],s['input-gate']?1:0,curve);
-  m.set_visualization(+s['viz-color'],s['viz-mirror']?1:0,s['viz-decay']/100,s['viz-speed']/100,s['viz-auto']?1:0,s['viz-contrast']/100,s['viz-blur']/100);m.set_origin(...originArgs(s,g.w));
+  m.set_visualization(+s['viz-color'],s['viz-mirror']?1:0,s['viz-decay']/100,s['viz-speed']/100,s['viz-auto']?1:0,s['viz-contrast']/100,s['viz-blur']/100);m.set_origin(...originArgs(s,currentLayout(),g.w));
   // Effect parameters of the running visualization (engine mode = audio mode - 13).
   const mode=s['audio-mode'];
   if(FX_MODES.includes(mode)){new Uint8Array(m.memory.buffer,m.viz_params_ptr(),FX_MAX).set(fxValues(s,mode));m.set_viz_params(mode-13);}
   else m.set_viz_params(-1);
  }
- refreshTuningUi(s,g);refreshFxUi(s,g);
- commitEditor(settings()); // after refreshTuningUi, which may narrow the start offset
+ refreshTuningUi(s,g);refreshLayoutUi(g);refreshFxUi(s,g);
+ commitEditor(settings());
  syncChoices();paintRanges();scheduleThumbs(s);scheduleSave();
  refreshEffective();
 }
@@ -125,16 +125,17 @@ function refreshEffective(){
 }
 
 const displayScale=()=>Math.min(2,devicePixelRatio||1);
-// Converts the serpentine WASM framebuffer to a row-major display image
-// (optionally Y-inverted and LED-output corrected) and draws it.
+// Converts the serpentine WASM framebuffer to a row-major display image of
+// the wiring (the lamp's layout: flips, ring turn; optionally first row at
+// the bottom and LED-output corrected) and draws it.
 function paint(m,canvas,side,dots){
  const n=m.get_width(),h=m.get_height();
  const u=new Uint8ClampedArray(m.memory.buffer,m.framebuffer_ptr(),n*h*4);
  const off=STATE.canvases[side].off;off.width=n;off.height=h;
  const oc=off.getContext('2d',{willReadFrequently:true});const img=oc.createImageData(n,h);
- const conf=settings(),invertY=conf['invert-y'],master=conf['simulate-led']?conf['master-brightness']:255,correction=conf['simulate-led']?[255,176,240]:[255,255,255];
+ const conf=settings(),wire=layoutMapper(currentLayout(),n,h),invertY=conf['invert-y'],master=conf['simulate-led']?conf['master-brightness']:255,correction=conf['simulate-led']?[255,176,240]:[255,255,255];
  for(let y=0;y<h;y++)for(let x=0;x<n;x++){
-  const src=((y&1)?n-1-x:x)+y*n,si=src*4,dstY=invertY?h-1-y:y,di=(dstY*n+x)*4;
+  const [wx,wy]=wire(x,y),src=((y&1)?n-1-x:x)+y*n,si=src*4,dstY=invertY?h-1-wy:wy,di=(dstY*n+wx)*4;
   for(let c=0;c<3;c++){
    const adj=Math.floor(correction[c]*(master+1)/256);
    img.data[di+c]=Math.floor(u[si+c]*(adj+1)/256);
@@ -182,7 +183,7 @@ function stripMaxHeight(canvas){
 }
 function drawStrip(canvas,data,n,h,dots){
  const cssW=Math.max(120,canvas.clientWidth||canvas.parentElement.clientWidth||300),dpi=displayScale();
- const L=stripLayout(n,h,cssW,stripMaxHeight(canvas),settings()['origin-ring']);STATE.stripLayout=L;
+ const L=stripLayout(n,h,cssW,stripMaxHeight(canvas),currentLayout().ring);STATE.stripLayout=L;
  const cw=Math.round(cssW*dpi),ch=Math.max(1,Math.round(L.height*dpi));
  if(canvas.width!==cw||canvas.height!==ch){canvas.width=cw;canvas.height=ch;}
  const ctx=canvas.getContext('2d');

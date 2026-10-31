@@ -9,9 +9,9 @@ let fs=16000,hop=256;
 const CHROMA_STEP=.048;
 // At least 50% overlap for short FFTs; keep the default 16 ms DSP cadence.
 function updateAnalysisHop(){hop=Math.min(Math.round(fs*.016),+$('fft').value/2);}
-const inputIds=['color','palette','brightness','audio-mode','speed','scale','light','audio-min','audio-max','mix','geometry','geom-w','geom-h','led-dots','invert-y','xy-test','gamma','master-brightness','simulate-led','fft','sample-rate','attack','release','noise-db','adaptive-floor','floor-rise','floor-fall','gain','transient','agc','compression','freq-min','freq-max',
+const inputIds=['color','palette','brightness','audio-mode','speed','scale','light','audio-min','audio-max','mix','geometry','geom-w','geom-h','led-dots','invert-y','gamma','master-brightness','simulate-led','fft','sample-rate','attack','release','noise-db','adaptive-floor','floor-rise','floor-fall','gain','transient','agc','compression','freq-min','freq-max',
  'window','tilt','eq-bass','eq-mid','eq-high','balance','smoothing','split-mid','split-high','peak-hold','onset-memory','onset-trim-0','onset-trim-1','onset-trim-2','holdoff-0','holdoff-1','holdoff-2','flash-0','flash-1','flash-2','bpm-min','bpm-max','param-source','spectrum-shape','spectrum-onset','line-response',
- 'input-min','input-max','input-curve','input-gate','origin-shift','origin-y','origin-reverse','origin-ring','origin-radial','viz-color','viz-auto','viz-contrast','viz-mirror','viz-decay','viz-speed','viz-blur'];
+ 'input-min','input-max','input-curve','input-gate','origin-y','origin-radial','viz-color','viz-auto','viz-contrast','viz-mirror','viz-decay','viz-speed','viz-blur'];
 // Noise floor slider in dBFS of a band (1 dB a step); its lowest position is off.
 const NOISE_OFF_DB=-90;
 const noiseGate=s=>s['noise-db']<=NOISE_OFF_DB?0:Math.pow(10,s['noise-db']/20);

@@ -31,20 +31,25 @@ for(const [x,y,z,v] of [[0,0,0,32745],[65536,65536,65536,32745],[12345678,876543
 }
 // Explicit non-square dimensions catch both odd/even serpentine row mistakes.
 for(const [w,h] of [[5,4],[6,5],[16,16],[32,32]]){
- m.set_dimensions(w,h);m.render_test_pattern();
+ m.set_dimensions(w,h);m.render_test_pattern(0);
  const px=new Uint8Array(m.memory.buffer,m.framebuffer_ptr(),w*h*4);
  const logical=(x,y)=>{let i=((y&1)?w-1-x:x)+w*y;return [px[i*4],px[i*4+1],px[i*4+2]];};
  assert.deepEqual(logical(0,0),[255,0,0]);
  assert.deepEqual(logical(w-1,0),[0,255,0]);
  assert.deepEqual(logical(0,h-1),[0,0,255]);
  assert.deepEqual(logical(w-1,h-1),[255,255,255]);
- // display inverted Y maps original logical bottom row to screen's first row.
- assert.deepEqual(logical(0,h-1),[0,0,255]);
+ // The centre column (Layout::testPattern): yellow where Center modes centre.
+ assert.deepEqual(logical(w>>1,1),[255,192,0]);
 }
+// An open strip's offset moves the centre; past the end it is not drawn.
+m.set_dimensions(46,1);m.render_test_pattern(-3);
+{const px=new Uint8Array(m.memory.buffer,m.framebuffer_ptr(),46*4);assert.deepEqual([...px.slice(20*4,20*4+3)],[255,192,0]);}
+m.set_dimensions(8,1);m.render_test_pattern(40);
+{const px=new Uint8Array(m.memory.buffer,m.framebuffer_ptr(),8*4);assert.deepEqual([...px.slice(4*4,4*4+3)],[0,0,0]);}
 const html=fs.readFileSync(path.join(__dirname,'../web/index.html'),'utf8')+fs.readFileSync(path.join(__dirname,'../web/css/app.css'),'utf8');
 const webSource=()=>fs.readdirSync(path.join(__dirname,'../web/js')).map(f=>fs.readFileSync(path.join(__dirname,'../web/js',f),'utf8')).join('\n');
 const js=webSource();
 assert.match(html,/id="invert-y" checked/);
-assert.match(html,/id="xy-test"/);
-assert.match(js,/dstY=invertY\?h-1-y:y/);
-console.log('PASS: FastLED fixed arithmetic sin16/cubicwave8/blend8, frozen noise vectors, serpentine corners and invert-Y UI');
+assert.match(html,/id="layout-test"/);
+assert.match(js,/dstY=invertY\?h-1-wy:wy/);
+console.log('PASS: FastLED fixed arithmetic sin16/cubicwave8/blend8, frozen noise vectors, serpentine corners, the orientation test and the first-row-at-bottom UI');

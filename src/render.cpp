@@ -316,12 +316,20 @@ __attribute__((visibility("default"))) unsigned int* palette_ptr(){return palett
 __attribute__((visibility("default"))) unsigned char* framebuffer_ptr(){return rgba;}
 // Logical XY test pattern. Canvas may optionally flip Y, but memory remains
 // row-serpentine, exactly as Led::get_index() in the firmware.
-__attribute__((visibility("default"))) void render_test_pattern(){
- solid(0x101820);
- for(int x=0;x<W;x++){pixel(x,0,0x332222);pixel(x,H-1,0x222244);}
- for(int y=0;y<H;y++){pixel(0,y,0x443322);pixel(W-1,y,0x224433);}
+// Orientation test, as firmware Layout::testPattern draws it on the lamp:
+// red (0,0), green (W-1,0), blue (0,H-1), white (W-1,H-1), the yellow centre
+// column where Center modes centre (moved by an open strip's offset), dim
+// edges on a matrix. Flips and a ring's turn are applied when it is drawn.
+__attribute__((visibility("default"))) void render_test_pattern(int shift){
+ solid(0);
+ if(H>2){
+  for(int x=0;x<W;x++){pixel(x,0,0x300000);pixel(x,H-1,0x000030);}
+  for(int y=0;y<H;y++){pixel(0,y,0x301800);pixel(W-1,y,0x003018);}
+ }
+ const int centre=W/2+shift;
+ if(centre>=0&&centre<W)for(int y=0;y<H;y++)pixel(centre,y,0xffc000);
  pixel(0,0,0xff0000);pixel(W-1,0,0x00ff00);
- pixel(0,H-1,0x0000ff);pixel(W-1,H-1,0xffffff);
+ if(H>1){pixel(0,H-1,0x0000ff);pixel(W-1,H-1,0xffffff);}
 }
 __attribute__((visibility("default"))) float* audio_features_ptr(){return features;}
 __attribute__((visibility("default"))) int get_width(){return W;}

@@ -3,7 +3,9 @@
 (src/network/protocol/server/remote_audio_ws.cpp): hello_ack with
 WIDTH x HEIGHT and capabilities (with "chroma": frames may carry the 12
 pitch classes, byte 37 bit 0), sync_ack, clock_ack, config_ack, start_ack,
-stop_ack, status and the lamp controls (power, brightness -> control_ack).
+stop_ack, status, the lamp controls (power, brightness -> control_ack) and
+the layout saved on the lamp (layout -> layout_ack, the orientation test ->
+test_ack; kept in memory only).
 Use it to check the lab without a lamp.
 Run: python3 scripts/mock_remote_receiver.py --port 8765 [--width 153 --height 1]
 then connect the lab to 127.0.0.1:8765.
@@ -45,6 +47,7 @@ def parse_frame(message):
 ARGS = None
 START = time.monotonic()
 LAMP = dict(power=True, brightness=128)  # persists across connections, like the lamp's config
+LAYOUT = dict(flip_x=False, flip_y=False, ring=False, offset=0)  # the lamp's saved layout
 
 
 def millis():
@@ -81,9 +84,11 @@ def receiver(ws):
                                     height=ARGS.height, bands=32, band_counts=[16, 32, 64], fps=60,
                                     capabilities=['sync', 'clock', 'config', 'status', 'tuning', 'visualizations']
                                     + ([] if ARGS.no_control else ['control'])
-                                    + ([] if ARGS.no_chroma else ['chroma']),
+                                    + ([] if ARGS.no_chroma else ['chroma'])
+                                    + ([] if ARGS.no_layout else ['layout']),
                                     visualizations=[] if ARGS.no_viz else list(range(12, 35)),
-                                    **({} if ARGS.no_control else LAMP))))
+                                    **({} if ARGS.no_control else LAMP),
+                                    **({} if ARGS.no_layout else {'layout': LAYOUT}))))
         elif op == 'sync':
             t1 = millis()
             ws.send(json.dumps(dict(type='sync_ack', session=1, id=msg.get('id'), t0=msg.get('t0'),
@@ -125,6 +130,23 @@ def receiver(ws):
                 continue
             print(op, value)
             ws.send(json.dumps(dict(type='control_ack', **LAMP)))
+        elif op == 'layout' and not ARGS.no_layout:
+            fields = {k: v for k, v in msg.items() if k != 'type'}
+            ok = (all(isinstance(fields.get(k, False), bool) for k in ('flip_x', 'flip_y', 'ring'))
+                  and isinstance(fields.get('offset', 0), int) and not isinstance(fields.get('offset', 0), bool)
+                  and abs(fields.get('offset', 0)) <= ARGS.width)
+            if not ok:
+                ws.send(json.dumps(dict(type='error', reason='invalid_layout')))
+                continue
+            LAYOUT.update({k: fields[k] for k in LAYOUT if k in fields})
+            print('layout', LAYOUT)
+            ws.send(json.dumps(dict(type='layout_ack', layout=LAYOUT)))
+        elif op == 'test' and not ARGS.no_layout:
+            if not isinstance(msg.get('on'), bool):
+                ws.send(json.dumps(dict(type='error', reason='invalid_test')))
+                continue
+            print('orientation test', 'on' if msg['on'] else 'off')
+            ws.send(json.dumps(dict(type='test_ack', on=msg['on'])))
         else:
             ws.send(json.dumps(dict(type='error', reason='unknown_command')))
 
@@ -137,6 +159,7 @@ if __name__ == '__main__':
     ap.add_argument('--height', type=int, default=16)
     ap.add_argument('--no-viz', action='store_true', help='behave like firmware without visualizations')
     ap.add_argument('--no-control', action='store_true', help='behave like firmware without power / brightness')
+    ap.add_argument('--no-layout', action='store_true', help='behave like firmware without the layout capability')
     ap.add_argument('--no-chroma', action='store_true', help='behave like firmware without chroma (v1 frames only)')
     args = ARGS = ap.parse_args()
     print(f'Mock ESP receiver listening on ws://{args.host}:{args.port}/audio')

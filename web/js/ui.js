@@ -251,7 +251,6 @@ function restoreSettings(){
  // The analysis rate first: the frequency sliders are relative to its Nyquist limit.
  const rate=+saved['sample-rate'];
  if(STANDARD_RATES.includes(rate)&&rate!==fs){fs=rate;$('sample-rate').value=rate;updateAnalysisHop();}
- $('origin-shift').min=-512;$('origin-shift').max=512; // refreshTuningUi narrows it to the LED count
  // Noise floor was a linear level x 1000 (0..50) before it moved to dB.
  if(!('noise-db' in saved)&&Number.isFinite(+saved.noise))saved['noise-db']=+saved.noise>0?Math.round(20*Math.log10(+saved.noise/1000)):NOISE_OFF_DB;
  for(const id of PERSISTED)if(id!=='sample-rate'&&id in saved&&$(id))setControl($(id),saved[id]);
@@ -278,12 +277,12 @@ document.addEventListener('input',e=>{if(PERSISTED.includes(e.target.id))schedul
 document.addEventListener('change',e=>{if(PERSISTED.includes(e.target.id))scheduleSave();});
 addEventListener('pagehide',saveSettings);
 
-// Keys 1–5 open the panels (not while typing or on a focused control).
+// Keys 1–6 open the panels (not while typing or on a focused control).
 document.addEventListener('keydown',e=>{
- if(e.ctrlKey||e.metaKey||e.altKey||!/^[1-5]$/.test(e.key))return;
+ if(e.ctrlKey||e.metaKey||e.altKey||!/^[1-6]$/.test(e.key))return;
  const tag=document.activeElement?.tagName;
  if(['INPUT','SELECT','TEXTAREA'].includes(tag)||document.activeElement?.isContentEditable)return;
- e.preventDefault();showPanel(['music','effect','reaction','lamps','analyzer'][+e.key-1]);
+ e.preventDefault();showPanel(['music','effect','reaction','lamps','analyzer','layout'][+e.key-1]);
 });
 
 // Phones: the preview can shrink to leave more room for the panels (remembered).
@@ -303,7 +302,7 @@ function initUi(){
  $('signal-reset').onclick=()=>resetSection(['param-source','spectrum-shape','spectrum-onset','line-response']);
  // Menu items close their menu.
  for(const item of document.querySelectorAll('.menu-item'))item.addEventListener('click',()=>item.closest('[popover]')?.hidePopover?.());
- $('view-reset').onclick=()=>{resetControls(['mix','led-dots','invert-y','xy-test','simulate-led','master-brightness','gamma']);refreshLabels();};
+ $('view-reset').onclick=()=>{resetControls(['mix','led-dots','invert-y','simulate-led','master-brightness','gamma']);refreshLabels();};
  $('reset-all').onclick=()=>{resetAll();$('help-menu').hidePopover?.();};
  // The pinned stage on phones: the tabs stick right under it.
  if(typeof ResizeObserver==='function')new ResizeObserver(()=>document.documentElement.style.setProperty('--stage-h',$('stage').offsetHeight+'px')).observe($('stage'));

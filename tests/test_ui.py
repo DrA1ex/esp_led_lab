@@ -98,9 +98,9 @@ with sync_playwright() as p:
     assert page.locator('#tab-effect').get_attribute('aria-selected') == 'true', 'Music is not a tab on wide screens'
     page.locator('#lamp-chip').click()
     assert page.locator('#tab-lamps').get_attribute('aria-selected') == 'true'
-    print('PASS tabs: 1-5 hotkeys, arrows / Home, lamps pill opens Lamps')
+    print('PASS tabs: 1-6 hotkeys, arrows / Home, lamps pill opens Lamps')
 
-    # LED layout menu → a strip; a click on an LED moves the start there.
+    # LED layout menu → a strip; a click on the preview changes nothing.
     page.locator('#tab-reaction').click()
     page.locator('.choices[data-for="audio-mode"] label', has_text='Line').first.click()
     assert page.evaluate("$('audio-mode').value") == '6'
@@ -109,21 +109,40 @@ with sync_playwright() as p:
     page.keyboard.press('Escape')
     page.wait_for_function("document.body.classList.contains('strip-layout') && STATE.stripLayout && STATE.modules.new.exports.get_width()===153")
     assert page.locator('#matrix-label').inner_text() == '153 LED · strip'
-    target = page.evaluate('''() => {const L=STATE.stripLayout,k=20,r=$('canvas-new').getBoundingClientRect(),s=r.width/L.width;
-        return {x:r.left+L.cx[k]*s,y:r.top+L.cy[k]*s}}''')
     assert page.evaluate('STATE.stripLayout.cy.every(v=>v===STATE.stripLayout.cy[0])'), 'a 1-row strip is drawn on one line'
-    page.mouse.click(target['x'], target['y'])
-    assert page.evaluate("+$('origin-shift').value") == 20
-    assert 'LED 21 of 153' in page.locator('#origin-hint').inner_text()
-    # A closed strip (Ring) is drawn round a rectangle; a click still picks its LED.
-    page.evaluate("$('origin-ring').checked=true;$('origin-shift').value=0;refreshLabels()")
+    before = page.evaluate("JSON.stringify([settings(),currentLayout()])")
+    box = page.locator('#canvas-new').bounding_box()
+    page.mouse.click(box['x'] + box['width'] * .2, box['y'] + box['height'] / 2)
+    assert page.evaluate("JSON.stringify([settings(),currentLayout()])") == before
+    # Layout tab (key 6): the center offset moves the start of an open strip.
+    page.locator('body').click(position={'x': 5, 'y': 880})
+    page.keyboard.press('6')
+    assert page.locator('#tab-layout').get_attribute('aria-selected') == 'true'
+    page.evaluate("$('layout-offset').value=20;$('layout-offset').dispatchEvent(new Event('input',{bubbles:true}))")
+    assert 'Start: LED 21 of 153' in page.locator('#layout-hint').inner_text()
+    assert page.evaluate("originArgs(settings(),currentLayout(),153)[0]") == 131
+    page.locator('#layout-flip-x').check()
+    # The offset counts along the wiring: flipped, the centre moves the same way on the strip.
+    hint = page.locator('#layout-hint').inner_text()
+    assert 'Center: LED 97 of 153' in hint and 'Start: off the end' in hint, hint
+    page.evaluate("$('layout-offset').value=-20;$('layout-offset').dispatchEvent(new Event('input',{bubbles:true}))")
+    assert 'Start: LED 133 of 153, running backwards' in page.locator('#layout-hint').inner_text()
+    page.evaluate("$('layout-offset').value=20;$('layout-offset').dispatchEvent(new Event('input',{bubbles:true}))")
+    # A closed strip (Ring) is drawn round a rectangle and turns as a whole.
+    page.locator('#layout-ring').check()
     page.wait_for_function('STATE.stripLayout.ring && STATE.stripLayout.height > 100')
-    target = page.evaluate('''() => {const L=STATE.stripLayout,k=70,r=$('canvas-new').getBoundingClientRect(),s=r.width/L.width;
-        return {x:r.left+L.cx[k]*s,y:r.top+L.cy[k]*s}}''')
-    page.mouse.click(target['x'], target['y'])
-    assert page.evaluate("+$('origin-shift').value") == 70
-    page.evaluate("$('origin-ring').checked=false;refreshLabels()")
-    print('PASS LED layout menu, a strip on one line, a closed strip round a rectangle, click-to-start on both')
+    assert page.evaluate("originArgs(settings(),currentLayout(),153)[0]") == 0
+    assert page.evaluate("layoutMapper(currentLayout(),153,1)(0,0)[0]") == 19  # flipped to 152, then turned 20
+    # The orientation test: red first LED, yellow center, in the preview.
+    page.locator('label.switch:has(#layout-test)').click()
+    page.wait_for_timeout(200)
+    px = page.evaluate("""() => {const m=STATE.modules.new.exports,u=new Uint8Array(m.memory.buffer,m.framebuffer_ptr(),153*4);
+        return [[...u.slice(0,3)],[...u.slice(76*4,76*4+3)]]}""")
+    assert px == [[255, 0, 0], [255, 192, 0]], px
+    page.locator('label.switch:has(#layout-test)').click()
+    page.locator('#layout-reset').click()
+    assert page.evaluate("JSON.stringify(currentLayout())") == '{"ring":false,"offset":0,"flip_x":false,"flip_y":false}'
+    print('PASS LED layout menu, a strip on one line, no click-to-start, Layout tab: offset, flip, ring round a rectangle, test pattern')
 
     # Analyzer tab: the stage switches to the DSP view; touching a control opens its panel.
     page.locator('#tab-analyzer').click()

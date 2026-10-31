@@ -313,6 +313,7 @@ function renderRemoteDevices(){
  for(const d of REMOTE.devices)if(d.width>0&&d.height>0){
   const p=lampProfile(d);if(!p.size||p.size.w!==d.width||p.size.h!==d.height){p.size={w:d.width,h:d.height};scheduleProfiles();}
  }
+ layoutDevicesChanged();
  if(editorStale())loadEditor();
  // The preview follows a size that just arrived (the edited lamp, "From connected lamp").
  if(STATE.ready){

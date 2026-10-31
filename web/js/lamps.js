@@ -11,22 +11,23 @@ const LAMP_GROUPS={
  Reaction:['audio-mode','param-source','spectrum-shape','spectrum-onset','viz-color','viz-auto','viz-contrast','viz-mirror','viz-decay','viz-speed','viz-blur',
   'input-min','input-max','input-curve','input-gate','audio-min','audio-max'],
  Parameters:FX_IDS,
- Start:['origin-shift','origin-y','origin-reverse','origin-ring','origin-radial']
+ Center:['origin-y','origin-radial']
 };
 const LAMP_KEYS=Object.values(LAMP_GROUPS).flat();
 const SHARED={};
 const PROFILES_KEY='esp-led-lab.lamp-profiles',TARGET_KEY='esp-led-lab.target';
 let LAMP_PROFILES={},TARGET='all';
 
-// Profiles of older versions ({mode, bands, shift}) become overrides.
+// Profiles of older versions ({mode, bands}) become overrides; layout is the
+// last layout the lamp reported (layout.js).
 function normalizeProfile(p){
  if(!p||typeof p!=='object')p={};
  const overrides=p.overrides&&typeof p.overrides==='object'?{...p.overrides}:{};
  if(p.mode!==undefined&&p.mode!=='')overrides['audio-mode']=+p.mode;
- if(p.shift!==undefined&&p.shift!=='')overrides['origin-shift']=+p.shift;
  const limit=Number.isFinite(+p.limit)?Math.max(0,Math.min(100,Math.round(+p.limit))):100;
  const size=p.size&&p.size.w>0&&p.size.h>0?{w:+p.size.w,h:+p.size.h}:null;
- return {name:typeof p.name==='string'?p.name:'',overrides,bands:[16,32,64].includes(+p.bands)?String(+p.bands):'',limit,size};
+ const layout=p.layout&&typeof p.layout==='object'?p.layout:null;
+ return {name:typeof p.name==='string'?p.name:'',overrides,bands:[16,32,64].includes(+p.bands)?String(+p.bands):'',limit,size,layout};
 }
 try{
  const saved=JSON.parse(localStorage.getItem(PROFILES_KEY)||'{}')||{};
@@ -54,15 +55,7 @@ const targetLampSize=()=>{const d=targetLamp();return d?lampSize(d):null;};
 const ownKeys=d=>Object.keys(lampProfile(d).overrides).filter(id=>LAMP_KEYS.includes(id));
 const ownGroups=d=>{const own=ownKeys(d);return Object.keys(LAMP_GROUPS).filter(g=>LAMP_GROUPS[g].some(id=>own.includes(id)));};
 
-// The shared start offset counts LEDs of the All lamps layout; a lamp that
-// follows it gets the same share of its own width (as on the wire).
-function sharedValueFor(d,id){
- if(id==='origin-shift'){
-  const w=lampSize(d)?.w,sw=menuGeometry().w;
-  if(w&&w!==sw){const half=Math.floor(w/2);return Math.max(-half,Math.min(half,Math.round(SHARED[id]*w/sw)));}
- }
- return SHARED[id];
-}
+const sharedValueFor=(d,id)=>SHARED[id];
 function effectiveValue(d,id){
  const own=lampProfile(d).overrides;
  return id in own?own[id]:sharedValueFor(d,id);
@@ -89,7 +82,7 @@ function previewBands(){const d=targetLamp();return d?lampBands(d):+$('remote-ba
 const PARAM_SOURCES=['loudness','spectral','bass','mid','high','peak','onset','beat'];
 // Firmware ignores unknown fields, so the lab tuning below is safe for older
 // receivers; receivers advertising "tuning" apply it like the preview.
-function runtimeConfig(s,width){return {
+function runtimeConfig(s){return {
  color_effect:s.color,brightness_effect:s.brightness,audio_effect:s['audio-mode'],
  audio_min:s['audio-min'],audio_max:s['audio-max'],palette:s.palette,
  speed:s.speed,scale:s.scale,light:s.light,
@@ -98,13 +91,11 @@ function runtimeConfig(s,width){return {
  speed_floor:0,spectrum_shape:s['spectrum-shape'],spectrum_onset:s['spectrum-onset'],
  viz_color:+s['viz-color'],viz_mirror:Boolean(s['viz-mirror']),viz_auto:Boolean(s['viz-auto']),
  viz_contrast:+s['viz-contrast'],viz_decay:+s['viz-decay'],viz_motion:+s['viz-speed'],viz_blur:+s['viz-blur'],
- ...tuningConfig(s,width)
+ ...tuningConfig(s)
 };}
 function lampConfig(d){
- const s=lampSettings(d),own=lampProfile(d).overrides;
- const c=runtimeConfig(s,lampSize(d)?.w||menuGeometry().w);
- // A shared start offset goes out as the same share of the width for every lamp.
- if(!('origin-shift' in own))c.origin_shift=originPermille(SHARED,menuGeometry().w);
+ const s=lampSettings(d);
+ const c=runtimeConfig(s);
  // A visualization this lamp's firmware does not render: Off instead.
  if(LAB_MODES.includes(c.audio_effect)&&!d.visualizations.includes(c.audio_effect))c.audio_effect=0;
  return c;
@@ -129,13 +120,13 @@ function commitEditor(s){
  if(JSON.stringify(own)!==JSON.stringify(p.overrides)){p.overrides=own;scheduleProfiles();renderTargets();}
 }
 // The width the controls were loaded for: a lamp that reports a new size
-// rescales the shared start offset it follows, so the controls reload.
+// reloads them (the layout's center offset counts its LEDs).
 let EDITOR_WIDTH=0;
 const editorStale=()=>{const d=targetLamp();return Boolean(d)&&(lampSize(d)?.w||0)!==EDITOR_WIDTH;};
 function loadEditor(){
  const d=targetLamp();EDITOR_WIDTH=d?lampSize(d)?.w||0:0;
- $('origin-shift').min=-512;$('origin-shift').max=512; // refreshTuningUi narrows it to the LED count
  for(const id of LAMP_KEYS)setControl($(id),d?effectiveValue(d,id):SHARED[id]);
+ loadLayoutEditor();
 }
 function selectTarget(t){
  if(t!=='all'&&!REMOTE.devices.some(d=>d.url===t))t='all';

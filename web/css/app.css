@@ -243,14 +243,15 @@ body.dropping::after{content:"Drop audio files or folders to add them";position:
 .stage{display:flex;flex-direction:column;gap:10px;padding:12px}
 .stage-head{display:flex;align-items:center;gap:8px;min-width:0}
 .stage-head .menu-btn{flex:none}
-.origin-tip{display:inline-flex;align-items:center;gap:6px;margin:0 auto;min-width:0;flex:0 1 auto;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .stage-head .menu-btn:last-child{margin-left:auto}
-.origin-tip+.menu-btn{margin-left:0}
 #stage-size{display:none}
+.nudge{display:flex;align-items:center;gap:6px}
+.nudge input[type=range]{flex:1;min-width:0}
+.nudge-btn{flex:none;width:28px;height:28px;border:1px solid var(--line-2);border-radius:99px;background:var(--raised);color:var(--text);font-size:16px;line-height:1;cursor:pointer}
+.nudge-btn:hover{border-color:var(--muted)}
 .stage-view{flex:1;min-height:0;display:grid;place-items:center;container-type:size;border-radius:var(--r);background:radial-gradient(ellipse at 50% 40%,#141824,#07080b 70%)}
 .matrixstage{--ar:1;width:min(100cqw - 24px,(100cqh - 24px)*var(--ar));aspect-ratio:var(--ar);border-radius:6px;overflow:hidden;background:#020305;box-shadow:0 0 0 1px #1a1f2a,0 20px 60px rgba(0,0,0,.55)}
 .matrixstage canvas{display:block;width:100%;height:100%;image-rendering:pixelated}
-.center-pick .matrixstage{cursor:crosshair}
 .strip-layout .stage-view{container-type:inline-size}
 .strip-layout .matrixstage{width:calc(100% - 24px);aspect-ratio:auto;padding:0;background:none;box-shadow:none}
 .strip-layout .matrixstage canvas{height:auto}
@@ -258,7 +259,7 @@ body.dropping::after{content:"Drop audio files or folders to add them";position:
 .stage-mode{flex:none;margin-left:auto;padding:2px}
 .stage-mode .choice>span{height:26px;padding:0 11px}
 .stage-mode:not([hidden])~.menu-btn{margin-left:0}
-body.dsp-stage .matrixstage,body.dsp-stage #origin-tip{display:none!important}
+body.dsp-stage .matrixstage{display:none!important}
 body.dsp-stage .stage-view{display:flex;place-items:stretch;background:var(--inset);border:1px solid var(--line)}
 .dsp-view{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0;min-height:0;padding:10px 12px}
 .dsp-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px}
@@ -541,7 +542,6 @@ label.mini input,label.mini select{height:30px;font-size:12.5px}
  .analyzer-foot{display:none}
  .control-visual{padding:6px 8px}
  .control-visual-header{font-size:11px}
- .origin-tip{display:none!important}
  .menu-btn .label{display:none}
  /* The DSP view takes the whole stage width; the analyzer strip under it would repeat it. */
  body.dsp-stage .stage{display:flex}

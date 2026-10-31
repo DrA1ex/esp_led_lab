@@ -58,7 +58,7 @@ if(current>=0&&(!remoteEnabled()||!STATE.playing)){
  let processed=0;while(STATE.nextSample<=current&&processed<budget){processAudio(STATE.nextSample);STATE.nextSample+=hop;processed++;}
  if(STATE.nextSample<current-budget*hop)STATE.nextSample=Math.max(+($('fft').value),current-(current%hop));
 }
-const s=settings(),m=STATE.modules.new.exports;feedRender(m);if(s['xy-test'])m.render_test_pattern();else m.render_frame(dt);paint(m,$('canvas-new'),'new',s['led-dots']);
+const s=settings(),m=STATE.modules.new.exports;feedRender(m);if(LAYOUT.test)m.render_test_pattern(layoutOriginShift(currentLayout()));else m.render_frame(dt);paint(m,$('canvas-new'),'new',s['led-dots']);
 // Meters follow every rendered frame; the FPS counter has its own clock.
 meters();
 if(t-STATE.lastUi>=100){refreshEffective();STATE.lastUi=t;}
@@ -69,7 +69,7 @@ $('fps').hidden=!/[?&]debug\b/.test(location.search);
 restoreSettings();
 initRemote();
 spectrumPlan();
-initTuning();
+initTuning();initLayout();
 initUi();
 initDspView();
 initLamps();

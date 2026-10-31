@@ -1,14 +1,13 @@
 'use strict';
-// Audio tab tuning shared by the preview and the lamp: signal window,
-// origin (start / centre shift, reverse, ring, radial centre), the transfer
-// curve, mode-dependent visibility and picking the origin on the preview.
-// The rules mirror firmware audioTransfer() and RemoteReactive::OriginMap.
+// Audio tab tuning shared by the preview and the lamp: signal window, the
+// radial centre on matrices, the transfer curve and mode-dependent
+// visibility. The rules mirror firmware audioTransfer() and
+// RemoteReactive::OriginMap; the start / centre along the LEDs comes from
+// the lamp layout (layout.js).
 
-const ORIGIN_MODES=[1,2,3,4,6,7,11,12,13,14,15,16,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35];
 // Visualizations (viz_engine.h, shared with the firmware). A lamp renders the
 // ones its hello_ack lists in "visualizations"; older firmware gets Off.
 const LAB_MODES=[13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35];
-const CENTERED_MODES=[2,4,7,12];
 const MODE_HINTS={
  0:'Audio does not affect the picture.',
  1:'Loudness of the last ~3 s runs along the LEDs; the newest sound is at the start.',
@@ -48,11 +47,12 @@ const MODE_HINTS={
  35:'Loudness and bass. Lava lamp: three slow waves multiplied into soft blobs that drift along the palette; the bass speeds them up and swells them, the loudness sets the light. One wave runs across and one up on a matrix.'
 };
 
-// Origin shift: the slider counts LEDs (columns); the wire format and the
-// renderer take permille of WIDTH, which round-trips exactly up to 1000 LEDs.
-const originPermille=(s,w)=>Math.max(-500,Math.min(500,Math.round((+s['origin-shift']||0)*1000/Math.max(1,w))));
-function originArgs(s,w){
- return [originPermille(s,w),s['origin-y'],s['origin-reverse']?1:0,s['origin-ring']?1:0,s['origin-radial']?1:0];
+// The renderer's origin (render.cpp set_origin): an open strip's layout
+// offset moves the audio modes' start / centre (permille of WIDTH); flips
+// and a ring's turn are applied when the frame is drawn, as on the lamp.
+function originArgs(s,l,w){
+ const permille=Math.max(-500,Math.min(500,Math.round(layoutOriginShift(l)*1000/Math.max(1,w))));
+ return [permille,s['origin-y'],0,0,s['origin-radial']?1:0];
 }
 // Curve slider -100..100 -> exponent x 100 on a log scale (25..400, 0 = linear),
 // the input_curve wire value.
@@ -63,10 +63,10 @@ function fillCurveTable(m,curve){
  for(let i=0;i<=256;i++)table[i]=Math.round(65535*Math.pow(i/256,gamma));
 }
 // Fields for config (docs/REMOTE_AUDIO_PROTOCOL.md, "Tuning").
-function tuningConfig(s,w){
+// The lamp's layout replaces origin_shift / origin_reverse / origin_ring.
+function tuningConfig(s){
  return {input_min:s['input-min'],input_max:s['input-max'],input_gate:s['input-gate'],input_curve:curveExponent(s),
-  origin_shift:originPermille(s,w),origin_y:s['origin-y'],origin_reverse:s['origin-reverse'],
-  origin_ring:s['origin-ring'],origin_radial:s['origin-radial']};
+  origin_y:s['origin-y'],origin_radial:s['origin-radial']};
 }
 // audioTransfer() on a 0..1 input with count = 255.
 function transferValue(v,s){
@@ -77,16 +77,8 @@ function transferValue(v,s){
  return lo+Math.pow((x-inMin)/(inMax-inMin),curveExponent(s)/100)*(hi-lo);
 }
 
-// Column where the effect starts (normal modes) or is centred (Center modes).
-function originColumn(s,g,centered){
- const cols=Math.round(g.w*originPermille(s,g.w)/1000);
- let xp=centered?Math.floor(g.w/2)+cols:cols;
- if(s['origin-ring'])xp=((xp%g.w)+g.w)%g.w;
- if(xp<0||xp>=g.w)return -1;
- return s['origin-reverse']?g.w-1-xp:xp;
-}
 function refreshTuningUi(s,g){
- const mode=s['audio-mode'],half=Math.floor(g.w/2);
+ const mode=s['audio-mode'];
  // Mode-dependent fields: data-modes="1,2,3", data-requires-matrix, data-requires="checkbox-id".
  for(const el of document.querySelectorAll('[data-modes],[data-requires-matrix],[data-requires]')){
   let show=true;
@@ -99,11 +91,6 @@ function refreshTuningUi(s,g){
  for(const sec of document.querySelectorAll('[data-auto-hide]'))
   sec.hidden=![...sec.querySelectorAll('[data-modes]')].some(el=>!el.hidden);
  $('audio-mode-hint').textContent=MODE_HINTS[mode]||'';
- const shift=$('origin-shift');
- if(+shift.max!==half){shift.min=-half;shift.max=half;}
- if(Math.abs(+shift.value)>half)shift.value=Math.sign(+shift.value)*half;
- const leds=+shift.value;
- $('origin-shift-value').textContent=`${leds>0?'+':''}${leds} ${isStrip(g)?'LED':'col.'}`;
  $('origin-y-value').textContent=Math.round(s['origin-y']/10)+'%';
  $('input-min-value').textContent=Math.round(s['input-min']/2.55)+'%';
  $('input-max-value').textContent=Math.round(s['input-max']/2.55)+'%';
@@ -118,15 +105,6 @@ function refreshTuningUi(s,g){
  $('viz-hint').textContent=(strip?`Strip (${g.w}×${g.h}): every row shows the same.`:`Matrix (${g.w}×${g.h}).`)+
   ` Spectrum uses ${previewBands()} bands, the count sent to the lamp (Lamps → Stream settings).`+
   ' A lamp whose firmware does not list this mode in hello_ack is sent Off.';
- const centered=CENTERED_MODES.includes(mode)||(strip&&LAB_MODES.includes(mode)&&s['viz-mirror']),at=originColumn(s,g,centered),unit=isStrip(g)?'LED':'column';
- const where=at<0?'off the edge':`${unit} ${at+1} of ${g.w}`;
- $('origin-hint').textContent=(centered?`Center: ${where}. `:`Start: ${where}, running ${s['origin-reverse']?'left':'right'}. `)+
-  (s['origin-ring']?'On a ring the effect continues past the end of the strip. ':'Without a ring, the part shifted past the edge stays dark. ')+
-  'Click the preview to set the point.';
- const pick=ORIGIN_MODES.includes(mode);
- document.body.classList.toggle('center-pick',pick);
- $('origin-tip').hidden=!pick;
- $('origin-tip-text').textContent=centered?'Click an LED to set the center':'Click an LED to set the start';
 }
 
 // Keep the window non-empty (firmware rejects input_min >= input_max).
@@ -166,35 +144,10 @@ function drawTransfer(input){
  ctx.textAlign='right';ctx.fillText('signal →',pad+w-4,pad+h-5);ctx.textAlign='left';ctx.fillText('↑ reaction',pad+4,pad+11);
 }
 
-// Logical LED (x, y) under a click on the new-DSP preview canvas.
-function previewLed(canvas,ev,g){
- const r=canvas.getBoundingClientRect(),px=ev.clientX-r.left,py=ev.clientY-r.top;
- let x,row;
- if(isStrip(g)){
-  const L=STATE.stripLayout||stripLayout(g.w,g.h,r.width),k=stripLedAt(L,px*L.width/r.width,py*L.width/r.width);
-  row=Math.floor(k/g.w);x=k%g.w;
- }else{x=Math.floor(px/r.width*g.w);row=Math.floor(py/r.height*g.h);}
- x=Math.max(0,Math.min(g.w-1,x));row=Math.max(0,Math.min(g.h-1,row));
- return {x,y:$('invert-y').checked?g.h-1-row:row};
-}
-// Move the start / centre so that the clicked LED becomes it.
-function pickOrigin(ev){
- const s=settings(),mode=s['audio-mode'];
- if(!ORIGIN_MODES.includes(mode))return;
- const g=currentGeometry(),{x,y}=previewLed($('canvas-new'),ev,g),half=Math.floor(g.w/2);
- const centered=CENTERED_MODES.includes(mode),pos=s['origin-reverse']?g.w-1-x:x;
- let cols=centered?pos-half:pos;
- if(s['origin-ring']){cols=((cols%g.w)+g.w)%g.w;if(cols>half)cols-=g.w;}
- $('origin-shift').value=Math.max(-half,Math.min(half,cols));
- if(g.h>1&&s['origin-radial'])$('origin-y').value=Math.round(y*1000/Math.max(1,g.h-1));
- refreshLabels();
-}
-
 function initTuning(){
  for(const id of ['input-min','input-max'])$(id).addEventListener('input',()=>keepWindow(id));
  // Defaults on All lamps, the shared values on a lamp (resetSection in lamps.js).
  $('range-reset').onclick=()=>resetSection(['input-min','input-max','input-curve','audio-min','audio-max','input-gate']);
  $('viz-reset').onclick=()=>resetSection(['viz-color','viz-auto','viz-contrast','viz-mirror','viz-decay','viz-speed','viz-blur']);
- $('origin-reset').onclick=()=>resetSection(['origin-shift','origin-y','origin-reverse','origin-ring','origin-radial']);
- $('canvas-new').addEventListener('click',pickOrigin);
+ $('origin-reset').onclick=()=>resetSection(['origin-y','origin-radial']);
 }

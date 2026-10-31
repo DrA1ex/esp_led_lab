@@ -10,9 +10,9 @@ The firmware's `Led::get_index(x,y)` uses **serpentine rows**:
 (y & 1 ? width - 1 - x : x) + y * width
 ```
 
-The WASM framebuffer keeps exactly that memory layout. A separate **Flip vertically** checkbox changes **only the canvas presentation**, not the C++ pixel coordinates or effect math. It is enabled by default to match the reported physical lamp orientation.
+The WASM framebuffer keeps exactly that memory layout. The lamp's layout (Layout tab: flips, a ring's turn, saved on the lamp and applied by its `Led::get_index`) is applied when the preview is drawn, so the preview shows the wiring as the lamp does. **First row at the bottom** in the View menu changes only the canvas presentation; it is on by default to match a standing lamp.
 
-Turn on **Orientation test (corners)** on the LED tab. In firmware logical coordinates the markers are:
+Turn on **Orientation test** on the Layout tab; the lamp being edited shows it too. In firmware logical coordinates the markers are:
 
 | Logical location | Color |
 |---|---|
@@ -20,6 +20,7 @@ Turn on **Orientation test (corners)** on the LED tab. In firmware logical coord
 | `(W-1,0)` | Green |
 | `(0,H-1)` | Blue |
 | `(W-1,H-1)` | White |
+| column `W/2` (moved by an open strip's offset) | Yellow |
 
 With **Flip vertically on**, the browser shows blue/white on the top row and red/green on the bottom row. With it off, the mapping is reversed. Compare the test pattern with the actual wired matrix before evaluating dynamic effects.
 

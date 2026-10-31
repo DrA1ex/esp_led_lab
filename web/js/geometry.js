@@ -56,12 +56,12 @@ function refreshGeometryUi(g){
  const note=lamp&&!own?`${lampName(lamp)} has not reported its size yet; its preview uses this layout until it connects.`:
   $('geometry').value==='device'&&!deviceGeometry()?
   'Connect a lamp on the Lamps tab: the size comes from its hello_ack (WIDTH × HEIGHT). Using 16 × 16 until then.':
-  'A strip is HEIGHT = 1 (or 2 rows). Addressing is serpentine, like Led::get_index. Each row is shown as one line; with Ring (Reaction → Start and direction) the strip is drawn closed, round a rectangle.';
+  'A strip is HEIGHT = 1 (or 2 rows). Addressing is serpentine, like Led::get_index. Each row is shown as one line; with Ring (Layout tab) the strip is drawn closed, round a rectangle.';
  $('geometry-note').textContent=note;
 }
 
 // Strip preview: each logical row is one line of LEDs, as on the lamp (a
-// 2-row strip is two lines); a closed strip (Ring) runs round the edge of a
+// 2-row strip is two lines); a closed strip (Layout → Ring) runs round the edge of a
 // rectangle with the stage's proportions, from the top-left corner clockwise,
 // the second row inside the first. Only presentation changes; the framebuffer
 // stays linear. Returns the centre of every LED (cx / cy, index y * n + x,

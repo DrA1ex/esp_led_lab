@@ -5,6 +5,22 @@ Dated notes from the lab's development before it became a git repository
 `dist/`, WASM binaries in `web/wasm/`, `app.js` was split into `web/js/*.js`
 and `build_standalone.py` moved to `scripts/`.
 
+## Lamp layout (2026-10-31)
+
+- New **Layout** tab: Ring, Center offset (with one-LED ‹ › steps), Flip
+  horizontally / vertically and the Orientation test. Firmware with the
+  `layout` capability keeps the layout itself (LittleFS file `layout`) and
+  applies it in `Led::get_index`, so every effect, the built-in ones too,
+  sees the mounting; the lab reads it from `hello_ack` and writes back only
+  the changed field (`layout` message), to the edited lamp or on All lamps
+  to every connected one.
+- The orientation test (`test` message) runs on the lamp, not only in the
+  preview, and has a yellow centre column to aim the offset by eye.
+- The preview draws the layout like the lamp: a ring turns, flips mirror.
+- Gone: Reaction → Start and direction (start offset, reverse, ring; old
+  per-lamp start offsets are dropped) and picking the start by clicking the
+  preview. The radial centre of matrices stays on the Reaction tab.
+
 ## Energy, Scroll, Water and Lava Lamp (2026-10-31)
 
 - Four visualizations after LedFx effects of the same names, written anew in

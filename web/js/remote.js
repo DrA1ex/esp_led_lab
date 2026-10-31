@@ -58,11 +58,30 @@ const RemoteAudio = (() => {
    this.sent=0;this.dropped=0;this.buffered=0;this.received=0;this.delay=NaN;this.syncId=0;this.pending=new Map();this.syncSamples=[];
    this.reconnectAttempts=0;this.reconnectAt=0;this.manual=false;this.lastSync=0;this.lastStatus=0;this.lastConfig='';this.clockSamples=0;
    this.receiverPlaying=false;this.started=false;this.lastError='';this.receiverDropped=0;this.receiverStale=0;this.lastStartAt=0;
-   this.width=0;this.height=0;this.capabilities=[];this.visualizations=[];this.paramsVersion=0;this.lastParams='';this.power=null;this.brightness=null;}
+   this.width=0;this.height=0;this.capabilities=[];this.visualizations=[];this.paramsVersion=0;this.lastParams='';this.power=null;this.brightness=null;
+   this.layout=null;this.testWanted=false;this.testShown=false;this.testSentAt=0;}
   // Effect parameters ("params" capability) in this layout version.
   acceptsParams(version){return this.capabilities.includes('params')&&this.paramsVersion===version;}
   // 12 chroma bytes after the bands (Chromatic Flow).
   get acceptsChroma(){return this.capabilities.includes('chroma');}
+  // Mounting saved on the lamp ("layout" capability): {flip_x, flip_y, ring, offset}.
+  get acceptsLayout(){return this.capabilities.includes('layout');}
+  readLayout(l){
+   if(!l||typeof l!=='object')return;
+   this.layout={ring:Boolean(l.ring),offset:Number.isFinite(+l.offset)?Math.round(+l.offset):0,flip_x:Boolean(l.flip_x),flip_y:Boolean(l.flip_y)};
+  }
+  // Only the given fields change; the lamp answers with its whole layout.
+  setLayout(fields){
+   if(!this.controllable||!this.acceptsLayout)return false;
+   this.layout={...(this.layout||{}),...fields};
+   return this.sendText({type:'layout',...fields});
+  }
+  // The orientation test on the lamp (until switched off or the socket closes).
+  wantTest(on){this.testWanted=Boolean(on);this.syncTest(now());}
+  syncTest(t){
+   if(!this.controllable||!this.acceptsLayout||this.testWanted===this.testShown||t-this.testSentAt<1000)return;
+   this.testSentAt=t;this.sendText({type:'test',on:this.testWanted});
+  }
   // Lamp power / brightness as last reported (null: unknown, e.g. older firmware).
   lampState(msg){
    if(typeof msg.power==='boolean')this.power=msg.power;
@@ -119,6 +138,7 @@ const RemoteAudio = (() => {
     this.visualizations=Array.isArray(msg.visualizations)?msg.visualizations.map(n=>Number(n)+1).filter(Number.isInteger):[];
     this.paramsVersion=Number(msg.params_version)||0;this.lastParams='';
     this.power=null;this.brightness=null;this.lampState(msg);
+    this.layout=null;this.readLayout(msg.layout);this.testShown=false;this.testSentAt=0;
     this.status='synchronizing';this.reconnectAttempts=0;this.syncBurst();this.notify();
    }else if(type==='sync_ack'){
     const id=msg.id, t0=this.pending.get(id);
@@ -150,6 +170,10 @@ const RemoteAudio = (() => {
     if(this.session===null){this.started=false;this.receiverPlaying=false;this.notify();}
    }else if(type==='control_ack'){
     this.lampState(msg);this.notify();
+   }else if(type==='layout_ack'){
+    this.readLayout(msg.layout);this.notify();
+   }else if(type==='test_ack'){
+    this.testShown=Boolean(msg.on);this.notify();
    }else if(type==='error'){
     this.lastError=String(msg.reason||'unknown_error');
     if(this.lastError==='clock_not_set'){this.synced=false;this.status='clock rejected';this.sync();}
@@ -188,6 +212,7 @@ const RemoteAudio = (() => {
    }else if(this.socket?.readyState===1&&this.status==='handshake'&&t-this.stageAt>4000){
     this.lastError='connected, but no hello_ack: firmware without Remote Audio, or a long blocking task on the lamp';this.stageAt=t;this.notify();
    }if(!this.manual&&this.socket===null&&this.reconnectAt>0&&t>=this.reconnectAt){this.reconnectAt=0;this.connect();}
+   this.syncTest(t);
    if(this.socket?.readyState===1&&this.status==='ready'){
     if(t-this.lastSync>SYNC_INTERVAL_MS)this.sync();
     if(t-this.lastStatus>2000){this.lastStatus=t;this.sendText({type:'status'});}

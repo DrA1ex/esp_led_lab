@@ -4,7 +4,7 @@
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),assert=require('node:assert/strict');
 const source=fs.readFileSync(path.join(__dirname,'../web/js/main.js'),'utf8');
 const calls=[],stats={textContent:''},STATE={ready:true,playing:false,tailUntil:-1,lastFrame:0,lastStats:0,lastUi:0,frames:0,modules:{new:{exports:{render_frame(){}}}}};
-const ctx={STATE,Math,requestAnimationFrame(){},settings:()=>({}),feedRender(){},paint(){},meters:()=>calls.push(STATE.lastFrame),refreshEffective(){},$:()=>stats};
+const ctx={STATE,Math,LAYOUT:{test:false},requestAnimationFrame(){},settings:()=>({}),feedRender(){},paint(){},meters:()=>calls.push(STATE.lastFrame),refreshEffective(){},$:()=>stats};
 vm.createContext(ctx);
 vm.runInContext(source.slice(0,source.indexOf("$('fps').hidden=")),ctx);
 for(let frame=1;frame<=240;frame++)ctx.animate(frame*1000/60);
