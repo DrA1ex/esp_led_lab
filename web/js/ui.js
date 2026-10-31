@@ -131,6 +131,21 @@ function selectTab(name,persist=true){
  if(persist)try{localStorage.setItem(TAB_KEY,name);}catch(_){}
  if(name==='reaction')drawTransfer(NaN);
  refreshStageMode();
+ revealTab(name);
+}
+// A tab bar wider than the column scrolls: centre the chosen tab, so its
+// neighbours show too, and fade the side that has more.
+function revealTab(name,smooth=true){
+ const nav=document.querySelector('.tabs'),t=nav?.querySelector(`[data-tab="${name}"]`);
+ if(!t||nav.scrollWidth<=nav.clientWidth){tabEdges();return;}
+ const tr=t.getBoundingClientRect(),nr=nav.getBoundingClientRect();
+ nav.scrollTo({left:nav.scrollLeft+tr.left-nr.left-(nav.clientWidth-tr.width)/2,behavior:smooth?'smooth':'auto'});
+ tabEdges();
+}
+function tabEdges(){
+ const nav=document.querySelector('.tabs'),max=nav.scrollWidth-nav.clientWidth;
+ nav.classList.toggle('more-left',max>1&&nav.scrollLeft>1);
+ nav.classList.toggle('more-right',max>1&&nav.scrollLeft<max-1);
 }
 function initTabs(){
  const nav=document.querySelector('.tabs');
@@ -140,6 +155,13 @@ function initTabs(){
   const j={ArrowLeft:i-1,ArrowRight:i+1,Home:0,End:tabs.length-1}[e.key];if(j===undefined)return;
   e.preventDefault();const t=tabs[(j+tabs.length)%tabs.length];selectTab(t.dataset.tab);t.focus();
  });
+ nav.addEventListener('scroll',tabEdges,{passive:true});
+ // A mouse wheel scrolls the bar sideways when it overflows.
+ nav.addEventListener('wheel',e=>{
+  if(nav.scrollWidth<=nav.clientWidth||Math.abs(e.deltaX)>Math.abs(e.deltaY))return;
+  e.preventDefault();nav.scrollLeft+=e.deltaY;
+ },{passive:false});
+ new ResizeObserver(()=>revealTab(currentTab(),false)).observe(nav);
  let saved=null;try{saved=localStorage.getItem(TAB_KEY);}catch(_){}
  selectTab(saved||(isWide()?'effect':'music'),false);
 }

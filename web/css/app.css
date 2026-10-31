@@ -318,8 +318,14 @@ body.dsp-stage .stage-view{display:flex;place-items:stretch;background:var(--ins
 
 /* Inspector */
 .inspector{display:flex;flex-direction:column;overflow:hidden}
-.tabs{flex:none;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;padding:6px;border-bottom:1px solid var(--line);background:var(--panel)}
-.tabs button{position:relative;display:flex;align-items:center;justify-content:center;gap:7px;height:36px;padding:0 6px;border:0;border-radius:var(--r-sm);background:none;color:var(--muted);font-weight:600;font-size:12.5px;white-space:nowrap;transition:background .12s,color .12s}
+/* One row of equal tabs; when they do not fit it scrolls sideways (no bar),
+   fading at the side with more, and the chosen tab is scrolled into view. */
+.tabs{flex:none;display:flex;gap:2px;padding:6px;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;border-bottom:1px solid var(--line);background:var(--panel)}
+.tabs::-webkit-scrollbar{display:none}
+.tabs.more-right{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent)}
+.tabs.more-left{-webkit-mask-image:linear-gradient(90deg,transparent,#000 32px);mask-image:linear-gradient(90deg,transparent,#000 32px)}
+.tabs.more-left.more-right{-webkit-mask-image:linear-gradient(90deg,transparent,#000 32px,#000 calc(100% - 32px),transparent);mask-image:linear-gradient(90deg,transparent,#000 32px,#000 calc(100% - 32px),transparent)}
+.tabs button{position:relative;flex:1 0 0;min-width:max-content;display:flex;align-items:center;justify-content:center;gap:7px;height:36px;padding:0 6px;border:0;border-radius:var(--r-sm);background:none;color:var(--muted);font-weight:600;font-size:12.5px;white-space:nowrap;transition:background .12s,color .12s}
 .tabs button:hover{color:var(--text);background:var(--raised)}
 .tabs button[aria-selected=true]{color:var(--text);background:var(--raised-2)}
 .tabs button[aria-selected=true] .ico{color:var(--accent)}
