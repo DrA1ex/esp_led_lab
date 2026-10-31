@@ -73,6 +73,21 @@ function layoutDevicesChanged(){
 function syncLayoutTest(){
  const targets=layoutTargets();
  for(const d of REMOTE.devices)d.wantTest(LAYOUT.test&&targets.includes(d));
+ refreshLayoutTestState();
+}
+// Where the test shows: a lamp needs firmware with the "layout" capability.
+function refreshLayoutTestState(){
+ const el=$('layout-test-state');if(!el)return;
+ if(!LAYOUT.test){el.textContent='';el.hidden=true;return;}
+ const d=targetLamp(),lamps=d?[d]:REMOTE.devices.filter(x=>x.selected||x.controllable),groups={on:[],wait:[],old:[],off:[]};
+ for(const x of lamps)groups[!x.controllable?'off':!x.acceptsLayout?'old':x.testShown?'on':'wait'].push(lampName(x));
+ const parts=[];
+ if(groups.on.length)parts.push(`On the lamp: ${groups.on.join(', ')}.`);
+ if(groups.wait.length)parts.push(`Starting on ${groups.wait.join(', ')}…`);
+ if(groups.old.length)parts.push(`${groups.old.join(', ')}: firmware without layout support, so no test there — flash the current firmware.`);
+ if(groups.off.length)parts.push(`Not connected: ${groups.off.join(', ')}.`);
+ el.textContent=parts.length?parts.join(' '):'No lamp connected: only the preview shows it.';
+ el.hidden=false;
 }
 
 function refreshLayoutUi(g){

@@ -122,8 +122,19 @@ with sync_playwright() as p:
     # The orientation test runs on the lamps being edited and stops with the switch.
     page.locator('label.switch:has(#layout-test)').click()
     page.wait_for_function(f"__lamps[{A!r}].test && __lamps[{B!r}].test", timeout=5000)
+    page.wait_for_function("$('layout-test-state').textContent.startsWith('On the lamp:')", timeout=5000)
     page.locator('label.switch:has(#layout-test)').click()
     page.wait_for_function(f"!__lamps[{A!r}].test && !__lamps[{B!r}].test", timeout=5000)
+    assert page.locator('#layout-test-state').is_hidden()
+    # A lamp on firmware without layout support is named under the switch instead of staying dark silently.
+    page.evaluate(f"(()=>{{const d=REMOTE.devices.find(x=>x.url==={B!r});d.capabilities=d.capabilities.filter(c=>c!=='layout');}})()")
+    page.locator('label.switch:has(#layout-test)').click()
+    page.wait_for_function(f"__lamps[{A!r}].test", timeout=5000)
+    page.wait_for_function("$('layout-test-state').textContent.includes('firmware without layout support')", timeout=5000)
+    assert not page.evaluate(f"__lamps[{B!r}].test")
+    page.locator('label.switch:has(#layout-test)').click()
+    page.wait_for_function(f"!__lamps[{A!r}].test", timeout=5000)
+    page.evaluate(f"REMOTE.devices.find(x=>x.url==={B!r}).capabilities.push('layout')")
     print('PASS shared changes reach every lamp; layout field written to every lamp; orientation test on the lamps')
 
     # Section reset on a lamp returns to All lamps; "Use All lamps settings" drops the rest.
