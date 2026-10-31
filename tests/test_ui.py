@@ -109,13 +109,21 @@ with sync_playwright() as p:
     page.keyboard.press('Escape')
     page.wait_for_function("document.body.classList.contains('strip-layout') && STATE.stripLayout && STATE.modules.new.exports.get_width()===153")
     assert page.locator('#matrix-label').inner_text() == '153 LED · strip'
-    target = page.evaluate('''() => {const L=STATE.stripLayout,k=20,r=$('canvas-new').getBoundingClientRect();
-        return {x:r.left+L.offsetX+(k%L.perLine+.5)*L.pitch,y:r.top+(Math.floor(k/L.perLine)+.5)*L.pitch}}''')
-    assert page.evaluate('STATE.stripLayout.pitch') > 14, 'a roomy stage should draw large strip LEDs'
+    target = page.evaluate('''() => {const L=STATE.stripLayout,k=20,r=$('canvas-new').getBoundingClientRect(),s=r.width/L.width;
+        return {x:r.left+L.cx[k]*s,y:r.top+L.cy[k]*s}}''')
+    assert page.evaluate('STATE.stripLayout.cy.every(v=>v===STATE.stripLayout.cy[0])'), 'a 1-row strip is drawn on one line'
     page.mouse.click(target['x'], target['y'])
     assert page.evaluate("+$('origin-shift').value") == 20
     assert 'LED 21 of 153' in page.locator('#origin-hint').inner_text()
-    print('PASS LED layout menu, large strip LEDs, click-to-start on a wrapped strip')
+    # A closed strip (Ring) is drawn round a rectangle; a click still picks its LED.
+    page.evaluate("$('origin-ring').checked=true;$('origin-shift').value=0;refreshLabels()")
+    page.wait_for_function('STATE.stripLayout.ring && STATE.stripLayout.height > 100')
+    target = page.evaluate('''() => {const L=STATE.stripLayout,k=70,r=$('canvas-new').getBoundingClientRect(),s=r.width/L.width;
+        return {x:r.left+L.cx[k]*s,y:r.top+L.cy[k]*s}}''')
+    page.mouse.click(target['x'], target['y'])
+    assert page.evaluate("+$('origin-shift').value") == 70
+    page.evaluate("$('origin-ring').checked=false;refreshLabels()")
+    print('PASS LED layout menu, a strip on one line, a closed strip round a rectangle, click-to-start on both')
 
     # Analyzer tab: the stage switches to the DSP view; touching a control opens its panel.
     page.locator('#tab-analyzer').click()

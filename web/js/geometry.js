@@ -56,27 +56,50 @@ function refreshGeometryUi(g){
  const note=lamp&&!own?`${lampName(lamp)} has not reported its size yet; its preview uses this layout until it connects.`:
   $('geometry').value==='device'&&!deviceGeometry()?
   'Connect a lamp on the Lamps tab: the size comes from its hello_ack (WIDTH × HEIGHT). Using 16 × 16 until then.':
-  'A strip is HEIGHT = 1 (or 2 rows). Addressing is serpentine, like Led::get_index; long strips wrap onto several display lines.';
+  'A strip is HEIGHT = 1 (or 2 rows). Addressing is serpentine, like Led::get_index. Each row is shown as one line; with Ring (Reaction → Start and direction) the strip is drawn closed, round a rectangle.';
  $('geometry-note').textContent=note;
 }
 
-// Strip preview: wrap each logical row onto several display lines so every
-// LED stays visible (153 LEDs in a 300 px card would be 2 px each otherwise).
-// Lines are laid out left to right in LED order; logical rows are separated
-// by a larger gap. Only presentation changes; the framebuffer stays linear.
-// With maxHeight the LEDs grow (up to 32 px) while the wrapped rows still fit
-// that height; the lines are then centered (offsetX).
-function stripLayout(n,h,cssWidth,maxHeight=0){
- const gapOf=p=>h>1?p*.9:0;
- let perLine=Math.max(1,Math.min(n,Math.max(8,Math.floor(cssWidth/7)))),pitch=cssWidth/perLine;
- if(maxHeight>0){
-  for(let lines=1;lines<=n;lines++){
-   const k=Math.ceil(n/lines),p=Math.min(32,cssWidth/k);
-   if(h*lines*p+(h-1)*gapOf(p)>maxHeight)break;
-   if(p>=pitch){perLine=k;pitch=p;}
-   if(p>=32||k===1)break;
+// Strip preview: each logical row is one line of LEDs, as on the lamp (a
+// 2-row strip is two lines); a closed strip (Ring) runs round the edge of a
+// rectangle with the stage's proportions, from the top-left corner clockwise,
+// the second row inside the first. Only presentation changes; the framebuffer
+// stays linear. Returns the centre of every LED (cx / cy, index y * n + x,
+// CSS px), whether it sits on a vertical side (vert), the spacing along the
+// strip (pitch, up to 32 px) and the LED size across it (band, at least
+// MIN_BAND so a dense strip stays visible).
+const MIN_BAND=12;
+function stripLayout(n,h,cssWidth,maxHeight=0,ring=false){
+ const cx=new Float32Array(n*h),cy=new Float32Array(n*h),vert=new Uint8Array(n*h);
+ if(!ring){
+  const pitch=Math.min(32,cssWidth/n),band=Math.max(MIN_BAND,pitch),gap=h>1?band*.6:0;
+  const offsetX=(cssWidth-n*pitch)/2;
+  for(let y=0;y<h;y++)for(let x=0;x<n;x++){cx[y*n+x]=offsetX+(x+.5)*pitch;cy[y*n+x]=y*(band+gap)+band/2;}
+  return {ring,pitch,band,gap,cx,cy,vert,width:cssWidth,height:h*band+(h-1)*gap};
+ }
+ // The rectangle takes the stage's aspect (or 2:1 when its height is unknown).
+ const height=Math.max(48,maxHeight>0?Math.min(maxHeight,cssWidth):cssWidth/2);
+ let pitch=0,band=MIN_BAND;
+ for(let k=0;k<3;k++){
+  const inset=band/2+(h-1)*band*1.6,w=cssWidth-2*inset,hh=height-2*inset;
+  pitch=Math.min(32,2*Math.max(1,w+hh)/n);band=Math.max(MIN_BAND,pitch);
+ }
+ for(let y=0;y<h;y++){
+  const inset=band/2+y*band*1.6,w=Math.max(1,cssWidth-2*inset),hh=Math.max(1,height-2*inset),per=2*(w+hh);
+  for(let x=0;x<n;x++){
+   let d=(x+.5)/n*per,px,py,v=0;
+   if(d<w){px=d;py=0;}
+   else if((d-=w)<hh){px=w;py=d;v=1;}
+   else if((d-=hh)<w){px=w-d;py=hh;}
+   else{d-=w;px=0;py=hh-d;v=1;}
+   cx[y*n+x]=inset+px;cy[y*n+x]=inset+py;vert[y*n+x]=v;
   }
  }
- const linesPerRow=Math.ceil(n/perLine),gap=gapOf(pitch),rowHeight=linesPerRow*pitch;
- return {perLine,linesPerRow,pitch,gap,rowHeight,height:h*rowHeight+(h-1)*gap,offsetX:Math.max(0,(cssWidth-perLine*pitch)/2)};
+ return {ring,pitch,band,gap:0,cx,cy,vert,width:cssWidth,height};
+}
+// The LED (index y * n + x) nearest to a point of the strip preview.
+function stripLedAt(L,px,py){
+ let best=0,dist=Infinity;
+ for(let i=0;i<L.cx.length;i++){const d=(L.cx[i]-px)**2+(L.cy[i]-py)**2;if(d<dist){dist=d;best=i;}}
+ return best;
 }

@@ -167,10 +167,8 @@ function previewLed(canvas,ev,g){
  const r=canvas.getBoundingClientRect(),px=ev.clientX-r.left,py=ev.clientY-r.top;
  let x,row;
  if(isStrip(g)){
-  const L=STATE.stripLayout||stripLayout(g.w,g.h,r.width);
-  row=Math.min(g.h-1,Math.floor(py/(L.rowHeight+L.gap)));
-  const line=Math.min(L.linesPerRow-1,Math.floor((py-row*(L.rowHeight+L.gap))/L.pitch));
-  x=line*L.perLine+Math.max(0,Math.min(L.perLine-1,Math.floor((px-L.offsetX)/L.pitch)));
+  const L=STATE.stripLayout||stripLayout(g.w,g.h,r.width),k=stripLedAt(L,px*L.width/r.width,py*L.width/r.width);
+  row=Math.floor(k/g.w);x=k%g.w;
  }else{x=Math.floor(px/r.width*g.w);row=Math.floor(py/r.height*g.h);}
  x=Math.max(0,Math.min(g.w-1,x));row=Math.max(0,Math.min(g.h-1,row));
  return {x,y:$('invert-y').checked?g.h-1-row:row};

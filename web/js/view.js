@@ -168,9 +168,10 @@ function drawMatrix(canvas,off,data,n,h,dots){
   }
  }else{ctx.imageSmoothingEnabled=false;ctx.drawImage(off,0,0,cw,ch);}
 }
-// Strips are wrapped onto display lines (see stripLayout) so each LED keeps a
-// readable size, as large as the stage allows; a soft halo is drawn instead of
-// shadowBlur to stay cheap at 1024 LEDs x 60 FPS.
+// Strips are drawn as they are built (see stripLayout): one line per row, or
+// round a rectangle when closed (Ring). LEDs closer than 6 px are drawn as
+// touching segments; larger ones as dots with a soft halo (instead of
+// shadowBlur, to stay cheap at 1024 LEDs x 60 FPS).
 const PHONE_LAYOUT=matchMedia('(max-width:759px)');
 function stripMaxHeight(canvas){
  if(PHONE_LAYOUT.matches)return Math.round(innerHeight*(document.body.classList.contains('stage-compact')?.12:.26));
@@ -179,19 +180,22 @@ function stripMaxHeight(canvas){
 }
 function drawStrip(canvas,data,n,h,dots){
  const cssW=Math.max(120,canvas.clientWidth||canvas.parentElement.clientWidth||300),dpi=displayScale();
- const L=stripLayout(n,h,cssW,stripMaxHeight(canvas));STATE.stripLayout=L;
+ const L=stripLayout(n,h,cssW,stripMaxHeight(canvas),settings()['origin-ring']);STATE.stripLayout=L;
  const cw=Math.round(cssW*dpi),ch=Math.max(1,Math.round(L.height*dpi));
  if(canvas.width!==cw||canvas.height!==ch){canvas.width=cw;canvas.height=ch;}
  const ctx=canvas.getContext('2d');
  ctx.setTransform(dpi,0,0,dpi,0,0);
  ctx.clearRect(0,0,cssW,L.height);
- const p=L.pitch,core=Math.max(.8,p*.34),left=L.offsetX;
+ const p=L.pitch,core=Math.max(.8,p*.34),segments=!dots||p<6;
  for(let y=0;y<h;y++){
-  const top=y*(L.rowHeight+L.gap);
   for(let x=0;x<n;x++){
-   const i=(y*n+x)*4,r=data[i],g=data[i+1],b=data[i+2];
-   const col=x%L.perLine,line=Math.floor(x/L.perLine),cx=left+(col+.5)*p,cy=top+(line+.5)*p;
-   if(!dots){ctx.fillStyle=`rgb(${r},${g},${b})`;ctx.fillRect(left+col*p+.5,top+line*p+.5,Math.max(1,p-1),Math.max(1,p-1));continue;}
+   const k=y*n+x,i=k*4,r=data[i],g=data[i+1],b=data[i+2],cx=L.cx[k],cy=L.cy[k];
+   if(segments){
+    // Along the strip the LED takes its pitch (with a hairline gap when there is room), across it the band.
+    const along=p>=4?p-1:p,across=L.band-(p>=4?1:0),w=L.vert[k]?across:along,hh=L.vert[k]?along:across;
+    // Dark LEDs keep the strip's outline visible.
+    ctx.fillStyle=r+g+b<12?'#10151e':`rgb(${r},${g},${b})`;ctx.fillRect(cx-w/2,cy-hh/2,w,hh);continue;
+   }
    ctx.fillStyle='#10151e';ctx.beginPath();ctx.arc(cx,cy,core,0,Math.PI*2);ctx.fill();
    const bright=Math.max(r,g,b)/255;
    if(bright<.02)continue;

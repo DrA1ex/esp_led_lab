@@ -49,11 +49,23 @@ assert.notDeepEqual(bmh(1,0,2),bmh(0,1,2));
 // Display helpers from web/js/geometry.js.
 const ctx={$:()=>null,REMOTE:{devices:[]},document:{},Math};
 vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(__dirname,'../web/js/geometry.js'),'utf8'),ctx);
-const g=vm.runInContext('({c:clampGeometry(2000,500),p:parseGeometry("153x1"),s1:isStrip({w:153,h:1}),s2:isStrip({w:72,h:2}),m:isStrip({w:16,h:16}),L:stripLayout(153,1,340),L2:stripLayout(72,2,340),L3:stripLayout(7,1,340)})',ctx);
+const g=vm.runInContext('({c:clampGeometry(2000,500),p:parseGeometry("153x1"),s1:isStrip({w:153,h:1}),s2:isStrip({w:72,h:2}),m:isStrip({w:16,h:16}),L:stripLayout(153,1,340),L2:stripLayout(72,2,340),L3:stripLayout(7,1,340),R:stripLayout(153,1,600,300,true),R2:stripLayout(72,2,600,300,true)})',ctx);
 assert.equal(g.c.w,1024);assert.equal(g.c.h,16);
 assert.equal(g.p.w,153);assert.equal(g.p.h,1);
 assert(g.s1&&g.s2&&!g.m);
-assert(g.L.pitch>=7&&g.L.perLine*g.L.linesPerRow>=153,'every strip LED gets a cell of at least 7 px');
-assert(g.L2.height>2*g.L2.rowHeight,'two strip rows are separated by a gap');
-assert.equal(g.L3.perLine,7);
+// A strip is one line per row, as built: LEDs left to right, all inside the width.
+const xs=a=>Array.from(a),one=g.L;
+assert(xs(one.cy).every(v=>v===one.cy[0])&&xs(one.cx).every((v,i)=>!i||v>one.cx[i-1]),'153 LEDs on one line, in order');
+assert(one.cx[0]>0&&one.cx[152]<340&&one.band>=12,'the line fits the width, LEDs at least 12 px across');
+assert(g.L2.cy[72]-g.L2.cy[0]>g.L2.band&&g.L2.cy[71]===g.L2.cy[0],'two rows: two lines with a gap');
+assert.equal(g.L3.pitch,32,'a short strip gets large LEDs (up to 32 px)');
+// A closed strip (Ring) runs clockwise round a rectangle from the top-left corner.
+const R=g.R,onEdge=i=>[R.cx[i]-R.cx[0]<R.pitch,600-R.cx[i]-R.cx[0]<R.pitch,R.cy[i]-R.cy[0]<R.pitch,300-R.cy[i]-R.cy[0]<R.pitch];
+for(let i=0;i<153;i++)assert(onEdge(i).some(Boolean),`ring LED ${i} on the rectangle's edge`);
+const step=i=>Math.hypot(R.cx[(i+1)%153]-R.cx[i],R.cy[(i+1)%153]-R.cy[i]);
+for(let i=0;i<153;i++)assert(step(i)<R.pitch*1.01+.01,`ring LED ${i} next to LED ${(i+1)%153} (the ends meet)`);
+assert(R.cx[10]>R.cx[0]&&R.cy[10]===R.cy[0]&&R.vert[50]===0&&R.vert[60]===1&&R.cx[0]>0&&R.height===300,'clockwise from the top-left, rectangle fills the stage');
+assert(g.R2.cx[72]>g.R2.cx[0]&&g.R2.cy[72]>g.R2.cy[0],'the second row runs inside the first');
+const near=vm.runInContext('stripLedAt(stripLayout(153,1,600,300,true),600,150)',ctx);
+assert(near>=60&&near<=66,`a click on the middle of the right side picks a right-side LED (${near})`);
 console.log('PASS strips 7..1024 LED, 72x2, pixel budget, stretched wave, single-row Bass/Mid/High, strip layout');

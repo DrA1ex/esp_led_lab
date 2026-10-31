@@ -140,9 +140,12 @@ The **LED layout** menu above the preview selects what it renders:
 | From device | `hello_ack.width × height` | follows the first connected lamp |
 
 Addressing is always row-serpentine, exactly like `Led::get_index(x, y)`.
-Strips are drawn wrapped onto several display lines so every LED stays
-visible, with LEDs as large as the stage allows; only the presentation wraps,
-the framebuffer is linear. The choice is remembered in the browser.
+Strips are drawn as they are built: one line of LEDs per row (a 2-row strip
+is two lines), LEDs up to 32 px apart and at least 12 px across, so a dense
+strip shows as touching segments. A closed strip (**Ring** under Reaction →
+Start and direction) is drawn round a rectangle with the stage's proportions,
+from the top-left corner clockwise, a second row inside the first. Clicking
+an LED works on both. The choice is remembered in the browser.
 
 Audio modes on strips behave like the firmware: Spectrum maps the bands along
 the strip, Wave scrolls loudness along it (longer strips stretch the 3.2 s
