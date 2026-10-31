@@ -28,7 +28,7 @@ with sync_playwright() as p:
     page.wait_for_function('STATE.ready', timeout=15000)
 
     # Choices: one radio per option, grouped; picking one drives the select and the renderer.
-    assert page.locator('[name="choice-audio-mode"]').count() == page.locator('#audio-mode option').count() == 32
+    assert page.locator('[name="choice-audio-mode"]').count() == page.locator('#audio-mode option').count() == 36
     assert page.locator('#audio-mode-hint').inner_text() == 'Audio does not affect the picture.'
     page.locator('#tab-reaction').click()
     page.locator('.choices[data-for="audio-mode"] label', has_text='Fire').click()

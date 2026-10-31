@@ -5,6 +5,23 @@ Dated notes from the lab's development before it became a git repository
 `dist/`, WASM binaries in `web/wasm/`, `app.js` was split into `web/js/*.js`
 and `build_standalone.py` moved to `scripts/`.
 
+## Energy, Scroll, Water and Lava Lamp (2026-10-31)
+
+- Four visualizations after LedFx effects of the same names, written anew in
+  the integer engine (LedFx is GPL-3.0: ideas only), modes 32–35 (firmware
+  31–34), each on strips and matrices, each ending with Brightness.
+- **Energy**: bass, mid and treble bars from the start, as long as their
+  squared levels, the shortest on top so all three show; on a 153-LED strip
+  with a rock track the end lights in 22 % of the frames (99 % with plain
+  levels and the longest on top).
+- **Scroll**: the sound's colour enters at the start and flows out at
+  0.15–1.65 lamp lengths per second; rings on a matrix.
+- **Water**: the wave equation, c² = 1/2 on a strip (at 1 a drop rang as a
+  checkerboard), 1/4 on a matrix; soft drops; heights in the existing
+  per-LED buffers, so no new RAM.
+- **Lava Lamp**: three slow waves multiplied into blobs; hues fold there and
+  back along the palette instead of wrapping from its end to its start.
+
 ## Contrast and blur for visualizations (2026-10-31)
 
 - **Blur** (Visualization section, `viz_blur`): a Gaussian of the drawn frame,

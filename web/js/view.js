@@ -208,7 +208,7 @@ function drawStrip(canvas,data,n,h,dots){
 function meters(){
  const vals=STATE.newSpectrum;
  renderSpectrum();
- const mode=+($('audio-mode').value),isWave=[1,2].includes(mode),isParam=[5,6,7,8,9,10,13,15,16,18,21,22,23,24,25,26,27,28,30].includes(mode);
+ const mode=+($('audio-mode').value),isWave=[1,2].includes(mode),isParam=[5,6,7,8,9,10,13,15,16,18,21,22,23,24,25,26,27,28,30,35].includes(mode);
  const strength=isParam?newControlSource():(isWave?STATE.newLoudness:Math.max(...vals));
  $('new-label').textContent=`Signal ${Math.round(strength*100)}% · LEDs ${Math.round(STATE.output.new*100)}%`;
  drawTransfer(mode?strength:NaN);

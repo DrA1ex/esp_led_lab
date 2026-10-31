@@ -82,7 +82,7 @@ def receiver(ws):
                                     capabilities=['sync', 'clock', 'config', 'status', 'tuning', 'visualizations']
                                     + ([] if ARGS.no_control else ['control'])
                                     + ([] if ARGS.no_chroma else ['chroma']),
-                                    visualizations=[] if ARGS.no_viz else list(range(12, 31)),
+                                    visualizations=[] if ARGS.no_viz else list(range(12, 35)),
                                     **({} if ARGS.no_control else LAMP))))
         elif op == 'sync':
             t1 = millis()
@@ -93,11 +93,11 @@ def receiver(ws):
             print('clock', msg)
             ws.send(json.dumps(dict(type='clock_ack', session=1)))
         elif op == 'config':
-            # Lab clients send lab mode ids: firmware id + 1, 0 = Off; 13..31 are visualizations.
+            # Lab clients send lab mode ids: firmware id + 1, 0 = Off; 13..35 are visualizations.
             effect = msg.get('audio_effect', 0)
             ok = (msg.get('input_min', 0) < msg.get('input_max', 255)
                   and 25 <= msg.get('input_curve', 100) <= 400
-                  and (effect <= 12 or (not ARGS.no_viz and effect <= 31))
+                  and (effect <= 12 or (not ARGS.no_viz and effect <= 35))
                   and msg.get('viz_color', 0) in (0, 1)
                   and all(0 <= msg.get(k, 0) <= 100 for k in ('viz_contrast', 'viz_decay', 'viz_motion', 'viz_blur')))
             print('config', msg)

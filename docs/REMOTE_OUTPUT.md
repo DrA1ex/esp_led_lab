@@ -328,3 +328,50 @@ buffer), flash 538 540 → 540 252 bytes (+1.7 KB). `tests/check_viz_integer.sh`
 the engine's code 51.8 → 55.6 KB (+3.8 KB, Chromatic Flow), its RAM unchanged
 at 2 072 bytes for 16×16 (the note levels reuse the band meters); the mode
 uses 512 bytes of stack while it draws (the rank table).
+
+## Energy, Scroll, Water and Lava Lamp (2026-10-31)
+
+Lab modes 32–35 = firmware ids 31–34. Four LedFx effects that look right on
+a plain strip, rewritten from the idea in the integer engine (LedFx is
+GPL-3.0, so no code was taken). Each draws on strips and matrices, ends
+with Brightness and takes the Visualization section's auto-level, contrast,
+fall-off and motion speed where they mean something.
+
+- **Energy** (32): bass, mid and treble bars from the start of the lamp,
+  each as long as its squared level (*reach* 128 = a full level fills the
+  lamp), with soft edges (*soft edge*, 1–13 LEDs). By default the shortest
+  bar is drawn on top, so all three show; *on top* can fix the treble or the
+  bass there. Matrices fill like the VU meter: from the bottom, the middle
+  row when mirrored, or out from the radial centre. With plain levels and
+  the treble on top, a dense rock track kept the 153-LED strip 99 % lit and
+  one colour; squared and nested, the end of the strip lights in 22 % of
+  the frames and the three colours share it.
+- **Scroll** (33): every frame the sound's colour (bass, mids and treble
+  mixed by their squared levels, groups under *ignore below* left out)
+  enters at the start and the history flows out at 0.15–1.65 lamp lengths
+  per second (motion speed), so a 300-LED strip scrolls as fast as a
+  30-LED one; fall-off sets the trail. Rings from the centre on a matrix.
+- **Water** (34): the wave equation on the LEDs. The bass drops in at both
+  ends and the middle of a strip (the centre of a matrix), the mids at two
+  and the treble at four drifting places, each drop as hard as its group's
+  squared level. c² = 1/2 on a strip (c = 1 rang every drop as a
+  checkerboard) and 1/4 on a matrix (at 1/2 the checkerboard mode grows);
+  drops are soft, half as deep around the centre. *Viscosity* sets the
+  damping, motion speed the steps per second (30–180). The heights are int8
+  in the engine's existing per-LED buffers: no new RAM.
+- **Lava Lamp** (35): three slow sine waves multiplied into blobs (one
+  across and one up on a matrix); the bass speeds them up and swells them
+  (*bass reactivity*), the loudness sets the light. The hue runs there and
+  back along the palette, so a palette's end never jumps to its start.
+
+`tests/test_lab_visualizations.js` and `tests/test_fx_params.js` take the
+new modes through the usual checks (silence, music, every parameter, every
+geometry); the firmware's `tests/test_remote_viz.cpp` adds Energy's layers
+(bars of 81, 36 and 9 LEDs for levels .9, .6, .3) and checks that the four
+go dark after the music stops.
+
+**Cost** (`pio run -e release`): RAM 62 268 → 62 348 bytes (+80: the
+parameter defaults and Water's drift table, constants live in RAM on the
+ESP8266), flash 540 820 → 545 124 bytes (+4.3 KB); 76.1 % RAM.
+`tests/check_viz_integer.sh`: no soft-float, the engine's RAM for 16×16
+unchanged at 2 336 bytes.

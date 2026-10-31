@@ -71,12 +71,17 @@ The **Reaction** tab's audio modes are grouped by what drives them:
 - **Visualizations** draw the picture themselves (`src/viz_engine.h`, shared
   with the firmware): *spectrum* (Spectrum Bars, Flow, Fire, Juggle, Radial
   Spectrum, Melody — Melody follows the dominant frequency), *bass, mid,
-  treble* (the meters, Pulses, Sparkles, Blobs), *loudness* (VU Meter,
-  Waveform, Mood, Aurora), *beat* (Groove: rings, spiral arms, stripes or
+  treble* (the meters, Pulses, Sparkles, Blobs, Energy, Scroll, Water),
+  *loudness* (VU Meter, Waveform, Mood, Aurora, Lava Lamp), *beat* (Groove: rings, spiral arms, stripes or
   a swinging ball move one step per beat, locked to the beat phase) and
   *notes* (Chromatic Flow: soft colour regions, one per sounding note,
   placed on the palette by the circle of fifths; the colours change with
   the chords, hits only add a glow).
+- Energy, Scroll, Water and Lava Lamp follow ideas of LedFx's effects of
+  the same names (our own integer code): bass, mid and treble bars nested
+  from the start; the sound's colour scrolling out from the start (rings on
+  a matrix); drops of bass, mid and treble rippling on the wave equation;
+  slow blobs that the bass swells and speeds up.
 - **Constructors**: Particles, Field and Zones, whose parameters pick the
   shape, what launches or lights it, the motion and the colors.
 
@@ -91,7 +96,8 @@ The hint under the list says what drives the selected mode. **Effect
 parameters** (under Visualization) are the selected mode's own settings:
 up to 11 values per mode, e.g. Fire's fuel, height and wind, Particles'
 shape, trigger, speed and gravity, Zones' layout and pattern. Particles,
-Field, Zones, Melody, Groove and Chromatic Flow end with **Brightness** (×1 = as drawn, up to ×2).
+Field, Zones, Melody, Groove, Chromatic Flow, Energy, Scroll, Water and
+Lava Lamp end with **Brightness** (×1 = as drawn, up to ×2).
 They are ordinary settings: remembered, reset by the section's ↺, set per
 lamp, and sent to lamps whose firmware has the `params` capability (older
 firmware draws the mode with its defaults; see
@@ -267,7 +273,7 @@ normal builds work offline. To regenerate its browser bundle, run
 ```
 src/                 C++ sources compiled to WebAssembly
   render.cpp         effect renderer (ported color/brightness/audio effects)
-  viz_engine.h       visualizations 13..31 and their parameters (integer only), shared byte-for-byte with the firmware
+  viz_engine.h       visualizations 13..35 and their parameters (integer only), shared byte-for-byte with the firmware
   dsp.cpp            FFT/onset/BPM DSP (+ the firmware's original analyzers, used by tests)
   fastled_compat.h   FastLED 3.6.0 fixed-point math port
   tables.h           lookup tables

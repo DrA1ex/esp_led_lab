@@ -17,7 +17,7 @@ static unsigned char gamma_lut[256];
 static float features[237]; // 0..15 spectrum; 16..21 onset; 22..23 volume; 24..151 wave; 152..155 tempo; 156..158 low/mid/high levels; 159 line; 160..223 lamp bands; 224 lamp band count; 225..236 chroma (C..B)
 static int W=16,H=16;
 static int color_fx=0,bright_fx=0,speed=82,scale=190,light=180;
-static int audio_fx=3; // Off, 10 firmware modes, 2 experimental modes, 19 lab-only visualizations (13..31)
+static int audio_fx=3; // Off, 10 firmware modes, 2 experimental modes, 23 lab-only visualizations (13..35)
 static float audio_mix=1.f;
 static int audio_min=0,audio_max=255;
 // New-DSP-only expressive modulation; the legacy WASM instance receives zeros
@@ -159,9 +159,9 @@ static inline float provider_at(int index){
 }
 static int pulse_phase(float phase,int offset){int value=fl_round(phase+offset)%1024;if(value<0)value+=1024;if(value<256)return 255-value;if(value<512)return 0;if(value<768)return value-512;return 255;}
 
-// ---- Geometry-aware visualizations, audio modes 13..31 ----
+// ---- Geometry-aware visualizations, audio modes 13..35 ----
 // The engine (viz_engine.h) is shared with the firmware, which implements
-// the same modes as AudioEffectEnum 12..30. Here it reads the preview
+// the same modes as AudioEffectEnum 12..34. Here it reads the preview
 // features: bands sent to the lamp (features[160..], count at [224]; 0 falls
 // back to the 16 preview bands), levels through scaled_audio(), so the
 // reaction range and curve apply.

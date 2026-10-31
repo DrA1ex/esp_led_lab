@@ -169,9 +169,9 @@
     <optgroup label="Experimental"><option value="11">Bass / Mid / High</option><option value="12">Beat-aware</option></optgroup>
     <optgroup label="Visualizations · spectrum"><option value="14">Spectrum Bars</option><option value="15">Flow</option><option value="21">Fire</option><option value="23">Juggle</option><option value="24">Radial Spectrum</option><option value="29">Melody</option></optgroup>
     <optgroup label="Visualizations · notes"><option value="31">Chromatic Flow</option></optgroup>
-    <optgroup label="Visualizations · bass, mid, treble"><option value="20">Bass · Mid · Treble Meters</option><option value="16">Pulses</option><option value="17">Sparkles</option><option value="25">Blobs</option></optgroup>
+    <optgroup label="Visualizations · bass, mid, treble"><option value="20">Bass · Mid · Treble Meters</option><option value="16">Pulses</option><option value="17">Sparkles</option><option value="25">Blobs</option><option value="32">Energy</option><option value="33">Scroll</option><option value="34">Water</option></optgroup>
     <optgroup label="Visualizations · beat"><option value="30">Groove</option></optgroup>
-    <optgroup label="Visualizations · loudness"><option value="13">VU Meter</option><option value="19">Waveform</option><option value="18">Mood</option><option value="22">Aurora</option></optgroup>
+    <optgroup label="Visualizations · loudness"><option value="13">VU Meter</option><option value="19">Waveform</option><option value="18">Mood</option><option value="22">Aurora</option><option value="35">Lava Lamp</option></optgroup>
     <optgroup label="Constructors"><option value="26">Particles</option><option value="27">Field</option><option value="28">Zones</option></optgroup>
    </select>
    <div class="choices chips modes" data-for="audio-mode" aria-labelledby="mode-title"></div>
@@ -179,32 +179,32 @@
   </div>
   <div class="section" data-auto-hide>
    <div class="section-head"><h3 class="eyebrow" id="signal-title">Signal</h3><button class="reset" id="signal-reset" type="button" data-reset="Reset signal settings" title="Reset signal settings" aria-label="Reset signal settings"><svg class="ico" aria-hidden="true"><use href="#i-reset"/></svg></button></div>
-   <div class="field" data-modes="5,6,7,8,9,10,13,15,16,18,21,22,23,24,25,26,27,28,30"><span class="field-label" id="param-source-title">Signal source</span>
+   <div class="field" data-modes="5,6,7,8,9,10,13,15,16,18,21,22,23,24,25,26,27,28,30,35"><span class="field-label" id="param-source-title">Signal source</span>
     <select id="param-source" hidden><option value="loudness" selected>Loudness</option><option value="spectral">Spectral activity</option><option value="bass">Bass</option><option value="mid">Mid</option><option value="high">Treble</option><option value="peak">Loudest band</option><option value="onset">Onsets</option><option value="beat">Beats</option></select>
     <div class="choices chips" data-for="param-source" aria-labelledby="param-source-title"></div></div>
    <div class="field" data-modes="1,2,3,4"><label for="spectrum-shape">Column brightness <span class="val" id="spectrum-shape-value">70%</span></label><input id="spectrum-shape" type="range" min="0" max="100" value="70"></div>
    <div class="field" data-modes="1,2,3,4"><label for="spectrum-onset">Onset flashes <span class="val" id="spectrum-onset-value">30%</span></label><input id="spectrum-onset" type="range" min="0" max="100" value="30"></div>
-   <div class="field" data-modes="6,7,13,15,16,21,22,23,24,25,26,27,28,30"><label for="line-response"><span>Fast line response <svg class="ico tiny preview-only" role="img" aria-label="Preview only"><title>Preview only — not sent to the lamp</title><use href="#i-eye"/></svg></span><span class="val" id="line-response-value">75%</span></label><input id="line-response" type="range" min="0" max="100" value="75"></div>
+   <div class="field" data-modes="6,7,13,15,16,21,22,23,24,25,26,27,28,30,35"><label for="line-response"><span>Fast line response <svg class="ico tiny preview-only" role="img" aria-label="Preview only"><title>Preview only — not sent to the lamp</title><use href="#i-eye"/></svg></span><span class="val" id="line-response-value">75%</span></label><input id="line-response" type="range" min="0" max="100" value="75"></div>
   </div>
-  <div class="section" data-modes="13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31">
+  <div class="section" data-modes="13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35">
    <div class="section-head"><h3 class="eyebrow" id="viz-title">Visualization</h3><button class="reset" id="viz-reset" type="button" data-reset="Reset visualization settings" title="Reset visualization settings" aria-label="Reset visualization settings"><svg class="ico" aria-hidden="true"><use href="#i-reset"/></svg></button></div>
    <div class="field"><span class="field-label" id="viz-color-title">Colors</span>
     <select id="viz-color" hidden><option value="0" selected data-short="Palette">Palette</option><option value="1" data-short="Effect as a mask">Color effect (audio as a mask)</option></select>
     <div class="choices segmented" data-for="viz-color" aria-labelledby="viz-color-title"></div></div>
-   <label class="check" data-modes="13,14,15,18,19,20,21,22,23,24,25,26,27,28,30"><input type="checkbox" id="viz-auto" checked><span>Auto-level<small>each band and meter uses its own recent range</small></span></label>
-   <div class="field" data-modes="13,14,15,18,19,20,21,22,23,24,25,26,27,28,30"><label for="viz-contrast">Contrast <span class="val" id="viz-contrast-value">0%</span></label><input id="viz-contrast" type="range" min="0" max="100" value="0"><p class="hint" id="viz-contrast-hint">50%: only what rises above the last 2 s average lights; 100%: only the peaks. Keeps loud, dense music from holding the meters at the top.</p></div>
+   <label class="check" data-modes="13,14,15,18,19,20,21,22,23,24,25,26,27,28,30,32,33,34,35"><input type="checkbox" id="viz-auto" checked><span>Auto-level<small>each band and meter uses its own recent range</small></span></label>
+   <div class="field" data-modes="13,14,15,18,19,20,21,22,23,24,25,26,27,28,30,32,33,34,35"><label for="viz-contrast">Contrast <span class="val" id="viz-contrast-value">0%</span></label><input id="viz-contrast" type="range" min="0" max="100" value="0"><p class="hint" id="viz-contrast-hint">50%: only what rises above the last 2 s average lights; 100%: only the peaks. Keeps loud, dense music from holding the meters at the top.</p></div>
    <label class="check"><input type="checkbox" id="viz-mirror"><span id="viz-mirror-label">From the center, both ways</span></label>
-   <div class="field" data-modes="13,14,16,17,18,20,22,23,24,25,30"><label for="viz-decay">Fall-off <span class="val" id="viz-decay-value">50%</span></label><input id="viz-decay" type="range" min="0" max="100" value="50"></div>
-   <div class="field" data-modes="15,16,21,22,23,24,25,27,31"><label for="viz-speed">Motion speed <span class="val" id="viz-speed-value">50%</span></label><input id="viz-speed" type="range" min="0" max="100" value="50"></div>
+   <div class="field" data-modes="13,14,16,17,18,20,22,23,24,25,30,32,33"><label for="viz-decay">Fall-off <span class="val" id="viz-decay-value">50%</span></label><input id="viz-decay" type="range" min="0" max="100" value="50"></div>
+   <div class="field" data-modes="15,16,21,22,23,24,25,27,31,33,34,35"><label for="viz-speed">Motion speed <span class="val" id="viz-speed-value">50%</span></label><input id="viz-speed" type="range" min="0" max="100" value="50"></div>
    <div class="field"><label for="viz-blur">Blur <span class="val" id="viz-blur-value">off</span></label><input id="viz-blur" type="range" min="0" max="100" value="0"></div>
    <p class="hint" id="viz-hint"></p>
   </div>
-  <div class="section" data-modes="13,14,16,17,18,19,21,22,23,24,25,26,27,28,29,30,31">
+  <div class="section" data-modes="13,14,16,17,18,19,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35">
    <div class="section-head"><h3 class="eyebrow" id="fx-title">Effect parameters</h3><button class="reset" id="fx-reset" type="button" data-reset="Reset the effect parameters" title="Reset the effect parameters" aria-label="Reset the effect parameters"><svg class="ico" aria-hidden="true"><use href="#i-reset"/></svg></button></div>
    <div id="fx-params"></div>
    <p class="hint">Sent to lamps whose firmware takes effect parameters (“params” in hello_ack); older firmware draws the mode with its defaults.</p>
   </div>
-  <div class="section" data-modes="1,2,3,4,5,6,7,8,9,10,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31">
+  <div class="section" data-modes="1,2,3,4,5,6,7,8,9,10,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35">
    <div class="section-head"><h3 class="eyebrow">Reaction range</h3><button class="reset" id="range-reset" type="button" data-reset="Reset the reaction range" title="Reset the reaction range" aria-label="Reset the reaction range"><svg class="ico" aria-hidden="true"><use href="#i-reset"/></svg></button></div>
    <canvas class="transfer" id="transfer-curve" width="300" height="120" aria-label="Curve: signal → reaction"></canvas>
    <div class="field"><span class="field-label">Signal window <span class="val"><span id="input-min-value">0%</span> – <span id="input-max-value">100%</span></span></span>
@@ -218,7 +218,7 @@
     <p class="hint">Curve bends the stretch: LED brightness looks logarithmic (50% → 100% barely changes), so a curve of ×2–×2.5 keeps quiet and mid signals dim and makes the reaction look even. Below linear it lifts quiet signals.</p>
    </details>
   </div>
-  <div class="section" data-modes="1,2,3,4,6,7,11,12,13,14,15,16,18,19,20,21,22,23,24,25,26,27,28,29,30,31">
+  <div class="section" data-modes="1,2,3,4,6,7,11,12,13,14,15,16,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35">
    <div class="section-head"><h3 class="eyebrow">Start and direction</h3><button class="reset" id="origin-reset" type="button" data-reset="Reset start and direction" title="Reset start and direction" aria-label="Reset start and direction"><svg class="ico" aria-hidden="true"><use href="#i-reset"/></svg></button></div>
    <div class="field"><label for="origin-shift">Start offset <span class="val" id="origin-shift-value">0 LED</span></label><input id="origin-shift" type="range" min="-8" max="8" value="0" data-center></div>
    <label class="check"><input type="checkbox" id="origin-reverse"><span>Reverse direction</span></label>
