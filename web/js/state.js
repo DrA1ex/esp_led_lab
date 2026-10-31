@@ -3,8 +3,10 @@
 // classic (non-module) scripts sharing this global scope, so the standalone
 // build can inline them in order.
 const $=id=>document.getElementById(id);
-const STATE={ready:false,buffer:null,pcm:null,context:null,source:null,playbackGain:null,playStart:0,pausedAt:0,playing:false,lastFrame:0,lastStats:0,lastUi:0,analysisGeneration:0,fileSampleRate:null,frequencyWindow:null,pcmRate:16000,displaySpectrum:[],frames:0,nextSample:512,silenceFrom:Infinity,tailPos:0,tailUntil:-1,seeking:false,newSpectrum:Array(16).fill(0),pulses:[0,0,0],events:[0,0,0],newParam:0,newLoudness:0,newLine:0,levels:[0,0,0],bpm:0,beatConfidence:0,beatPhase:0,beatPulse:0,audioLen:0,loopDemo:false,lastPlaybackSample:0,inputMode:"file",mic:null,micGeneration:0,micWorkletReady:false,fileName:"",output:{new:0},modules:{},canvases:{}};
+const STATE={ready:false,buffer:null,pcm:null,context:null,source:null,playbackGain:null,playStart:0,pausedAt:0,playing:false,lastFrame:0,lastStats:0,lastUi:0,analysisGeneration:0,fileSampleRate:null,frequencyWindow:null,pcmRate:16000,displaySpectrum:[],frames:0,nextSample:512,silenceFrom:Infinity,tailPos:0,tailUntil:-1,seeking:false,newSpectrum:Array(16).fill(0),pulses:[0,0,0],events:[0,0,0],newParam:0,newLoudness:0,newLine:0,levels:[0,0,0],bpm:0,beatConfidence:0,beatPhase:0,beatPulse:0,chroma:Array(12).fill(0),chromaElapsed:0,audioLen:0,loopDemo:false,lastPlaybackSample:0,inputMode:"file",mic:null,micGeneration:0,micWorkletReady:false,fileName:"",output:{new:0},modules:{},canvases:{}};
 let fs=16000,hop=256;
+// Chroma (12 pitch classes) runs on its own ~0.5 s window every 48 ms.
+const CHROMA_STEP=.048;
 // At least 50% overlap for short FFTs; keep the default 16 ms DSP cadence.
 function updateAnalysisHop(){hop=Math.min(Math.round(fs*.016),+$('fft').value/2);}
 const inputIds=['color','palette','brightness','audio-mode','speed','scale','light','audio-min','audio-max','mix','geometry','geom-w','geom-h','led-dots','invert-y','xy-test','gamma','master-brightness','simulate-led','fft','sample-rate','attack','release','noise','adaptive-floor','gain','transient','agc','compression','freq-min','freq-max',

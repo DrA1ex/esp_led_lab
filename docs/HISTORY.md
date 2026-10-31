@@ -5,6 +5,21 @@ Dated notes from the lab's development before it became a git repository
 `dist/`, WASM binaries in `web/wasm/`, `app.js` was split into `web/js/*.js`
 and `build_standalone.py` moved to `scripts/`.
 
+## Chroma and Chromatic Flow (2026-10-31)
+
+- **Chroma**: the DSP (`chroma_process()` in `src/dsp.cpp`) measures how
+  much of each of the 12 notes sounds, octaves folded, from an analysis of
+  its own: low-passed and decimated to about 8 kHz, a 4096-point FFT
+  (0.51 s, 2 Hz per bin), whitened spectral peaks on the semitone grid,
+  notes 55 Hz – 2 kHz, normalised and smoothed; the short FFT still drives
+  the bands and onsets. `features[225..236]`, the Analyzer's **Notes** view,
+  `tests/test_chroma.js` (tones A1–B6 at every rate, C major, A minor, noise).
+- **Wire**: byte 37 of the frame (reserved 0) is now an extension mask; bit 0
+  adds 12 chroma bytes after the bands, sent only to lamps listing `chroma`.
+- **Chromatic Flow**, mode 31 (firmware 30): soft, slowly drifting colour
+  regions, each sounding note taking a share of the lamp, placed on the
+  palette by the circle of fifths; hits only glow and swell.
+
 ## Groove (2026-10-30)
 
 - **Groove**, mode 30: the first visualization that keeps time. A beat clock

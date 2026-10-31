@@ -28,7 +28,7 @@ with sync_playwright() as p:
     page.wait_for_function('STATE.ready', timeout=15000)
 
     # Choices: one radio per option, grouped; picking one drives the select and the renderer.
-    assert page.locator('[name="choice-audio-mode"]').count() == page.locator('#audio-mode option').count() == 31
+    assert page.locator('[name="choice-audio-mode"]').count() == page.locator('#audio-mode option').count() == 32
     assert page.locator('#audio-mode-hint').inner_text() == 'Audio does not affect the picture.'
     page.locator('#tab-reaction').click()
     page.locator('.choices[data-for="audio-mode"] label', has_text='Fire').click()
@@ -164,13 +164,16 @@ with sync_playwright() as p:
     page.evaluate("resetControls(['release']);refreshLabels()")
     print('PASS DSP views: Chain / Map stay while tuning, A/B matches until a setting changes, then differs')
 
-    # Bands, Tempo and Spectrogram draw; their controls open them; the Onsets section's
+    # Bands, Tempo, Spectrogram and Notes draw; their controls open them; the Onsets section's
     # group buttons pick the DSP group and show that group's settings.
-    for panel in ['bands', 'tempo', 'spectrogram']:
+    for panel in ['bands', 'tempo', 'spectrogram', 'notes']:
         page.locator(f'[data-dsp="{panel}"]').click()
         page.wait_for_timeout(300)
         assert page.evaluate("DSP.panel") == panel
         assert page.evaluate("(()=>{const c=$('dsp-canvas'),d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let n=0;for(let i=3;i<d.length;i+=4)if(d[i])n++;return n/(c.width*c.height);})()") > .01, panel
+    # The demo's notes reached the chroma history and the caption explains it.
+    assert page.evaluate('Math.max(...DSP_HIST.chroma)') > .5
+    assert 'pitch class' in page.locator('#dsp-caption').inner_text()
     page.locator('[data-dsp="level"]').click()
     for control, panel in [('tilt', 'bands'), ('eq-high', 'bands'), ('smoothing', 'bands'), ('bpm-min', 'tempo'), ('holdoff-0', 'onsets'),
                            ('onset-memory', 'onsets'), ('peak-hold', 'envelope'), ('window', 'resolution')]:

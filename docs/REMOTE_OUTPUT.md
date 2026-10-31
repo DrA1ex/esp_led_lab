@@ -180,8 +180,8 @@ Changes made together with the firmware (`esp_led_lamp`, `feature/remote-audio-d
 ## Visualizations on the lamp (2026-10-29)
 
 `src/viz_engine.h` is shared byte-for-byte with the firmware
-(`esp_led_lamp/src/remote_audio/viz_engine.h`, effect ids 12–29 = lab modes
-13–30; 12–24 before 2026-10-30). `render.cpp` and the firmware only supply the inputs and the pixel
+(`esp_led_lamp/src/remote_audio/viz_engine.h`, effect ids 12–30 = lab modes
+13–31; 12–24 before 2026-10-30, 12–29 before 2026-10-31). `render.cpp` and the firmware only supply the inputs and the pixel
 output, so the lamp draws what the preview shows (random sparks aside).
 The engine is integer only (Q12 levels, ms, 1/16-LED positions), because the
 ESP8266 has no FPU; the lab host converts its float features to Q12.
@@ -257,3 +257,74 @@ sparks. Without a confident tempo, bass and mid hits start the steps and the
 pattern rests in between. On the demo it averages 0.22 of full RGB on a
 16×16 matrix (Blobs 0.24, Fire 0.42). No new wire fields: older firmware
 does not list id 29 and gets Off.
+
+## Chroma and Chromatic Flow (2026-10-31)
+
+Lab mode 31 = firmware id 30. The visualizations so far heard levels, bands,
+hits and the beat, but not which notes play: a chord change was invisible
+unless it moved the spectrum. The frame can now carry the **chroma**, the
+share of each of the 12 notes (C, C♯ … B) with octaves folded together.
+
+**Analysis** (`src/dsp.cpp`, `chroma_process()`). The short FFT that drives
+the bands (512 points at 16 kHz: 31 Hz per bin) cannot tell a semitone apart
+below about 500 Hz, and a longer one would smear the hits. So the chroma has
+an analysis of its own, every 48 ms on the last ~0.5 s of the input
+(`chroma_input_size()` samples, filled by `web/js/audio.js`):
+
+1. decimation by D = round(rate / 8000) after a Blackman-windowed sinc
+   low-pass at 2.7 kHz (24 · D + 1 taps; none for D = 1), so every rate is
+   analysed at 7.35–11 kHz (8000 / 11025 / 8000 / 7350 / 7350 / 8000 Hz for
+   8 / 11 / 16 / 22 / 44.1 / 48 kHz);
+2. a 4096-point Hann FFT: 0.51 s and 2 Hz per bin at 8 kHz, two bins per
+   semitone at A1 (55 Hz);
+3. peaks only, and only where they stand over twice the local background
+   (±max(4, k/8) bins): broadband noise and drums do not reach the notes;
+4. each peak's frequency from parabolic interpolation of the log magnitudes,
+   split between the two nearest semitones (a tone 45 cents sharp of A
+   still reads mostly A); MIDI 32–96 (55 Hz – 2 kHz) with half-semitone fades
+   at the ends;
+5. folded into 12 classes, scaled so the strongest is 1 (but against at
+   least 5 % of the total and 10 % of the loudest peak of the last ~8 s, so
+   a quiet tail or hiss does not read as full chroma), then smoothed
+   (80 ms attack, 250 ms release).
+
+It reacts in about a quarter of a second, too slow for hits, right for
+harmony. `tests/test_chroma.js` checks single tones from A1 to B6 at all six
+rates (> 0.9 in their own class, < 0.1 elsewhere), C major and A minor pure
+and with eight harmonics (the chord's notes on top), white noise (< 0.15),
+a tone 10 dB under noise, and a change of note. The Analyzer's **Notes**
+view shows it over the last 5 s.
+
+**Wire.** Byte 37 of the frame was reserved 0, and firmware up to Groove
+rejects anything else there, so the version stays 1 and the chroma is an
+extension: bit 0 of byte 37 adds 12 bytes (0–255 per class) after the bands
+(82 / 114 / 178 bytes for 16 / 32 / 64 bands). The lab adds it only for lamps
+whose `hello_ack.capabilities` lists `chroma` (`Device.acceptsChroma` in
+`web/js/remote.js`); all other lamps keep receiving the frames they know.
+The lamp card says *sends N bands + notes*. The receiver interpolates the
+chroma between queued frames like the bands; the engine reads it as
+`Host::chroma(i)` (Q12).
+
+**Chromatic Flow.** The notes are placed on the palette in the circle of
+fifths (C, G, D, A, E …, 1/12 of the palette apart: related chords sit next
+to each other, C major and A minor share two colours) or in semitone order,
+and *C at* turns the circle. A slow noise field is split into regions, each
+note taking a share of the lamp as large as its level, so one note colours
+the whole lamp and a chord shares it between its notes. Shares are taken
+from the field's own distribution (its rank over a 256-entry table), so a
+short strip shares as fairly as a matrix. *Soft borders* turn the colour
+halfway towards the neighbour at the border and dim it a little; *Follow*
+(50 ms – 2 s) sets how fast the shares follow the notes; *Focus* leaves out
+notes weaker than a share of the strongest; *Zoom* and *Drift* set the size
+and speed of the regions. Bass hits and beats only add a glow (*Glow on
+hits*) and swell the regions (*Swell on hits*): the colours belong to the
+harmony. Without chroma (no music, or older firmware) the lamp stays dark.
+
+**Cost.** Lab: `features` grows from 225 to 237 floats, the chroma analysis
+takes ~116 KB of WASM memory (the input window at up to 6× decimation, magnitudes, filter). Lamp,
+measured with `pio run -e release`: RAM 61 652 → 61 980 bytes (+328: 12
+chroma bytes per queued frame and per interpolated output, a larger frame
+buffer), flash 538 540 → 540 252 bytes (+1.7 KB). `tests/check_viz_integer.sh`:
+the engine's code 51.8 → 55.6 KB (+3.8 KB, Chromatic Flow), its RAM unchanged
+at 2 072 bytes for 16×16 (the note levels reuse the band meters); the mode
+uses 512 bytes of stack while it draws (the rank table).

@@ -70,7 +70,7 @@ function newControlSource(s=settings()){
  }
 }
 function feedRender(m){
- const s=settings(),d=STATE.modules.dsp.exports,features=new Float32Array(m.memory.buffer,m.audio_features_ptr(),225);
+ const s=settings(),d=STATE.modules.dsp.exports,features=new Float32Array(m.memory.buffer,m.audio_features_ptr(),237);
  features.fill(0);
  for(let j=0;j<16;j++)features[j]=STATE.newSpectrum[j];
  for(let j=0;j<3;j++){features[16+j]=STATE.pulses[j];features[19+j]=STATE.events[j];}
@@ -86,6 +86,8 @@ function feedRender(m){
  const count=previewBands(),bands=remoteBands(count);
  for(let j=0;j<count;j++)features[160+j]=bands[j];
  features[224]=count;
+ // Pitch classes C..B (Chromatic Flow).
+ for(let j=0;j<12;j++)features[225+j]=STATE.chroma[j];
 }
 function remoteBands(count){
  if(remoteEnabled()&&RS.visual)return RS.visual['r'+count];

@@ -1,9 +1,9 @@
-// Lab-only visualizations 13..30 on every geometry class: silence stays dark,
+// Lab-only visualizations 13..31 on every geometry class: silence stays dark,
 // sound lights the LEDs, strips show the same on every row (except random Sparkles), the lamp band
 // count is used, and mirroring is symmetric.
 const fs=require('fs'),path=require('path'),assert=require('node:assert/strict');
 const mod=new WebAssembly.Module(fs.readFileSync(path.join(__dirname,'../web/wasm/render.wasm')));
-const MODES=[13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30];
+const MODES=[13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31];
 
 // Palette colours on a white base; `fill(f, frame)` sets the features per frame.
 function run(w,h,mode,fill,{frames=40,mirror=0,bands=32,auto=0,setup}={}){
@@ -11,15 +11,16 @@ function run(w,h,mode,fill,{frames=40,mirror=0,bands=32,auto=0,setup}={}){
  m.set_dimensions(w,h);m.set_palette(41);m.set_effects(9,0,mode);m.set_parameters(0,0,255,1);
  m.set_visualization(0,mirror,.5,.5,auto);
  if(setup)setup(m);
- const f=new Float32Array(m.memory.buffer,m.audio_features_ptr(),225);
+ const f=new Float32Array(m.memory.buffer,m.audio_features_ptr(),237);
  for(let k=0;k<frames;k++){f.fill(0);f[224]=bands;fill(f,k);m.render_frame(16.7);}
  const out=new Uint8Array(m.memory.buffer,m.framebuffer_ptr(),w*h*4);
  const at=(x,y=0)=>{const i=(((y&1)?w-1-x:x)+y*w)*4;return out[i]+out[i+1]+out[i+2];};
  let lit=0;for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(at(x,y)>30)lit++;
  return {at,lit};
 }
-// Loud music: rising spectrum, levels, a bass/mid/treble onset every 6 frames.
+// Loud music: rising spectrum, levels, a bass/mid/treble onset every 6 frames, a C major chord.
 const music=(f,k)=>{
+ f[225]=1;f[229]=.8;f[232]=.9;
  for(let i=0;i<64;i++)f[160+i]=.3+.6*Math.abs(Math.sin(i*.4+k*.3));
  for(let i=0;i<16;i++)f[i]=.5;
  f[16+k%3]=k%6<3?1:0;f[23]=.8;f[159]=.8;
@@ -97,10 +98,39 @@ for(const mode of [13,14,19,20]){
  const loose=frames(0,200);
  assert.equal(diff(loose[150],loose[199]),0,'Groove rests without a confident tempo or hits');
 }
+// Chromatic Flow: the colour follows the note (features[225 + pitch class]).
+// With one note the whole lamp is one palette colour, the note's place on the
+// palette (circle of fifths, 12 steps); moving C on by one step (the shift
+// parameter, 21 of 256) gives A the colour E has without it. A change of
+// note recolours the lamp within the follow time; hits only brighten it.
+{
+ const flow=(notes,{frames=150,params=null,hits=false}={})=>{
+  const m=new WebAssembly.Instance(mod).exports;
+  m.set_dimensions(16,16);m.set_palette(4);m.set_effects(9,0,31);m.set_parameters(0,0,255,1);m.set_visualization(0,0,.5,.5,1);
+  if(params){new Uint8Array(m.memory.buffer,m.viz_params_ptr(),11).set(params);m.set_viz_params(18);}
+  const f=new Float32Array(m.memory.buffer,m.audio_features_ptr(),237),out=new Uint8Array(m.memory.buffer,m.framebuffer_ptr(),1024);
+  for(let k=0;k<frames;k++){f.fill(0);f[224]=32;const n=notes(k);for(const [pc,v] of Object.entries(n))f[225+ +pc]=v;
+   if(hits&&k%25<2)f[16]=1;m.render_frame(20);}
+  const colors=new Map();let light=0;
+  for(let i=0;i<256;i++){const c=(out[i*4]<<16)|(out[i*4+1]<<8)|out[i*4+2];colors.set(c,(colors.get(c)||0)+1);light+=out[i*4]+out[i*4+1]+out[i*4+2];}
+  return {colors,light};
+ };
+ const one=r=>{assert.equal(r.colors.size,1,`one colour, got ${r.colors.size}`);return [...r.colors.keys()][0];};
+ const defaults=[0,0,100,80,80,60,128,90,60,128];
+ const a=one(flow(()=>({9:1}))),e=one(flow(()=>({4:1})));
+ assert.notEqual(a,e,'A and E differ');assert.notEqual(a,0,'A is lit');
+ assert.equal(one(flow(()=>({9:1}),{params:[0,21,...defaults.slice(2)]})),e,'A shifted by a fifth = E');
+ assert.equal(one(flow(k=>k<150?{9:1}:{4:1},{frames:300})),e,'A, then E: the lamp turns E');
+ // C major shares the lamp: C, G and E (and their blends).
+ assert(flow(()=>({0:1,4:1,7:1}),{params:[0,0,100,80,80,60,0,90,60,128]}).colors.size===3,'C major: three colours with hard borders');
+ // Hits: brighter, still one colour (A's).
+ const calm=flow(()=>({9:1}),{frames:151}),hit=flow(()=>({9:1}),{frames:151,hits:true});
+ assert(hit.light>calm.light*1.15&&hit.colors.size===1,'hits brighten, the colour stays');
+}
 // The firmware renders the same modes from its own copy of the engine.
 {
  const lamp=path.join(__dirname,'../../esp_led_lamp/src/remote_audio/viz_engine.h');
  if(fs.existsSync(lamp))assert.equal(fs.readFileSync(lamp,'utf8'),fs.readFileSync(path.join(__dirname,'../src/viz_engine.h'),'utf8'),
   'src/viz_engine.h differs from esp_led_lamp/src/remote_audio/viz_engine.h: copy it over');
 }
-console.log('PASS lab visualizations 13..30 on strips 7/153, 72x2, matrices 16/128: silence, music, rows, mirror, bands, Groove beat lock');
+console.log('PASS lab visualizations 13..31 on strips 7/153, 72x2, matrices 16/128: silence, music, rows, mirror, bands, Groove beat lock, Chromatic Flow colours');

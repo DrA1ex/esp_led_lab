@@ -201,7 +201,7 @@ function scheduleThumbs(s){
 function renderThumbs(){
  const m=STATE.modules.thumb.exports,s=settings(),n=16;
  m.set_dimensions(n,n);m.set_palette(s.palette);writeGammaLut(m,s.gamma);m.apply_palette_gamma();
- new Float32Array(m.memory.buffer,m.audio_features_ptr(),225).fill(0);
+ new Float32Array(m.memory.buffer,m.audio_features_ptr(),237).fill(0);
  for(const o of $('color').options){
   const canvas=choiceFace('color',o.value)?.querySelector('canvas');if(!canvas)continue;
   m.reset_render();m.set_effects(+o.value,0,0);m.set_parameters(s.speed,s.scale,s.light,0);

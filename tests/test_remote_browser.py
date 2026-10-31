@@ -23,7 +23,8 @@ with sync_playwright() as p:
           if(data instanceof ArrayBuffer){window.__frames.push({url:this.url,buf:data});return;}
           const msg=JSON.parse(data);window.__control.push({url:this.url,...msg});
           const reply=obj=>setTimeout(()=>this.onmessage?.({data:JSON.stringify(obj)}),2);
-          if(msg.type==='hello')reply({type:'hello_ack',version:1,band_counts:[16,32,64]});
+          // The lamp on 8766 takes chroma; the one on 8765 is older firmware.
+          if(msg.type==='hello')reply({type:'hello_ack',version:1,band_counts:[16,32,64],...(this.url.includes('8766')?{capabilities:['chroma']}:{})});
           if(msg.type==='sync')reply({type:'sync_ack',id:msg.id,t1:performance.now()+22,t2:performance.now()+22});
           if(msg.type==='clock')reply({type:'clock_ack'});
           if(msg.type==='start'){window.__playing=true;reply({type:'start_ack',session:msg.session_id});}
@@ -50,11 +51,22 @@ with sync_playwright() as p:
     assert page.evaluate('REMOTE.devices.every(d=>d.receiverPlaying)')
     assert page.evaluate('''() => __control.filter(f=>f.type==='clock').length>=2''')
     print('PASS 32-band multi-device mock socket / handshake / clock / demo stream')
+    # Chroma only for the lamp that lists it: byte 37 = 1 and 12 note bytes after the bands; v1 frames for the other.
+    chroma = page.evaluate('''() => {const of=port=>__frames.filter(f=>f.url.includes(port)&&new DataView(f.buf).getUint8(7)===32);
+      const plain=of('8765'),notes=of('8766');
+      return {plain:plain.length&&plain.every(f=>f.buf.byteLength===102&&new DataView(f.buf).getUint8(37)===0),
+              notes:notes.length&&notes.every(f=>f.buf.byteLength===114&&new DataView(f.buf).getUint8(37)===1),
+              peak:Math.max(0,...notes.map(f=>Math.max(...new Uint8Array(f.buf,102,12))))}}''')
+    assert chroma['plain'] and chroma['notes'], chroma
+    page.wait_for_function('''__frames.some(f=>f.url.includes('8766')&&f.buf.byteLength===114&&Math.max(...new Uint8Array(f.buf,102,12))===255)''',timeout=10000)
+    stats = page.evaluate("[...document.querySelectorAll('.lamp-stats')].map(e=>e.textContent)")
+    assert sorted('+ notes' in t for t in stats) == [False, True], stats
+    print('PASS chroma frames (114 bytes, byte 37 = 1) only to the lamp listing "chroma", v1 frames to the other')
     for count in [16,64]:
         page.locator('#remote-bands').select_option(str(count),force=True)
         page.wait_for_function(f'__frames.some(f=>new DataView(f.buf).getUint8(7)==={count})',timeout=10000)
         expected=38+count*2
-        assert page.evaluate(f'''() => __frames.filter(f=>new DataView(f.buf).getUint8(7)==={count}).every(f=>f.buf.byteLength==={expected})''')
+        assert page.evaluate(f'''() => __frames.filter(f=>new DataView(f.buf).getUint8(7)==={count}).every(f=>f.buf.byteLength==={expected}+(f.url.includes('8766')?12:0))''')
         print('PASS',count,'band negotiation, size',expected)
     old=page.evaluate('RS.session')
     page.locator('#play').click()

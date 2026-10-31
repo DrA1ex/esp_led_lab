@@ -72,8 +72,11 @@ The **Reaction** tab's audio modes are grouped by what drives them:
   with the firmware): *spectrum* (Spectrum Bars, Flow, Fire, Juggle, Radial
   Spectrum, Melody — Melody follows the dominant frequency), *bass, mid,
   treble* (the meters, Pulses, Sparkles, Blobs), *loudness* (VU Meter,
-  Waveform, Mood, Aurora) and *beat* (Groove: rings, spiral arms, stripes or
-  a swinging ball move one step per beat, locked to the beat phase).
+  Waveform, Mood, Aurora), *beat* (Groove: rings, spiral arms, stripes or
+  a swinging ball move one step per beat, locked to the beat phase) and
+  *notes* (Chromatic Flow: soft colour regions, one per sounding note,
+  placed on the palette by the circle of fifths; the colours change with
+  the chords, hits only add a glow).
 - **Constructors**: Particles, Field and Zones, whose parameters pick the
   shape, what launches or lights it, the motion and the colors.
 
@@ -81,7 +84,7 @@ The hint under the list says what drives the selected mode. **Effect
 parameters** (under Visualization) are the selected mode's own settings:
 up to 11 values per mode, e.g. Fire's fuel, height and wind, Particles'
 shape, trigger, speed and gravity, Zones' layout and pattern. Particles,
-Field, Zones, Melody and Groove end with **Brightness** (×1 = as drawn, up to ×2).
+Field, Zones, Melody, Groove and Chromatic Flow end with **Brightness** (×1 = as drawn, up to ×2).
 They are ordinary settings: remembered, reset by the section's ↺, set per
 lamp, and sent to lamps whose firmware has the `params` capability (older
 firmware draws the mode with its defaults; see
@@ -231,6 +234,7 @@ settings are changed:
 |---|---|
 | Chain | one band group after every stage on one time axis: input with the noise floor, after the level curve, after the envelope (what the LEDs show), hits and flash; beside each stage, the range it uses (5–95 % of the time) |
 | Spectrogram | the FFT over the last 5 s on a log frequency axis with the frequency range, the group splits, the 16 bands and the hits of each group |
+| Notes | the chroma: how much of each of the 12 notes (C … B, octaves folded) sounds over the last 5 s and now, the strongest note and the triad when three notes stand out. A separate analysis from the bands (about 8 kHz, 4096-point FFT: 0.51 s, 2 Hz per bin; notes 55 Hz – 2 kHz), so it does not depend on the FFT size above |
 | Map | all 16 bands over the last 5 s before the analyzer (dB) and as the LEDs get them, and a histogram of how often each LED level occurs (dark / bright share, median) |
 | A/B | **Pin as A** copies the running analyzer into a second DSP instance that keeps the pinned settings while the sliders change B; both run on the same audio. Shows the changed settings, both outputs of a group, their hits and all bands now |
 
@@ -253,7 +257,7 @@ normal builds work offline. To regenerate its browser bundle, run
 ```
 src/                 C++ sources compiled to WebAssembly
   render.cpp         effect renderer (ported color/brightness/audio effects)
-  viz_engine.h       visualizations 13..30 and their parameters (integer only), shared byte-for-byte with the firmware
+  viz_engine.h       visualizations 13..31 and their parameters (integer only), shared byte-for-byte with the firmware
   dsp.cpp            FFT/onset/BPM DSP (+ the firmware's original analyzers, used by tests)
   fastled_compat.h   FastLED 3.6.0 fixed-point math port
   tables.h           lookup tables
@@ -308,7 +312,9 @@ make test-browser  # Chromium via Playwright (pip install playwright && playwrig
 
 Set `CHROMIUM=/path/to/chromium` to use a specific browser binary.
 `python3 scripts/mock_remote_receiver.py --port 8765` is a small WebSocket
-receiver for manual Remote Output testing without a lamp.
+receiver for manual Remote Output testing without a lamp; it lists `chroma`
+and prints the notes of the frames (`--no-chroma` behaves like older
+firmware, which gets frames without them).
 
 ## Relationship to the firmware
 

@@ -1,9 +1,11 @@
 'use strict';
 // Optional, LAN-only audio feature transport. No PCM is transmitted.
 // The 16/32/64 layout is 38 + count*2 bytes; a count is sent only when the
-// receiver lists it in band_counts (current firmware: 16, 32 and 64).
+// receiver lists it in band_counts (current firmware: 16, 32 and 64). With
+// f.chroma (12 pitch classes, 0..255) byte 37 is EXT_CHROMA and the 12 bytes
+// follow the bands: only for receivers listing "chroma", older ones get v1 frames.
 const RemoteAudio = (() => {
- const COUNTS=[16,32,64], MAGIC=[69,76,65,70];
+ const COUNTS=[16,32,64], MAGIC=[69,76,65,70], EXT_CHROMA=1;
  // Clock sync: a short burst at connect, then a refresh every few seconds
  // (also while streaming) so ESP crystal drift never accumulates. The offset
  // is taken from the lowest-RTT sample of a recent window, not of all time.
@@ -11,9 +13,10 @@ const RemoteAudio = (() => {
  const clamp=(n,lo,hi)=>Number.isFinite(n)?Math.max(lo,Math.min(hi,n)):lo;
  const u16=(n)=>Math.round(clamp(n,0,4096));
  const serialize=(f)=>{
-  const count=f.bands.length;
+  const count=f.bands.length,chroma=f.chroma||null;
   if(!COUNTS.includes(count))throw new RangeError('Unsupported audio band count '+count);
-  const buffer=new ArrayBuffer(38+count*2),view=new DataView(buffer);
+  if(chroma&&chroma.length!==12)throw new RangeError('Chroma needs 12 pitch classes');
+  const buffer=new ArrayBuffer(38+count*2+(chroma?12:0)),view=new DataView(buffer);
   MAGIC.forEach((b,i)=>view.setUint8(i,b));
   view.setUint8(4,1);view.setUint8(5,1);view.setUint8(6,f.live?1:0);view.setUint8(7,count);
   view.setUint32(8,f.session>>>0,true);view.setUint32(12,f.seq>>>0,true);
@@ -21,8 +24,9 @@ const RemoteAudio = (() => {
   for(const [i,k] of ['rms','bass','mid','high','peak','onsetStrength'].entries())view.setUint16(20+i*2,u16(f[k]),true);
   view.setUint8(32,(f.onsetMask||0)&7);view.setUint8(33,Math.round(clamp(f.beatPhase,0,255)));
   view.setUint16(34,Math.round(clamp(f.bpm,0,65535)),true);
-  view.setUint8(36,Math.round(clamp(f.confidence,0,255)));view.setUint8(37,0);
+  view.setUint8(36,Math.round(clamp(f.confidence,0,255)));view.setUint8(37,chroma?EXT_CHROMA:0);
   for(let i=0;i<count;i++)view.setUint16(38+i*2,u16(f.bands[i]),true);
+  if(chroma)for(let i=0;i<12;i++)view.setUint8(38+count*2+i,Math.round(clamp(chroma[i],0,255)));
   return buffer;
  };
  // Band count for a lamp of `width` columns: about one band per column (fewer
@@ -57,6 +61,8 @@ const RemoteAudio = (() => {
    this.width=0;this.height=0;this.capabilities=[];this.visualizations=[];this.paramsVersion=0;this.lastParams='';this.power=null;this.brightness=null;}
   // Effect parameters ("params" capability) in this layout version.
   acceptsParams(version){return this.capabilities.includes('params')&&this.paramsVersion===version;}
+  // 12 chroma bytes after the bands (Chromatic Flow).
+  get acceptsChroma(){return this.capabilities.includes('chroma');}
   // Lamp power / brightness as last reported (null: unknown, e.g. older firmware).
   lampState(msg){
    if(typeof msg.power==='boolean')this.power=msg.power;

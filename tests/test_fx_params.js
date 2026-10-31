@@ -12,7 +12,7 @@ const FX=vm.runInContext(fs.readFileSync(path.join(__dirname,'../web/js/fx-param
 const probe=new WebAssembly.Instance(mod).exports;
 assert.equal(probe.viz_params_version(),FX.FX_PARAMS_VERSION,'params layout version');
 assert.equal(probe.viz_max_params(),FX.FX_MAX,'parameter slots');
-assert.equal(probe.viz_mode_count(),18,'18 visualizations (lab modes 13..30)');
+assert.equal(probe.viz_mode_count(),19,'19 visualizations (lab modes 13..31)');
 for(let mode=13;mode<13+probe.viz_mode_count();mode++){
  const keys=FX.FX_PARAMS[mode]?[...FX.fxKeys(mode)]:[];
  assert.equal(probe.viz_param_count(mode-13),keys.length,`mode ${mode}: parameter count`);
@@ -29,7 +29,7 @@ function run(w,h,mode,fill,{params=null,pmode=mode-13,frames=70}={}){
  m.set_dimensions(w,h);m.set_palette(41);m.set_effects(9,0,mode);m.set_parameters(0,0,255,1);
  m.set_visualization(0,0,.5,.5,1);
  if(params){new Uint8Array(m.memory.buffer,m.viz_params_ptr(),FX.FX_MAX).set(params);m.set_viz_params(pmode);}
- const f=new Float32Array(m.memory.buffer,m.audio_features_ptr(),225);
+ const f=new Float32Array(m.memory.buffer,m.audio_features_ptr(),237);
  const out=new Uint8Array(m.memory.buffer,m.framebuffer_ptr(),w*h*4);
  let hash=0,lit=0;
  for(let k=0;k<frames;k++){f.fill(0);f[224]=32;fill(f,k);m.render_frame(16.7);
@@ -37,8 +37,10 @@ function run(w,h,mode,fill,{params=null,pmode=mode-13,frames=70}={}){
  for(let i=0;i<w*h;i++)if(out[i*4]+out[i*4+1]+out[i*4+2]>30)lit++;
  return {hash,lit};
 }
-// Music with a moving spectrum, varying loudness, group onsets, beats and a broadband hit every 10 frames.
+// Music with a moving spectrum, varying loudness, group onsets, beats, a broadband hit every 10 frames
+// and notes: C major, then A minor from frame 35.
 const music=(f,k)=>{
+ f[225]=1;f[229]=.8;f[232]=k<35?.9:.2;f[234]=k<35?.1:.9;
  for(let i=0;i<64;i++)f[160+i]=k%10===0?1:.3+.6*Math.abs(Math.sin(i*.4+k*.3));
  for(let i=0;i<16;i++)f[i]=.5;
  f[16+k%3]=k%6<3?1:0;f[23]=.5+.3*Math.sin(k*.23);f[159]=f[23];
@@ -54,7 +56,7 @@ for(const mode of FX.FX_MODES){
  for(const [w,h] of [[16,16],[60,1]]){
   const plain=run(w,h,mode,music);
   assert.equal(run(w,h,mode,music,{params:defaults}).hash,plain.hash,`mode ${mode} ${w}x${h}: explicit defaults draw the same`);
-  assert.equal(run(w,h,mode,music,{params:defaults.map(v=>v^0x55),pmode:(mode-13+1)%18}).hash,plain.hash,`mode ${mode}: another mode's parameters are ignored`);
+  assert.equal(run(w,h,mode,music,{params:defaults.map(v=>v^0x55),pmode:(mode-13+1)%19}).hash,plain.hash,`mode ${mode}: another mode's parameters are ignored`);
   keys.forEach((key,i)=>{
    const p=byKey[key],start=[...defaults];
    for(const [cm,ck,other,value] of CONTEXTS)if(cm===mode&&ck===key)start[keys.indexOf(other)]=value;

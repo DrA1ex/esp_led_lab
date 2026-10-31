@@ -5,7 +5,7 @@
 // it; the curves mirror new_process() in src/dsp.cpp.
 const STAGE_MODE_KEY='esp-led-lab.stage-mode',DSP_PANEL_KEY='esp-led-lab.dsp-panel',DSP_GROUP_KEY='esp-led-lab.dsp-group';
 // One panel per group of settings, then views across all of them.
-const DSP_SETTING_PANELS=['resolution','bands','level','envelope','onsets','tempo','noise'],DSP_PANELS=[...DSP_SETTING_PANELS,'spectrogram','chain','map','ab'];
+const DSP_SETTING_PANELS=['resolution','bands','level','envelope','onsets','tempo','noise'],DSP_PANELS=[...DSP_SETTING_PANELS,'spectrogram','notes','chain','map','ab'];
 const DSP_GROUP_PANELS=['envelope','onsets','chain','ab'];
 // The panel that shows an analyzer control; touching the control opens it.
 const DSP_CONTROL_PANEL={fft:'resolution','sample-rate':'resolution',window:'resolution','freq-min':'resolution','freq-max':'resolution',
@@ -35,7 +35,7 @@ const DSP_HIST={pos:0,filled:0,elapsed:0,peakFlux:[0,0,0],hit:[0,0,0],time:0,bea
  average:new Float32Array(DSP_LEN),ref:new Float32Array(DSP_LEN),
  raw:dspSeries(),cut:dspSeries(),bands:new Float32Array(16*DSP_LEN),rawBands:new Float32Array(16*DSP_LEN),
  beat:new Float32Array(DSP_LEN),bpm:new Float32Array(DSP_LEN),confidence:new Float32Array(DSP_LEN),
- spec:new Float32Array(SPEC_ROWS*DSP_LEN).fill(-140),
+ spec:new Float32Array(SPEC_ROWS*DSP_LEN).fill(-140),chroma:new Float32Array(12*DSP_LEN),
  abHit:[0,0,0],abOutput:dspSeries(),abEvent:dspSeries(),abBands:new Float32Array(16*DSP_LEN)};
 
 // Spectrogram rows: logarithmic from 20 Hz to the analysed Nyquist. A row
@@ -83,6 +83,7 @@ function recordDsp(d,hopSeconds,s,nowSample){
  for(let k=0;k<16;k++){H.bands[k*DSP_LEN+i]=STATE.newSpectrum[k];H.rawBands[k*DSP_LEN+i]=raw[k];}
  H.beat[i]=H.beatHit;H.beatHit=0;H.bpm[i]=metrics[6];H.confidence[i]=metrics[7];
  recordSpectrum(d,s.fft,i);
+ for(let k=0;k<12;k++)H.chroma[k*DSP_LEN+i]=STATE.chroma[k];
  for(let g=0;g<3;g++){
   const [a,b]=gb[g];let t=0,r=0,c=0;for(let k=a;k<b;k++){t+=targets[k];r+=raw[k];c+=gate+floor[k]*adaptive;}
   H.raw[g][i]=r/(b-a);H.cut[g][i]=c/(b-a);
@@ -812,6 +813,50 @@ function drawSpectrogram(ctx,W,H,s,d){
  return {};
 }
 
+// Notes: the chroma (src/dsp.cpp chroma_process) over the last 5 s, C at the
+// bottom, and the 12 pitch classes now. The colours go round the circle of
+// fifths, as Chromatic Flow lays the notes on the palette by default.
+const NOTE_NAMES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const noteColor=(k,a=1)=>`hsla(${k*7%12*30},75%,62%,${a})`;
+// The triad the three strongest classes form, when they stand out.
+function chordName(c){
+ const order=c.map((v,k)=>[v,k]).sort((a,b)=>b[0]-a[0]),top=order.slice(0,3).map(x=>x[1]);
+ if(order[2][0]<.5||order[3][0]>.6*order[2][0])return '';
+ for(const r of top)for(const [name,third] of [['major',4],['minor',3]])
+  if(top.includes((r+third)%12)&&top.includes((r+7)%12))return `${NOTE_NAMES[r]} ${name}`;
+ return '';
+}
+function drawNotes(ctx,W,H,s,d){
+ const Hs=DSP_HIST,left=34,barsW=Math.min(200,Math.max(110,W*.24));
+ const gram=plotBox(left,24,W-left-12-barsW-18,Math.max(60,H-24-26)),bars=plotBox(gram.x+gram.w+18,24,barsW,gram.h);
+ const info=new Float32Array(d.memory.buffer,d.chroma_info_ptr(),4),[rate,n,dec,clarity]=info,c=STATE.chroma;
+ dspText(ctx,`Notes · 12 pitch classes, octaves folded · last 5 s`,gram.x,13,{color:DSP_COLORS.text2,weight:600});
+ const off=DSP.notesCanvas||(DSP.notesCanvas=Object.assign(document.createElement('canvas'),{width:DSP_LEN,height:12}));
+ const octx=off.getContext('2d'),img=octx.createImageData(DSP_LEN,12);
+ for(let k=0;k<12;k++)for(let x=0;x<DSP_LEN;x++){
+  const j=x-(DSP_LEN-Hs.filled),o=((11-k)*DSP_LEN+x)*4;
+  const v=j<0?0:Hs.chroma[k*DSP_LEN+(Hs.pos-Hs.filled+j+DSP_LEN)%DSP_LEN],i=Math.max(0,Math.min(255,Math.round(v*255)))*3;
+  img.data[o]=MAP_LUT[i];img.data[o+1]=MAP_LUT[i+1];img.data[o+2]=MAP_LUT[i+2];img.data[o+3]=255;
+ }
+ octx.putImageData(img,0,0);
+ ctx.imageSmoothingEnabled=false;ctx.drawImage(off,gram.x,gram.y,gram.w,gram.h);ctx.imageSmoothingEnabled=true;
+ dspFrame(ctx,gram);timeLabels(ctx,gram);
+ const row=gram.h/12;
+ for(let k=0;k<12;k++)dspText(ctx,NOTE_NAMES[k],gram.x-6,gram.y+(11.5-k)*row+3.5,{align:'right',color:noteColor(k),size:row<11?8.5:10.5});
+ // Now: one bar per class.
+ let best=0;for(let k=1;k<12;k++)if(c[k]>c[best])best=k;
+ for(let k=0;k<12;k++){
+  const y=bars.y+(11-k)*row,w=Math.max(0,Math.min(1,c[k]))*bars.w;
+  ctx.fillStyle=noteColor(k,k===best&&c[k]>0?.95:.55);ctx.fillRect(bars.x,y+row*.15,w,Math.max(1,row*.7));
+ }
+ dspFrame(ctx,bars);
+ dspText(ctx,'now',bars.x,bars.y+bars.h+12);
+ const chord=chordName(Array.from(c)),lit=c[best]>.05;
+ dspText(ctx,lit?NOTE_NAMES[best]+(chord?` · ${chord}`:''):'—',bars.x+bars.w,13,{align:'right',size:12,weight:650,color:lit?noteColor(best):DSP_COLORS.text});
+ if(Hs.filled<2)waitingText(ctx,gram);
+ return {rate,n,dec,clarity,best:lit?best:-1,chord};
+}
+
 // A/B: the pinned settings (A) against the live ones (B) on the same audio.
 const AB_LABELS={fft:['FFT',v=>v],attack:['Attack',v=>v+' ms'],release:['Release',v=>v+' ms'],noise:['Noise floor',v=>(v/1000).toFixed(3)],
  'adaptive-floor':['Adaptive floor',v=>v+'%'],gain:['Sensitivity',v=>(v/10).toFixed(1)+'×'],transient:['Onset threshold',v=>(v/10).toFixed(1)+'×'],
@@ -877,6 +922,7 @@ function dspCaption(s,info){
   case 'bands':return `Top: the music's spectrum over the last 3 s (grey) and after what shapes the bands (green); the steps on the right axis are the equalizer per band. <b>Tilt</b> ${s.tilt?`${s.tilt>0?'+':''}${s.tilt/2} dB/oct`:'0'} lifts the highs (or, below 0, the lows): music loses energy toward the top, so without it the high bands sit low and barely light. <b>Bass</b>, <b>Mid</b> and <b>High</b> ${[s['eq-bass'],s['eq-mid'],s['eq-high']].map(v=>`${v>0?'+':v<0?'−':''}${Math.abs(v)}`).join(' / ')} dB trim each group on top. <b>Band balance</b> ${s.balance}% normalises each band to its own average over the last seconds (dotted) — every band moves through its range, but a quiet band reads as loud as a strong one. <b>Groups</b> choose the bands of bass, mid and high: their levels, hits and the tempo. Bottom: the LED levels each band used (box: the middle half, whiskers: 5–95 %); <b>Band smoothing</b> ${s.smoothing}% blends each band with its neighbours, so the bars move as a wave rather than one by one.${info.dead?` ${info.dead} band${info.dead===1?' never lights':'s never light'} (outlined).`:''}`;
   case 'tempo':return `Top: the onset strength the tempo tracker hears (bass and mid flux), the beats it predicts (green) and the bass hits. It compares the last 3 s with itself shifted by every beat length of the <b>Tempo range</b> (${s['bpm-min']}–${s['bpm-max']} BPM, the rest is dimmed): that is the periodicity curve. Its highest peak becomes the tempo when it scores above ${TEMPO_ACCEPT}; from ${pct(BEAT_CONFIDENCE)} confidence the beats run, and bass hits inside the shaded part of the dial pull them into phase. A peak at ½× or 2× nearly as high as the main one means the tempo can jump an octave — narrow the range to exclude it.`;
   case 'spectrogram':return `The FFT over the last 5 s on a log frequency axis — what the analyzer gets before the bands. Dimmed: outside the <b>Frequency range</b>; dashed: the <b>Groups</b> splits; right: the 16 bands. Kick drums sit around 40–100 Hz, the snare's body near 150–250 Hz with noise above, hi-hats above 5 kHz: put the splits between the sounds that should drive each group, and check that the hits under it (bass, mid, high) fall on them.`;
+  case 'notes':return `How much of each note (pitch class C … B) sounds, octaves folded together: ${info.best>=0?`now mostly <b>${NOTE_NAMES[info.best]}</b>${info.chord?` (${info.chord})`:''}, `:''}each analysis is scaled so its strongest class is 100%, then smoothed. A separate analysis from the bands: the sound resampled to ${formatHz(Math.round(info.rate||8000))} and a ${info.n||4096}-point FFT — ${((info.n||4096)/(info.rate||8000)).toFixed(2)} s window, ${((info.rate||8000)/(info.n||4096)).toFixed(1)} Hz per bin, fine enough to tell semitones apart down to A1 (55 Hz); notes from 55 Hz to about 2 kHz count. Steady background between the peaks is subtracted, so noise and drums stay dim${info.clarity!==undefined?` (clarity now ${pct(Math.min(1,info.clarity))})`:''}. It reacts in about a quarter of a second — too slow for hits, right for harmony. <b>Chromatic Flow</b> colours the lamp from it, and lamps that list <b>chroma</b> receive it with every frame.`;
   case 'chain':return `The ${g} signal after every stage, on one time axis — read it top to bottom to see which setting shapes it. (1) the <b>noise floor</b> decides when the input counts at all; (2) <b>Sensitivity</b>, <b>Compression</b> and <b>Auto gain</b> map it to 0–100%; (3) <b>Attack</b> and <b>Release</b> smooth that into what the LEDs show; (4) <b>Onset threshold</b> picks the hits that flash. The bars on the right are the range each stage uses: a narrow range in 2 or 3 means little contrast on the lamp, a range stuck high means it is always bright.`;
   case 'map':return `Every band over the last 5 s: before the analyzer (top) and what the LEDs get (bottom), low frequencies at the bottom. Rows that stay dark never light the lamp — lower the <b>noise floor</b> or raise <b>Sensitivity</b>; a mostly bright map leaves no room for peaks — lower <b>Sensitivity</b> or <b>Compression</b>; smeared vertical stripes mean a long <b>Release</b>. The histogram shows how often each LED level occurs: a good setting spreads it out${info.count?` (now ${pct(info.dark)} dark, ${pct(info.bright)} bright)`:''}.`;
   case 'ab':return DSP.ab?`<b>A</b> is a copy of the analyzer with the settings you pinned, <b>B</b> follows the sliders; both hear the same audio${info.diffs?'':' and still match'}. Dashed: A, filled: B. Compare the range each one uses, the hits and the bands, then keep B or go back to A's values. The sample rate is shared.`:`Pin the analyzer as it is now, then change settings and watch the old (A) and the new (B) side by side on the same music.`;
@@ -894,7 +940,7 @@ function drawDspView(){
  const ctx=canvas.getContext('2d');ctx.setTransform(dpi,0,0,dpi,0,0);ctx.clearRect(0,0,cssW,cssH);
  const s=settings(),d=STATE.modules.dsp.exports;
  const info=({resolution:drawResolution,bands:drawBands,level:drawLevel,envelope:drawEnvelope,onsets:drawOnsets,tempo:drawTempo,noise:drawNoise,
-  spectrogram:drawSpectrogram,chain:drawChain,map:drawMap,ab:drawAB})[DSP.panel](ctx,cssW,cssH,s,d)||{};
+  spectrogram:drawSpectrogram,notes:drawNotes,chain:drawChain,map:drawMap,ab:drawAB})[DSP.panel](ctx,cssW,cssH,s,d)||{};
  const now=performance.now();
  if(now-DSP.captionAt>250){
   DSP.captionAt=now;const text=dspCaption(s,info);

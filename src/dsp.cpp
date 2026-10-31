@@ -72,6 +72,17 @@ static float band_smoothing=0.f;
 static float peak_hold=0.f,hold16[BANDS],hold32[32],hold64[64];
 // Onset threshold memory: the time scale of the flux mean and deviation.
 static float onset_memory=.7f;
+// Chroma (chroma_process): 12 pitch classes from a separate long analysis.
+// The short FFT stays for onsets: at 16 kHz a 512-point bin is 31 Hz, while
+// a semitone at 100 Hz is 6 Hz. The last ~0.5 s are low-passed and decimated
+// by chroma_d to about 8 kHz and analysed with CHROMA_N points (~2 Hz per bin).
+static constexpr int CHROMA_N=4096,CHROMA_MAX_D=6,CHROMA_MAX_TAPS=24*CHROMA_MAX_D+1;
+static float chroma_pcm[CHROMA_N*CHROMA_MAX_D+CHROMA_MAX_TAPS],chroma_fir[CHROMA_MAX_TAPS];
+static float chroma_mag[CHROMA_N/2+1],chroma_cum[CHROMA_N/2+2];
+static int chroma_d=2,chroma_taps=49;
+// Normalised, smoothed chroma (C, C#, ... B: 0..1); the strongest recent
+// class (the reference, ~8 s); [analysis rate, FFT size, decimation, tonal level].
+static float chroma_out[12],chroma_ref=0.f,chroma_info[4];
 
 // VolumeAnalyzer<16> @40Hz and VolumeAnalyzer<64> @30Hz (different from spectrum @10Hz).
 static unsigned short old_wave_input[16],old_param_input[64];
@@ -218,8 +229,66 @@ static void compute_twiddles(){
     }
 }
 
+// sin(2 pi x) from the twiddle table, interpolated (error < 1e-7).
+static double sin_turns(double x){
+    double pos=(x-(double)(long long)x)*MAX_N;
+    if(pos<0)pos+=MAX_N;
+    const int i=(int)pos;const double f=pos-i;
+    return twiddle_sin[i&(MAX_N-1)]*(1.0-f)+twiddle_sin[(i+1)&(MAX_N-1)]*f;
+}
+static double cos_turns(double x){return sin_turns(x+.25);}
+// log2 without libm: exponent plus the atanh series of the mantissa (error < 3e-5).
+static float log2_fast(float x){
+    if(!(x>1e-30f))x=1e-30f;
+    unsigned bits;__builtin_memcpy(&bits,&x,4);
+    const int e=(int)((bits>>23)&255)-127;
+    bits=(bits&0x7fffffu)|0x3f800000u;
+    float m;__builtin_memcpy(&m,&bits,4);
+    const float s=(m-1.f)/(m+1.f),s2=s*s;
+    return (float)e+2.8853900817779268f*s*(1.f+s2*(1.f/3.f+s2*(.2f+s2*(1.f/7.f))));
+}
+// Chroma decimation to about 8 kHz: a Blackman-windowed sinc low-pass at
+// 2.7 kHz (the notes stop at 2 kHz), 24 taps per decimation step, unity gain.
+static void compute_chroma_filter(){
+    chroma_d=(int)(sample_rate/8000.f+.5f);
+    if(chroma_d<1)chroma_d=1;if(chroma_d>CHROMA_MAX_D)chroma_d=CHROMA_MAX_D;
+    if(chroma_d==1){chroma_taps=1;chroma_fir[0]=1.f;return;}
+    chroma_taps=24*chroma_d+1;
+    const double fc=2700.0/sample_rate;const int mid=chroma_taps/2;
+    double sum=0;
+    for(int t=0;t<chroma_taps;t++){
+        const int m=t-mid;const double x=(double)t/(chroma_taps-1);
+        const double h=(m==0?2.0*fc:sin_turns(fc*m)/(3.14159265358979323846*m))*(.42-.5*cos_turns(x)+.08*cos_turns(2.0*x));
+        chroma_fir[t]=(float)h;sum+=h;
+    }
+    for(int t=0;t<chroma_taps;t++)chroma_fir[t]=(float)(chroma_fir[t]/sum);
+}
+
 static bool tables_ready=false;
-static void ensure_tables(){if(!tables_ready){compute_twiddles();compute_edges();tables_ready=true;}}
+static void ensure_tables(){if(!tables_ready){compute_twiddles();compute_edges();compute_chroma_filter();tables_ready=true;}}
+// Radix-2 complex FFT of real_fft / imag_fft in place. No libm or heap allocation.
+static void fft(int n){
+    for(int i=1,j=0;i<n;i++){
+        int bit=n>>1;
+        for(;j&bit;bit>>=1) j^=bit;
+        j^=bit;
+        if(i<j){float t=real_fft[i];real_fft[i]=real_fft[j];real_fft[j]=t;}
+    }
+    for(int len=2;len<=n;len<<=1){
+        int stride=MAX_N/len;
+        for(int offset=0;offset<n;offset+=len){
+            for(int j=0;j<len/2;j++){
+                int k=j*stride;
+                float wr=twiddle_cos[k],wi=-twiddle_sin[k];
+                float r=real_fft[offset+j+len/2],im=imag_fft[offset+j+len/2];
+                float tr=wr*r-wi*im,ti=wr*im+wi*r;
+                float ar=real_fft[offset+j],ai=imag_fft[offset+j];
+                real_fft[offset+j]=ar+tr; imag_fft[offset+j]=ai+ti;
+                real_fft[offset+j+len/2]=ar-tr; imag_fft[offset+j+len/2]=ai-ti;
+            }
+        }
+    }
+}
 
 extern "C" {
 // Analysed frequency range in Hz; bands are spread logarithmically inside it.
@@ -233,7 +302,7 @@ __attribute__((visibility("default"))) void set_frequency_range(float lo_hz,floa
 }
 __attribute__((visibility("default"))) void set_sample_rate(int rate){
     if(rate<8000||rate>48000)return;
-    sample_rate=(float)rate;set_frequency_range((float)range_lo,(float)range_hi);
+    sample_rate=(float)rate;set_frequency_range((float)range_lo,(float)range_hi);compute_chroma_filter();
 }
 // Spectral tilt in dB per octave around 1 kHz (-12..+12); +3 makes pink noise flat.
 __attribute__((visibility("default"))) void set_spectral_tilt(float db_per_octave){
@@ -304,6 +373,11 @@ __attribute__((visibility("default"))) float new_param_value(){return new_param_
 __attribute__((visibility("default"))) float new_loudness_value(){return new_loudness_level;}
 __attribute__((visibility("default"))) float new_line_value(){return new_line_level;}
 __attribute__((visibility("default"))) unsigned short* old_bands_ptr(){return old_out;}
+__attribute__((visibility("default"))) float* chroma_input_ptr(){return chroma_pcm;}
+__attribute__((visibility("default"))) float* chroma_ptr(){return chroma_out;}
+__attribute__((visibility("default"))) float* chroma_info_ptr(){return chroma_info;}
+// Samples chroma_process() reads at the current rate (oldest first): ~0.5 s plus the filter.
+__attribute__((visibility("default"))) int chroma_input_size(){ensure_tables();return CHROMA_N*chroma_d+chroma_taps-1;}
 
 __attribute__((visibility("default"))) void reset_dsp() {
     ensure_tables();
@@ -326,6 +400,8 @@ __attribute__((visibility("default"))) void reset_dsp() {
     for(int i=0;i<128;i++)old_wave[i]=new_wave[i]=0;
     for(int i=0;i<200;i++)wave_min_hist[i]=65535,wave_max_hist[i]=0;
     for(int i=0;i<151;i++)param_min_hist[i]=65535,param_max_hist[i]=0;
+    for(int i=0;i<12;i++)chroma_out[i]=0;
+    chroma_ref=chroma_info[3]=0;
 }
 
 // Host supplies N = 64..8192 (power of two) PCM values at set_sample_rate().
@@ -370,27 +446,7 @@ __attribute__((visibility("default"))) void new_process(int n,float hop_seconds,
     line_target=line_target*line_target;
     float line_a=clamp(hop_seconds/(line_target>new_line_level?0.016f:0.105f),0.0f,1.0f);
     new_line_level+=(line_target-new_line_level)*line_a;
-    // Radix-2 complex FFT, real input. No libm or heap allocation.
-    for(int i=1,j=0;i<n;i++){
-        int bit=n>>1;
-        for(;j&bit;bit>>=1) j^=bit;
-        j^=bit;
-        if(i<j){float t=real_fft[i];real_fft[i]=real_fft[j];real_fft[j]=t;}
-    }
-    for(int len=2;len<=n;len<<=1){
-        int stride=MAX_N/len;
-        for(int offset=0;offset<n;offset+=len){
-            for(int j=0;j<len/2;j++){
-                int k=j*stride;
-                float wr=twiddle_cos[k],wi=-twiddle_sin[k];
-                float r=real_fft[offset+j+len/2],im=imag_fft[offset+j+len/2];
-                float tr=wr*r-wi*im,ti=wr*im+wi*r;
-                float ar=real_fft[offset+j],ai=imag_fft[offset+j];
-                real_fft[offset+j]=ar+tr; imag_fft[offset+j]=ai+ti;
-                real_fft[offset+j+len/2]=ar-tr; imag_fft[offset+j+len/2]=ai-ti;
-            }
-        }
-    }
+    fft(n);
     for(int k=0;k<n/2;k++){
         spectrum[k]=2.0f*sqrt_fast(real_fft[k]*real_fft[k]+imag_fft[k]*imag_fft[k])/(wc[0]*n);
     }
@@ -552,6 +608,65 @@ __attribute__((visibility("default"))) void new_process(int n,float hop_seconds,
         new_wave[new_wave_write]=new_loudness_level;
     }
     ++warm_count;
+}
+
+// Chroma of the chroma_input_size() samples in chroma_input_ptr() (oldest
+// first), seconds_since the previous call (for the smoothing). Peaks of the
+// spectrum between A1 (55 Hz) and B6 (1976 Hz) count with what they rise
+// above twice their background (+-2 semitones: noise and drums cancel), are
+// put between bins by a parabola through the log magnitudes and split
+// between the two nearest semitones; octaves fold into C, C#, ... B.
+// Normalised to the strongest class, but at least 5% of all the magnitude
+// in that range (noise stays dim) and 10% of the recent strongest class
+// (a fade dims), then attack 80 ms / release 250 ms.
+__attribute__((visibility("default"))) void chroma_process(float seconds_since){
+    ensure_tables();
+    const int n=CHROMA_N,d=chroma_d,taps=chroma_taps;
+    const float rate=sample_rate/d,bin=rate/n;
+    // Low-pass and decimate, remove DC, Hann window.
+    float mean=0.f;
+    for(int j=0;j<n;j++){
+        const float* x=chroma_pcm+j*d;float acc=0.f;
+        for(int t=0;t<taps;t++)acc+=chroma_fir[t]*x[t];
+        real_fft[j]=acc;mean+=acc;
+    }
+    mean/=n;
+    for(int j=0;j<n;j++){real_fft[j]=(real_fft[j]-mean)*(.5f-.5f*twiddle_cos[j*(MAX_N/n)]);imag_fft[j]=0.f;}
+    fft(n);
+    // Magnitudes (a full-scale tone reads 1) and their running sum for the backgrounds.
+    chroma_cum[0]=0.f;
+    for(int k=0;k<=n/2;k++){
+        chroma_mag[k]=k?4.f*sqrt_fast(real_fft[k]*real_fft[k]+imag_fft[k]*imag_fft[k])/n:0.f;
+        chroma_cum[k+1]=chroma_cum[k]+chroma_mag[k];
+    }
+    float raw[12]={0},total=0.f;
+    const int k0=maxf(2.f,50.f/bin),k1=minf(n/2-2,2150.f/bin);
+    for(int k=k0;k<=k1;k++){
+        const float m=chroma_mag[k];
+        total+=m;
+        if(m<1e-4f||m<=chroma_mag[k-1]||m<chroma_mag[k+1])continue;
+        const int w=k/8<4?4:k/8,a=k-w<1?1:k-w,b=k+w>n/2?n/2:k+w;
+        const float excess=m-2.f*(chroma_cum[b+1]-chroma_cum[a])/(b-a+1);
+        if(excess<=0.f)continue;
+        const float l=log2_fast(chroma_mag[k-1]),c=log2_fast(m),r=log2_fast(chroma_mag[k+1]),den=l-2.f*c+r;
+        const float delta=den<0.f?clamp(.5f*(l-r)/den,-.5f,.5f):0.f;
+        const float midi=69.f+12.f*log2_fast((k+delta)*bin/440.f);
+        if(midi<32.f||midi>=96.f)continue;
+        // Half a semitone of fade below A1 and above B6.
+        const float weight=excess*clamp(minf(midi-32.f,96.f-midi),0.f,1.f);
+        const int note=(int)midi;const float frac=midi-note;
+        raw[note%12]+=weight*(1.f-frac);raw[(note+1)%12]+=weight*frac;
+    }
+    float peak=0.f;
+    for(int i=0;i<12;i++)peak=maxf(peak,raw[i]);
+    if(peak>1e-4f)chroma_ref=maxf(peak,chroma_ref*maxf(0.f,1.f-seconds_since/8.f));
+    const float norm=maxf(maxf(peak,.05f*total),maxf(.1f*chroma_ref,1e-4f));
+    const float attack=clamp(seconds_since/.08f,0.f,1.f),release=clamp(seconds_since/.25f,0.f,1.f);
+    for(int i=0;i<12;i++){
+        const float target=raw[i]/norm;
+        chroma_out[i]+=(target-chroma_out[i])*(target>chroma_out[i]?attack:release);
+    }
+    chroma_info[0]=rate;chroma_info[1]=(float)n;chroma_info[2]=(float)d;chroma_info[3]=peak/norm;
 }
 
 // Legacy VolumeAnalyzer amplitude, 5-second rolling min/max. Out-of-bounds

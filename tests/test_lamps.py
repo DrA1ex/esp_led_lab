@@ -73,7 +73,7 @@ with sync_playwright() as p:
     assert page.locator('#geometry-button').is_disabled() and page.locator('#matrix-label').inner_text() == '153 LED · strip'
     page.locator('#tab-reaction').click()
     assert 'Editing 127.0.0.1:8766 only' in page.locator('#panel-reaction .target-note').inner_text()
-    page.locator('.choices[data-for="audio-mode"] label', has_text='Flow').click()
+    page.locator('.choices[data-for="audio-mode"] label:has(input[value="15"])').click()  # Flow (not Chromatic Flow)
     page.locator('#origin-ring').check()
     wait_config(page, B, 'audio_effect', 15)
     wait_config(page, B, 'origin_ring', True)

@@ -18,6 +18,20 @@ for(const count of [16,32,64]){
  assert.equal(dv.getUint16(34,true),1276);assert.equal(dv.getUint8(36),210);assert.equal(dv.getUint8(37),0);
  assert.equal(dv.getUint16(38,true),0);assert.equal(dv.getUint16(38+(count-1)*2,true),4096);
 }
+// Chroma (receivers listing "chroma"): byte 37 = 1, 12 bytes after the bands.
+for(const count of [16,64]){
+ const chroma=[255,0,0,0,128,0,0,200,0,0,0,7];
+ const bytes=RemoteAudio.serialize({bands:Array(count).fill(100),session:1,seq:2,timestamp:3,rms:0,bass:0,mid:0,high:0,peak:0,onsetStrength:0,
+  onsetMask:0,beatPhase:0,bpm:0,confidence:0,chroma}),dv=new DataView(bytes);
+ assert.equal(bytes.byteLength,38+count*2+12);assert.equal(dv.getUint8(37),1);
+ assert.equal(dv.getUint16(38+(count-1)*2,true),100);
+ assert.deepEqual([...new Uint8Array(bytes,38+count*2,12)],chroma);
+}
+assert.throws(()=>RemoteAudio.serialize({bands:Array(16).fill(0),chroma:[1,2,3]}),/12 pitch classes/);
+{
+ const d=new RemoteAudio.Device('192.168.1.2',()=>{});
+ assert.equal(d.acceptsChroma,false);d.capabilities=['params','chroma'];assert.equal(d.acceptsChroma,true);
+}
 assert.equal(RemoteAudio.addressToUrl('192.168.1.1'),'ws://192.168.1.1/audio');
 assert.equal(RemoteAudio.addressToUrl('ws://lamp.local:81/audio'),'ws://lamp.local:81/audio');
 assert.throws(()=>RemoteAudio.addressToUrl('https://bad'),/ws/);
@@ -55,4 +69,4 @@ for(const size of [64,128,256,512,1024]){
  got.length=0;hub.stream({bands:32},{audio_effect:1});
  assert.deepEqual(got.map(g=>g[1].bands),[32,32],'plain values still go to every lamp');
 }
-console.log('PASS remote v1 16/32/64 binary vectors + C++/WASM single-FFT spectra (64/128/256/512/1024)');
+console.log('PASS remote v1 16/32/64 binary vectors (with and without chroma) + C++/WASM single-FFT spectra (64/128/256/512/1024)');

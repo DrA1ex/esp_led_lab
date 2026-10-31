@@ -107,6 +107,16 @@ const FX_PARAMS={
      {key:'zoom',label:'Zoom',def:100,fmt:v=>((8+v)/32).toFixed(1)+' periods'},
      {key:'sparks',label:'Treble sparks',def:100,fmt:fxPct},
      {key:'colors',label:'Colors',choices:['Along the pattern','By tone','New each beat'],def:0},
+     fxBrightness],
+ 31:[{key:'order',label:'Notes on the palette',choices:['Circle of fifths','Semitones'],def:0},
+     {key:'shift',label:'C at',def:0,fmt:v=>Math.round(v/2.55)+'% of the palette'},
+     {key:'follow',label:'Follow',def:100,fmt:fxMs(50,8)},
+     {key:'focus',label:'Focus',def:80,fmt:v=>v?`under ${Math.round(v/2.56)}% of the strongest: out`:'every note'},
+     {key:'zoom',label:'Zoom',min:4,def:80,fmt:fxTimes(80)},
+     {key:'flow',label:'Drift',def:60,fmt:fxPct},
+     {key:'blend',label:'Soft borders',def:128,fmt:fxPct},
+     {key:'glow',label:'Glow on hits',def:90,fmt:fxPct},
+     {key:'swell',label:'Swell on hits',def:60,fmt:fxPct},
      fxBrightness]
 };
 // Engine order: the controls above list some parameters in another order (map first).

@@ -24,7 +24,7 @@ function captureFeatureSnapshot(sample){
  const d=STATE.modules.dsp.exports;
  const copy=(ptr,n)=>Array.from(new Float32Array(d.memory.buffer,ptr,n));
  const metrics=copy(d.new_metrics_ptr(),10);
- return {sample,newer:STATE.newSpectrum.slice(),display:STATE.displaySpectrum.slice(),displayKey:SPECTRUM.key,
+ return {sample,chroma:STATE.chroma.slice(),newer:STATE.newSpectrum.slice(),display:STATE.displaySpectrum.slice(),displayKey:SPECTRUM.key,
   r16:STATE.newSpectrum.slice(),r32:copy(d.new_remote32_ptr(),32),r64:copy(d.new_remote64_ptr(),64),
   levels:STATE.levels.slice(),pulses:STATE.pulses.slice(),events:STATE.events.slice(),
   metrics, bpm:STATE.bpm,beatConfidence:STATE.beatConfidence,beatPhase:STATE.beatPhase,beatPulse:STATE.beatPulse,
@@ -33,7 +33,7 @@ function captureFeatureSnapshot(sample){
 }
 function showFeatureSnapshot(f){
  if(!f)return;
- RS.visual=f;STATE.newSpectrum=f.newer.slice();
+ RS.visual=f;STATE.newSpectrum=f.newer.slice();STATE.chroma=f.chroma.slice();
  STATE.displaySpectrum=f.displayKey===SPECTRUM.key?f.display.slice():[];
  STATE.levels=f.levels.slice();STATE.pulses=f.pulses.slice();STATE.events=f.events.slice();
  STATE.bpm=f.bpm;STATE.beatConfidence=f.beatConfidence;STATE.beatPhase=f.beatPhase;STATE.beatPulse=f.beatPulse;
@@ -48,8 +48,8 @@ function contextTimeToPerf(target){
  }catch(_){}
  return performance.now()+(target-c.currentTime+(c.outputLatency||c.baseLatency||0))*1000;
 }
-// One frame per band count; all counts of a moment share the sequence number.
-function remoteFrame(snapshot,timestamp,mask,count,seq){
+// One frame per band count (and with or without chroma); all of a moment share the sequence number.
+function remoteFrame(snapshot,timestamp,mask,count,seq,chroma=false){
  const bands=(count===16?snapshot.r16:count===32?snapshot.r32:snapshot.r64);
  const norm=n=>Math.round(Math.max(0,Math.min(1,Number.isFinite(n)?n:0))*4096);
  return {session:RS.session,seq,timestamp:timestamp,live:STATE.inputMode==='microphone',
@@ -60,7 +60,9 @@ function remoteFrame(snapshot,timestamp,mask,count,seq){
   mid:norm(snapshot.levels[1]),high:norm(snapshot.levels[2]),
   peak:norm(Math.max(...snapshot.newer)),onsetStrength:norm(Math.max(...snapshot.pulses)),
   onsetMask:mask,beatPhase:Math.round(snapshot.beatPhase*255),
-  bpm:Math.round(Math.max(0,snapshot.bpm)*10),confidence:Math.round(snapshot.beatConfidence*255)};
+  bpm:Math.round(Math.max(0,snapshot.bpm)*10),confidence:Math.round(snapshot.beatConfidence*255),
+  // Pitch classes C..B as 0..255, only for lamps listing "chroma" (older firmware gets v1 frames).
+  chroma:chroma?snapshot.chroma.map(v=>Math.round(Math.max(0,Math.min(1,Number.isFinite(v)?v:0))*255)):null};
 }
 function remoteTick(){
  REMOTE.tick();
@@ -108,7 +110,7 @@ function remoteTick(){
   for(let i=0;i<3;i++)if(f.events[i]>0)mask|=(1<<i);
  RS.lastSentSample=pick.sample;
  const seq=RS.seq++,frames={};
- REMOTE.stream(d=>{const n=lampBands(d);return frames[n]||=remoteFrame(pick,timestamp,mask,n,seq);},lampConfig,lampParams);
+ REMOTE.stream(d=>{const n=lampBands(d),c=d.acceptsChroma;return frames[n+(c?'c':'')]||=remoteFrame(pick,timestamp,mask,n,seq,c);},lampConfig,lampParams);
 }
 
 const modeName=v=>[...$('audio-mode').options].find(o=>+o.value===+v)?.textContent||String(v);
@@ -201,7 +203,7 @@ function updateLampCard(d){
   else if(!d.visualizations.length)stats.push('<span class="warn">older firmware: no visualizations</span>');
   else if(!d.acceptsParams(FX_PARAMS_VERSION))stats.push('<span class="warn">older firmware: effect parameters stay at their defaults</span>');
   const mode=lampConfig(d).audio_effect;
-  stats.push(`sends ${lampBands(d)} bands · ${mode?modeName(mode):'audio off'}`);
+  stats.push(`sends ${lampBands(d)} bands${d.acceptsChroma?' + notes':''} · ${mode?modeName(mode):'audio off'}`);
  }
  if(d.lastError)stats.push(`<span class="err">${d.lastError.replace(/[<>&]/g,'')}</span>`);
  const html=stats.map(t=>t.startsWith('<')?t:`<span>${t}</span>`).join('');
