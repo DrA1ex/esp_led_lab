@@ -1,392 +1,147 @@
 # ESP LED Music Lab
 
-Browser lab for [`DrA1ex/esp_led_lamp`](https://github.com/DrA1ex/esp_led_lamp):
-the lamp's color/brightness/audio effects ported to C++ → WebAssembly, an
-FFT + onset + tempo DSP, and **Remote Output**, which streams the DSP's
-features to real lamps over Wi-Fi. The preview shows what a connected lamp
-renders from the same features.
+**Make your LED strips and matrices react to music — right in your browser.**
 
-Works for LED **matrices** (16×16 … 128×128) and LED **strips** (HEIGHT = 1
-or a few rows, up to 1024 LEDs), the same WIDTH × HEIGHT the firmware is
-built with.
+ESP LED Music Lab is a music player, LED-effect playground and companion app
+for [ESP LED Lamp](https://github.com/DrA1ex/esp_led_lamp).
+Preview light effects without hardware, adjust how they respond to sound,
+or stream them to one or more real lamps over Wi-Fi.
 
-![preview](docs/preview.png)
+**[Open Music Lab](https://dra1ex.github.io/esp_led_lab/)** ·
+[Getting started](docs/USER_GUIDE.md) ·
+[Explore effects](docs/EFFECTS.md)
 
-## Quick start
+![ESP LED Music Lab LED preview](docs/preview.png)
 
-- **Online (Chrome):** open [Music Lab](https://dra1ex.github.io/esp_led_lab/).
-  No installation is needed.
-- **Offline:** `make`, then open `dist/standalone.html` in a recent browser.
-  Everything, including WASM, is inlined.
-- **Development:** `make serve`, then open <http://localhost:8000/>.
-  The microphone needs `localhost` or HTTPS.
+*The on-screen preview shows the selected effects on a simulated LED layout.
+The same audio features can drive a connected lamp.*
 
-To control lamps, open **Lamps**, enter a local IP (for example
-`192.168.1.42`) or a `.local` device name, add the lamp and click
-**Connect all**. The lamp and browser must be on the same network; the
-firmware must support Remote Audio. Chrome allows `ws://` to private IPs,
-`.local` and localhost from the hosted HTTPS page after you grant local
-network access. If it was denied, change the site's local-network permission
-in Chrome's site settings and reconnect. Ordinary public hostnames that happen
-to resolve to a private address are **not** exempt from mixed-content blocking.
-Other browsers may block HTTP/WebSocket access from an HTTPS page; use a local
-HTTP server for those browsers.
+## What can it do?
 
-The [GitHub Pages site](https://dra1ex.github.io/esp_led_lab/) is rebuilt
-from `main` by GitHub Actions; each build also publishes an offline
-`standalone.html` artifact. The Pages workflow compiles WebAssembly and runs
-the Node.js test suite before deployment.
+- **Play your music.** Add audio files or whole folders, drag and drop tracks,
+  manage a playlist, or start with the built-in demo beat.
+- **React to live sound.** Use your microphone instead of a music file.
+- **Explore effects instantly.** Browse visualizations, color effects and
+  79 palettes with visual previews; see the result before touching a lamp.
+- **Control real lamps.** Stream audio-reactive features over the local
+  network. The browser processes the audio; raw audio is not sent to the lamp.
+- **Use multiple lamps.** Give every lamp its own effects, brightness limit
+  and layout, or control them together with **All lamps**.
+- **Fine-tune the reaction.** Shape frequency bands, sensitivity, beat
+  tracking, noise floor and response curves while watching the analyzer.
+- **Fit your LEDs.** Preview single-row strips, rings, multi-row layouts and
+  matrices. Adjust orientation and offset to match your installation.
 
-## Using the lab
+The app runs on desktop and mobile browsers; the layout adapts to narrower
+screens. An ESP device is optional unless you want to control real lights.
 
-The window is a music player around an LED preview:
+## Get started
 
-- **Music** (left column; the **Music** tab on narrower screens): the
-  playlist. **Open folder** replaces the list with a folder's audio files
-  (recursive, natural sort; Chrome/Edge remember it between reloads, other
-  browsers use a folder upload), **Add files** and drag-and-drop of files or
-  folders anywhere on the page append. While a folder is read (a big library
-  or a slow disk can take seconds) the column shows the tracks and folders
-  found so far with a **Cancel** that keeps the list as it was. The **⋯** menu holds the demo beat, the
-  microphone and clearing the list. The playlist button at the right of the
-  player hides or shows the column.
-- **Stage** (center): with lamps added, a switcher on top picks **All lamps**
-  or one lamp (see below); then the LED preview and, under it, the analyzer: FFT bars,
-  bass / mid / high onsets, the tempo estimate and, for Brightness, Line and
-  Speed / Scale / Light Control, the control signal with its effective value.
-  The button above the preview picks the **LED layout**; **View** holds the
-  preview-only display options (audio reaction strength in the preview, LEDs
-  as dots, flip, orientation test, LED output simulation, palette gamma).
-  Clicking an LED moves the start (or center) of the audio effect there.
-- **Settings** (right), in tabs: **Effect** (color effects shown as rendered
-  thumbnails, the 79 palettes as swatches with a filter, brightness effect,
-  speed / scale / light), **Reaction** (audio mode, its signal, visualization
-  options, reaction range, start and direction), **Lamps** and **Analyzer**.
-  Only the fields that the selected mode uses are shown; each section has its
-  own reset (↺).
-- **Player** (bottom): ⏮ (restarts the track after 3 s, otherwise previous),
-  play/pause, ⏭, shuffle, position, repeat off / all / one, volume.
+1. Open **[Music Lab](https://dra1ex.github.io/esp_led_lab/)** in Chrome.
+2. Click **Add files** or **Open folder** to play your own music. For a quick
+   demonstration, open the **⋯** menu beside Music and choose **Demo beat**;
+   you can also choose **Microphone**.
+3. Open **Reaction** to pick a visualization or audio mode. Use **Effect**
+   to select a color effect, palette and brightness.
+4. Choose the **LED layout** above the preview, or open **Layout** to adjust
+   the LED mounting and orientation.
 
-Hotkeys: Space play/pause, ←/→ seek ±5 s, N / P next / previous, 1–6 open
-Music, Effect, Reaction, Lamps, Analyzer, Layout. Headphone buttons, keyboard media
-keys and the OS media controls drive the player too (Media Session; a silent
-looped `<audio>` keeps the browser routing them to the page).
+To use an actual lamp, follow the connection steps below. For an overview of
+every control, see the [user guide](docs/USER_GUIDE.md).
 
-On phones the preview stays pinned at the top while the settings scroll under
-it (its arrow button makes it smaller), and the player is fixed at the bottom.
+## Discover the effects
 
-Settings, lamps with their own settings, names and max brightness, the LED
-layout, the open tab and whether the music column is hidden are remembered in
-the browser; **? → Reset all settings** returns to the defaults (lamps and
-their names stay).
+There are effects for every kind of music response, from quiet ambient light
+to flashes and motion synchronized to the beat.
 
-## Audio modes and effect parameters
-
-The **Reaction** tab's audio modes are grouped by what drives them:
-
-- **Spectrum**, **Loudness**, **Drives a parameter**, **Experimental**: the
-  firmware's own audio modes 1–12, which modulate the color effect.
-- **Visualizations** draw the picture themselves (`src/viz_engine.h`, shared
-  with the firmware): *spectrum* (Spectrum Bars, Flow, Fire, Juggle, Radial
-  Spectrum, Melody — Melody follows the dominant frequency), *bass, mid,
-  treble* (the meters, Pulses, Sparkles, Blobs, Energy, Scroll, Water),
-  *loudness* (VU Meter, Waveform, Mood, Aurora, Lava Lamp), *beat* (Groove: rings, spiral arms, stripes or
-  a swinging ball move one step per beat, locked to the beat phase) and
-  *notes* (Chromatic Flow: soft colour regions, one per sounding note,
-  placed on the palette by the circle of fifths; the colours change with
-  the chords, hits only add a glow).
-- Energy, Scroll, Water and Lava Lamp follow ideas of LedFx's effects of
-  the same names (our own integer code): bass, mid and treble bars nested
-  from the start; the sound's colour scrolling out from the start (rings on
-  a matrix); drops of bass, mid and treble rippling on the wave equation;
-  slow blobs that the bass swells and speeds up.
-- **Constructors**: Particles, Field and Zones, whose parameters pick the
-  shape, what launches or lights it, the motion and the colors.
-
-Two settings of the Visualization section apply to every visualization
-(both 0 by default, the stock picture): **Contrast** (with Auto-level) lights
-only what rises above the last 2 s average at 50 % and only the peaks at
-100 %, so loud, dense music no longer holds the meters at the top; **Blur**
-softens the drawn frame with a Gaussian of up to 3 LEDs, along a strip and
-across a matrix, which removes the comb-like trails of fast dots on strips.
-
-The hint under the list says what drives the selected mode. **Effect
-parameters** (under Visualization) are the selected mode's own settings:
-up to 11 values per mode, e.g. Fire's fuel, height and wind, Particles'
-shape, trigger, speed and gravity, Zones' layout and pattern. Particles,
-Field, Zones, Melody, Groove, Chromatic Flow, Energy, Scroll, Water and
-Lava Lamp end with **Brightness** (×1 = as drawn, up to ×2).
-They are ordinary settings: remembered, reset by the section's ↺, set per
-lamp, and sent to lamps whose firmware has the `params` capability (older
-firmware draws the mode with its defaults; see
-[Remote Output](docs/REMOTE_OUTPUT.md#effect-parameters-2026-10-30)).
-
-## Lamps
-
-The **Lamps** tab streams to every listed lamp: enter an address (the
-firmware's `ws://<ip>/audio`), then use **Connect all** (optionally when the
-page opens). The pill in the header shows one dot per lamp and opens the tab.
-
-**Each lamp can have its own settings.** The switcher above the preview picks
-what the preview shows and what the Effect and Reaction tabs edit:
-
-- **All lamps** — the shared settings, on the LED layout from the menu above
-  the preview.
-- **A lamp** — the preview takes the lamp's own size (reported by the lamp and
-  remembered for when it is offline) and shows its settings. A lamp follows
-  All lamps until something is changed while it is selected; from then on that
-  setting is its own, marked with a dot. Every setting the lamp receives can be
-  its own: effect, palette, parameters, audio mode and its signal,
-  visualization options, reaction range, start, direction and ring. A section's
-  reset (↺) on a lamp goes back to the All lamps values, **Use All lamps
-  settings** drops all of them. A start offset that a lamp follows is the same
-  share of its width; its own offset counts its own LEDs.
-
-**Power and brightness** apply to every connected lamp from the **All lamps**
-block and per lamp on its card; they are saved on the lamp (`power` /
-`brightness` on the `/audio` socket; older firmware gets `/api/power` and
-`/api/brightness` over HTTP). A card's slider is the lamp's **max
-brightness**: the all-lamps brightness scales within it, so a lamp at 50 % runs
-at half of the others at any level. The card's details hold the lamp's name,
-its spectrum band count (Auto: about one band per column), whether it gets the
-stream, the connection statistics, Disconnect and Remove.
-
-## LED geometry
-
-The **LED layout** menu above the preview selects what it renders:
-
-| Option | WIDTH × HEIGHT | Notes |
-|---|---|---|
-| Matrices | 16×16, 32×32, 64×64, 128×128 | `lamp.h` is 16×16 |
-| Strips | 7, 34, 46, 60, 153, 300 LEDs × 1 | the firmware's `torus`, `test`, `mini_lamp`, `ceiling` configs |
-| Two-row strip | 72×2 | `tv.h` |
-| Custom | any, up to 1024 wide / 128 high / 16384 LEDs | |
-| From device | `hello_ack.width × height` | follows the first connected lamp |
-
-Addressing is always row-serpentine, exactly like `Led::get_index(x, y)`.
-Strips are drawn as they are built: one line of LEDs per row (a 2-row strip
-is two lines), LEDs up to 32 px apart and at least 12 px across, so a dense
-strip shows as touching segments. A closed strip (**Ring** on the Layout
-tab) is drawn round a rectangle with the stage's proportions, from the
-top-left corner clockwise, a second row inside the first. The preview draws
-the lamp's layout (flips, a ring's turn) as the lamp does. Clicking the
-preview changes nothing. The choice is remembered in the browser.
-
-Audio modes on strips behave like the firmware: Spectrum maps the bands along
-the strip, Wave scrolls loudness along it (longer strips stretch the 3.2 s
-history instead of repeating it), Bass / Mid / High blends bass and mid on a
-single row, Line fills the strip from the start (or from the center).
-
-## Reaction range
-
-The **Reaction** tab's **Reaction range** is sent to the lamp with the stream
-(firmware with the `tuning` capability): a signal window. The *Signal window*
-(a two-thumb slider) is stretched onto the *Reaction* range: above the
-window the reaction is always at maximum, below it at the minimum, or 0 with
-*Silence below the window*. Example: signal 0–60 % → reaction 150–250. The
-curve shows the mapping and the live input. On matrices, *Center on a
-matrix* lets the Center modes spread as a circle around an adjustable row.
-Both default to the stock firmware picture.
-
-## Layout
-
-The **Layout** tab (key 6) says how the LEDs are mounted. Firmware with the
-`layout` capability saves it on the lamp and applies it to every effect,
-the built-in ones too; the lab reads it from `hello_ack` and writes back only
-the field you change. Edit one lamp in the switcher, or All lamps to write
-the change to every connected lamp (an offset as the same share of each
-lamp's width).
-
-- **Ring** — a closed strip, or a matrix wrapped round a cylinder.
-- **Center offset** — on a ring the whole picture turns this many LEDs along
-  the wiring, so the center faces you; ‹ › move it one LED. On an open strip
-  it moves the start and center of the audio modes instead, and LEDs past
-  the end stay dark.
-- **Flip horizontally / vertically** — the first LED (row) at the other end.
-- **Orientation test** — red first LED, green the end of the first row, blue
-  and white the ends of the last row, yellow the center: in the preview and
-  on the edited lamp(s) until switched off. Turn the center offset until
-  yellow faces you.
-
-The old *Start and direction* settings (start offset, reverse, ring) and
-picking the start by clicking the preview are gone; the layout replaces
-them. *First row at the bottom* in the View menu only changes how the
-preview shows a matrix.
-
-## Analyzer
-
-The **Analyzer** tab sets the FFT size (64–8192 points) and **analysis sample rate**
-(8, 16, 32 or 48 kHz; default 16 kHz). Bin spacing is sample rate / FFT size;
-window duration is FFT size / sample rate. Larger FFTs or lower rates separate
-nearby frequencies better, while smaller FFTs react faster. The analysed
-**frequency range** runs from 20 Hz to half the selected rate (Nyquist).
-The 16 LED feature bands and the 32/64 bands sent to the lamp are
-spread logarithmically inside that range, and sound outside it is ignored.
-Band levels are normalised so a tone reads the same at every FFT size. The
-lamp only receives features, so these settings need no firmware changes.
-Changing the analysis rate resamples the loaded audio without altering playback;
-live microphone resampling and anti-alias filters follow the selected rate.
-Short FFTs overlap by at least 50%; the tempo tracker keeps its own 16 ms cadence.
-The original file rate is read from its metadata before browser decoding; the
-microphone rate comes from the capture track settings. Analysis rates above the
-source are disabled, and lower-rate sources automatically cap the selected rate.
-A native-rate option covers sources such as 22.05 or 44.1 kHz. If file metadata
-is unavailable, the UI says so and uses the decoded buffer's rate as a fallback.
-Files below the minimum 8 kHz analysis rate are resampled to 8 kHz, with the
-frequency range still capped at half the original rate; the UI explains this.
-File decoding uses an offline context so a lower-rate playback device cannot
-prematurely discard frequencies the analyzer can use.
-
-The bars under the LED preview show actual FFT bins grouped logarithmically
-for the available display width. Unresolved low-frequency groups merge; a
-64-point FFT therefore draws fewer, broader bars than a large FFT. Captions
-show the displayed group count and Hz per bin. The lamps still receive their
-negotiated 16/32/64 feature bands independently of this analyzer display.
-
-Beyond the basic sliders the analyzer has the settings that decide which parts
-of the sound drive the effects. All of them run in the lab's DSP, so the lamp
-gets the shaped features without firmware changes, and every default
-reproduces the fixed behaviour it replaces:
-
-| Section | Setting | What it does |
-|---|---|---|
-| Resolution | Window | Hann (default), Hamming, Blackman-Harris (least leakage: a loud bass does not spill into its neighbours), flat-top (exact levels between bins) or rectangular (sharpest, most leakage). Levels stay comparable across windows |
-| Bands | Tilt | ±6 dB per octave around 1 kHz: lifts the highs (music loses energy toward the top) or the lows |
-| Bands | Bass / Mid / High trim | ±12 dB per band group, after the tilt |
-| Bands | Groups | the first band of mid and of high: which of the 16 bands make up bass, mid and high (levels, hits, tempo) |
-| Bands | Band balance | 0–100 %: each band is normalised toward its own average (within ±18 dB of the global one), so every band uses its range |
-| Bands | Band smoothing | 0–100 %: blends each band with its neighbours (up to ¼ ½ ¼), so the bars move as a wave |
-| Level | Compression | below 0 it expands: quiet parts go dark, only the peaks light up |
-| Envelope | Peak hold | 0–400 ms: a peak stays before the release starts |
-| Onsets | Memory | 0.2–4 s: how long the adaptive threshold remembers the flux |
-| Onsets | Threshold, hold-off, flash per group | a trim of the onset threshold, the rest after a hit (default 160 / 85 / 85 ms) and the flash fade (220 / 130 / 130 ms) for bass, mid and high |
-| Tempo | Tempo range | 40–240 BPM (default 65–180): the beat lengths the tracker searches; narrowing it prevents octave jumps |
-
-### DSP view
-
-On the Analyzer tab, **LEDs / DSP** above the preview switches the stage to a
-view of what the analyzer settings do to the signal. Touching a setting opens
-its panel; the curves are computed from the same formulas as `new_process()`,
-and the live traces come from the running DSP:
-
-| Panel | Settings | Shows |
-|---|---|---|
-| Resolution | FFT size, sample rate, frequency range, window | the live spectrum as FFT bins on a frequency axis, the 16 bands inside the range (bands narrower than a bin are marked), the window of consecutive frames and the hop between them, and a pure tone through the selected window with its leakage |
-| Bands | Tilt, group trims, groups, band balance, band smoothing | the music's spectrum over the last 3 s before and after the equalizer, the equalizer per band (fixed, and with the balance applied now), the group regions, and each band's LED level as a box plot (dead, pinned and flat bands are counted) |
-| Level | Sensitivity, Compression, Auto gain | the band level → LED level curve (with and without compression), the noise floor, the 16 bands on it now, where the music's average level lands, and the AGC reference following the average over the last 5 s |
-| Envelope | Attack, Release, Peak hold | a band group (bass / mid / high) before and after the envelope over the last 5 s, and the response to a sound that starts and stops, with the time to 63 % / 90 %, the hold and back to 37 % |
-| Onsets | Onset threshold, memory, per-group threshold / hold-off / flash | the group's energy rise (flux) against its adaptive threshold, the hits with their hold-off and the flash they trigger, and a histogram of the time between hits (double triggers, hits cut by the hold-off) |
-| Tempo | Tempo range | the onset strength the tracker hears with the predicted beats and the bass hits, the periodicity at every beat length (½× and 2× marked), the tempo and confidence over time, and the beat phase |
-| Noise | Noise floor (dB of full scale, 1 dB a step, −90 = off), Adaptive floor (share of the learned background in dB: −39 … +6, 0 dB = 100 %, −40 = off), Floor learns in / drops in | each band's level against the noise floor, the background each band has learned and what the adaptive floor removes |
-
-Three more views look across all the settings; they stay open while the
-settings are changed:
-
-| View | Shows |
+| What you want to see | Try these effects |
 |---|---|
-| Chain | one band group after every stage on one time axis: input with the noise floor, after the level curve, after the envelope (what the LEDs show), hits and flash; beside each stage, the range it uses (5–95 % of the time) |
-| Spectrogram | the FFT over the last 5 s on a log frequency axis with the frequency range, the group splits, the 16 bands and the hits of each group |
-| Notes | the chroma: how much of each of the 12 notes (C … B, octaves folded) sounds over the last 5 s and now, the strongest note and the triad when three notes stand out. A separate analysis from the bands (about 8 kHz, 4096-point FFT: 0.51 s, 2 Hz per bin; notes 55 Hz – 2 kHz), so it does not depend on the FFT size above |
-| Map | all 16 bands over the last 5 s before the analyzer (dB) and as the LEDs get them, and a histogram of how often each LED level occurs (dark / bright share, median) |
-| A/B | **Pin as A** copies the running analyzer into a second DSP instance that keeps the pinned settings while the sliders change B; both run on the same audio. Shows the changed settings, both outputs of a group, their hits and all bands now |
+| **Spectrum and frequencies** | Spectrum Bars, Flow, Radial Spectrum, Fire |
+| **Overall loudness** | VU Meter, Waveform, Mood, Aurora, Lava Lamp |
+| **Bass and percussion** | Pulses, Sparkles, Energy, Water, Blobs |
+| **Rhythm and motion** | Groove, Scroll, Juggle |
+| **Pitch and harmony** | Melody, Chromatic Flow |
+| **Your own patterns** | Particles, Field, Zones |
 
-The DSP exports the intermediate values for it (`new_targets_ptr`: band levels
-before the envelope, `new_thresholds_ptr`: onset thresholds, `new_floor_ptr`:
-learned noise floors, `new_tilt_ptr`: the tilt per band, `new_band_ref_ptr`:
-each band's reference, `new_novelty_ptr` / `new_novelty_head`: the tempo
-tracker's onset strength, `new_tempo_scores_ptr` / `new_tempo_info_ptr`: its
-periodicity per lag and the lag range and winner). A hit just before a
-predicted beat now also starts the beat pulse instead of skipping that beat.
+Choose an effect in **Reaction**. When it supports additional parameters,
+Music Lab shows them automatically — for example particle motion, fire
+settings, contrast or blur. Color effects and palettes are available in
+**Effect**.
 
-File metadata parsing uses the bundled MIT-licensed `music-metadata` library;
-normal builds work offline. To regenerate its browser bundle, run
-`npm ci --prefix scripts/metadata --ignore-scripts` then
-`node scripts/build_metadata.mjs`. Third-party licenses are in
-`web/vendor/THIRD_PARTY_LICENSES.txt`.
+For a description of each family and tuning options, see the
+**[effects guide](docs/EFFECTS.md)**.
 
-## Project layout
+## Connect your lamps
 
-```
-src/                 C++ sources compiled to WebAssembly
-  render.cpp         effect renderer (ported color/brightness/audio effects)
-  viz_engine.h       visualizations 13..35 and their parameters (integer only), shared byte-for-byte with the firmware
-  dsp.cpp            FFT/onset/BPM DSP (+ the firmware's original analyzers, used by tests)
-  fastled_compat.h   FastLED 3.6.0 fixed-point math port
-  tables.h           lookup tables
-web/                 development page (served as-is)
-  index.html
-  css/app.css
-  js/state.js        shared state, settings
-  js/geometry.js     matrices/strips, strip display layout
-  js/remote.js       Remote Audio v1 wire format, WebSocket devices, clock sync
-  js/lamps.js        per-lamp settings: All lamps vs a lamp's own values, the edited target, max brightness
-  js/remote-ui.js    feature snapshots, presentation timing, lamp cards, power / brightness, target switcher
-  js/tuning.js       reaction range, start point, transfer curve, mode hints
-  js/fx-params.js    effect parameters: names, ranges and defaults per mode, their controls
-  js/view.js         settings → WASM, canvas painting, meters
-  js/dsp-view.js     the Analyzer tab's DSP view: what each analyzer setting does to the signal
-  js/ui.js           choices bound to the selects, sliders, popovers, tabs, music column,
-                     palette swatches and effect thumbnails, remembered settings
-  js/audio.js        file / demo / microphone input and DSP feed
-  js/playlist.js     playlist, folder / files / drop, next / previous, repeat, shuffle, hotkeys
-  js/main.js         bootstrap, animation loop, UI wiring
-  wasm/              built render.wasm, dsp.wasm (make wasm, not committed)
-dist/standalone.html single-file build (make standalone, not committed)
-scripts/             build_wasm.sh, build_standalone.py, mock_remote_receiver.py
-tests/               Node/WASM unit tests (test_*.js), Chromium tests (test_*.py)
-docs/                accuracy notes, Remote Output protocol notes, history
-```
+The preview works without hardware. To send it to real LEDs, use firmware
+with [Remote Audio support](https://github.com/DrA1ex/esp_led_lamp).
 
-The scripts in `web/js/` are classic (non-module) scripts sharing one global
-scope, loaded in the order listed in `index.html`; the standalone build
-inlines them in that order.
+1. Connect the lamp and the device running Music Lab to the same local network.
+2. Open **Lamps**, enter the lamp's local IP address (such as
+   `192.168.1.42`) or `esp_lamp.local`, and add it.
+3. Click **Connect all**. In Chrome, allow **Local Network Access** if prompted.
+4. Select **All lamps** to control them together, or choose an individual lamp
+   above the preview to customize its settings.
 
-## Build
+Chrome supports local `ws://` WebSocket connections from the hosted HTTPS
+page with local-network permission. Other browsers may restrict access; in
+that case run the app locally (instructions below). The lamp must be reachable
+on your LAN; an HTTPS site cannot connect through a router to an unavailable
+device.
 
-```sh
-make            # WASM + dist/standalone.html
-make wasm       # only web/wasm/*.wasm
-make standalone # only dist/standalone.html
-```
+Music Lab sends audio features, not the music itself. See the
+[connection and troubleshooting guide](docs/USER_GUIDE.md#browser-and-network-access)
+or [Remote Output details](docs/REMOTE_OUTPUT.md) for compatibility notes.
 
-WASM needs an LLVM with the `wasm32` target and `wasm-ld` (`brew install llvm lld`;
-Apple's `/usr/bin/clang` has no WebAssembly backend). `scripts/build_wasm.sh`
-finds Homebrew LLVM automatically; set `CXX=` to override. No Emscripten.
-`web/wasm/` and `dist/` are build outputs and are ignored by git; `make serve`,
-`make test` and `make standalone` build the WASM first when it is missing or stale.
+## Explore and customize
 
-## Tests
+| Panel | What you can do |
+|---|---|
+| **Music** | Play tracks and folders, shuffle, repeat, or use the mic/demo beat |
+| **Effect** | Choose an effect, palette, color and brightness |
+| **Reaction** | Select sound-reactive modes, visualization settings and response range |
+| **Lamps** | Connect and manage one or multiple ESP LED lamps |
+| **Analyzer** | See FFT, frequency bands, onsets, tempo and detailed DSP diagnostics |
+| **Layout** | Adjust rings, orientation and offsets to match the actual LED wiring |
+
+Most settings are remembered in the browser. The analyzer's defaults are
+designed to be useful without tuning; advanced controls are explained in
+the [analyzer guide](docs/ANALYZER.md). For differences between the simulated
+preview and real LEDs, see [accuracy and orientation](docs/ACCURACY.md).
+
+## Run locally or offline
+
+The [hosted version](https://dra1ex.github.io/esp_led_lab/) is the easiest
+way to start. You can also build and run it yourself:
 
 ```sh
-make test          # Node 18+: WASM renderer/DSP, FastLED math, strips, remote format and clock
-make test-browser  # Chromium via Playwright (pip install playwright && playwright install chromium)
+make             # compile WebAssembly and build dist/standalone.html
+make serve       # serve the development app at http://localhost:8000/
 ```
 
-Set `CHROMIUM=/path/to/chromium` to use a specific browser binary.
-`python3 scripts/mock_remote_receiver.py --port 8765` is a small WebSocket
-receiver for manual Remote Output testing without a lamp; it lists `chroma`
-and prints the notes of the frames (`--no-chroma` behaves like older
-firmware, which gets frames without them).
+Open `dist/standalone.html` for a self-contained offline version. Building
+requires LLVM with WebAssembly support; the
+[development guide](docs/DEVELOPMENT.md) covers dependencies and tests.
+The microphone needs HTTPS or localhost permission.
 
-## Relationship to the firmware
+## Documentation
 
-Keep these in sync with `esp_led_lamp`:
+- **[User guide](docs/USER_GUIDE.md)** — music playback, panels, multiple lamps,
+  LED geometry and browser permissions
+- **[Effects guide](docs/EFFECTS.md)** — visualization families, parameters
+  and audio reactions
+- **[Analyzer guide](docs/ANALYZER.md)** — DSP settings, graphs and signal tuning
+- **[Development and testing](docs/DEVELOPMENT.md)** — source layout,
+  WebAssembly build, offline bundle and tests
+- **[Remote Output](docs/REMOTE_OUTPUT.md)** — audio feature protocol, device
+  compatibility and troubleshooting
+- **[Accuracy and orientation](docs/ACCURACY.md)** ·
+  **[Revision history](docs/HISTORY.md)**
 
-- `src/viz_engine.h` ↔ `src/remote_audio/viz_engine.h`: identical copies
-  (the visualization test compares them when both repos sit side by side);
-- `src/render.cpp` audio modes 11/12 ↔ `src/remote_audio/reactive_math.h`
-  (Bass / Mid / High, Beat-aware, spectrum shaping, control sources);
-- `scaled_audio()` ↔ `audioTransfer()` in `src/audio/transfer.h`, and
-  `origin_*()` ↔ `RemoteReactive::OriginMap` (signal window, start point);
-  `render_test_pattern()` and `layoutMapper()` (`web/js/layout.js`) ↔
-  `Layout::testPattern` / `Layout::index` in `src/misc/layout.h`;
-- Wave history length and stretching ↔ `RemoteSignalProvider` / `Timeline`;
-- `web/js/remote.js` ↔ `docs/REMOTE_AUDIO_PROTOCOL.md` and
-  `src/network/protocol/server/remote_audio_ws.cpp`.
-
-More: [accuracy and orientation](docs/ACCURACY.md),
-[Remote Output](docs/REMOTE_OUTPUT.md), [revision history](docs/HISTORY.md).
-
-The renderer is not proven pixel-identical to the firmware (hand-ported
-effects, unpinned FastLED version, no physical WS2812 model); see
-`docs/ACCURACY.md`.
+<!--
+Additional screenshots should be uploaded using GitHub's issue/PR editor, then
+embedded here with https://github.com/user-attachments/assets/... links.
+Suggested captures: the playlist and preview; the Effect/Reaction picker with
+palettes; Lamps with multiple devices; Analyzer DSP view. Do not add new image
+files to the repository for this gallery.
+-->
