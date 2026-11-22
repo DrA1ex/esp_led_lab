@@ -26,8 +26,8 @@ The window is a music player around an LED preview:
   browsers use a folder upload), **Add files** and drag-and-drop of files or
   folders anywhere on the page append. While a folder is read (a big library
   or a slow disk can take seconds) the column shows the tracks and folders
-  found so far with a **Cancel** that keeps the list as it was. The **⋯** menu holds the demo beat, the
-  microphone and clearing the list. The playlist button at the right of the
+  found so far. **Cancel** keeps the original list. The **⋯** menu holds the
+  demo beat, microphone and the option to clear the list. The playlist button at the right of the
   player hides or shows the column.
 - **Stage** (center): with lamps added, a switcher on top picks **All lamps**
   or one lamp (see below); then the LED preview and, under it, the analyzer: FFT bars,
@@ -40,7 +40,7 @@ The window is a music player around an LED preview:
 - **Settings** (right), in tabs: **Effect** (color effects shown as rendered
   thumbnails, the 79 palettes as swatches with a filter, brightness effect,
   speed / scale / light), **Reaction** (audio mode, its signal, visualization
-  options, reaction range, start and direction), **Lamps** and **Analyzer**.
+  options and reaction range), **Lamps**, **Analyzer** and **Layout**.
   Only the fields that the selected mode uses are shown; each section has its
   own reset (↺).
 - **Player** (bottom): ⏮ (restarts the track after 3 s, otherwise previous),
@@ -75,10 +75,11 @@ what the preview shows and what the Effect and Reaction tabs edit:
   All lamps until something is changed while it is selected; from then on that
   setting is its own, marked with a dot. Every setting the lamp receives can be
   its own: effect, palette, parameters, audio mode and its signal,
-  visualization options, reaction range, start, direction and ring. A section's
+  visualization options and reaction range. Layout and ring settings are
+  handled separately on the **Layout** tab. A section's
   reset (↺) on a lamp goes back to the All lamps values, **Use All lamps
   settings** drops all of them. A start offset that a lamp follows is the same
-  share of its width; its own offset counts its own LEDs.
+  share of its width; a lamp-specific offset counts its own LEDs.
 
 **Power and brightness** apply to every connected lamp from the **All lamps**
 block and per lamp on its card; they are saved on the lamp (`power` /
