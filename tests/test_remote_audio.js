@@ -32,7 +32,12 @@ assert.throws(()=>RemoteAudio.serialize({bands:Array(16).fill(0),chroma:[1,2,3]}
  const d=new RemoteAudio.Device('192.168.1.2',()=>{});
  assert.equal(d.acceptsChroma,false);d.capabilities=['params','chroma'];assert.equal(d.acceptsChroma,true);
 }
+// HTTPS-hosted GitHub Pages still connects to local ws:// devices in Chrome
+// after Local Network Access permission; do not auto-upgrade them to wss://.
 assert.equal(RemoteAudio.addressToUrl('192.168.1.1'),'ws://192.168.1.1/audio');
+assert.equal(RemoteAudio.addressToUrl('10.0.0.12:81'),'ws://10.0.0.12:81/audio');
+assert.equal(RemoteAudio.addressToUrl('esp_lamp.local'),'ws://esp_lamp.local/audio');
+assert.equal(RemoteAudio.addressToUrl('ws://[::1]:8080'),'ws://[::1]:8080/audio');
 assert.equal(RemoteAudio.addressToUrl('ws://lamp.local:81/audio'),'ws://lamp.local:81/audio');
 assert.throws(()=>RemoteAudio.addressToUrl('https://bad'),/ws/);
 const wasm=new WebAssembly.Instance(new WebAssembly.Module(fs.readFileSync(path.join(__dirname,'../web/wasm/dsp.wasm')))).exports;
