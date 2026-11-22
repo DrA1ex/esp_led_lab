@@ -1,0 +1,65 @@
+name: Build, test and deploy Music Lab
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: music-lab-pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install LLVM WebAssembly toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang lld
+          clang++ --print-targets | grep -q wasm32
+      - name: Build WebAssembly and standalone page
+        run: make
+      - name: Run Node.js tests
+        run: make test
+      - name: Verify Pages bundle
+        run: |
+          test -s web/index.html
+          test -s web/wasm/render.wasm
+          test -s web/wasm/dsp.wasm
+          test -s dist/standalone.html
+          test -s web/vendor/audio-metadata.js
+          test -f web/.nojekyll
+      - uses: actions/upload-artifact@v4
+        with:
+          name: music-lab-standalone
+          path: dist/standalone.html
+          if-no-files-found: error
+      - name: Upload GitHub Pages site
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - id: deployment
+        uses: actions/deploy-pages@v4
