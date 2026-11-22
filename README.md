@@ -11,10 +11,11 @@ or stream them to one or more real lamps over Wi-Fi.
 [Getting started](docs/USER_GUIDE.md) ·
 [Explore effects](docs/EFFECTS.md)
 
-![ESP LED Music Lab LED preview](docs/preview.png)
+![Color-effect samples: Perlin, Gradient, Fire, Aurora, Plasma, Ripple, Velum, Particles, Color Change and Solid](docs/preview.png)
 
-*The on-screen preview shows the selected effects on a simulated LED layout.
-The same audio features can drive a connected lamp.*
+*Examples of built-in color effects. Music Lab also includes sound-reactive
+visualizations; the live LED preview shows how your selected effect responds
+before you connect a lamp.*
 
 ## What can it do?
 
