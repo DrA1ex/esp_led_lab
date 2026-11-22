@@ -14,10 +14,28 @@ built with.
 
 ## Quick start
 
+- **Online (Chrome):** open [Music Lab](https://dra1ex.github.io/esp_led_lab/).
+  No installation is needed.
 - **Offline:** `make`, then open `dist/standalone.html` in a recent browser.
   Everything, including WASM, is inlined.
-- **Development:** `make serve`, then open <http://localhost:8000/>. The
-  microphone needs `localhost` or HTTPS.
+- **Development:** `make serve`, then open <http://localhost:8000/>.
+  The microphone needs `localhost` or HTTPS.
+
+To control lamps, open **Lamps**, enter a local IP (for example
+`192.168.1.42`) or a `.local` device name, add the lamp and click
+**Connect all**. The lamp and browser must be on the same network; the
+firmware must support Remote Audio. Chrome allows `ws://` to private IPs,
+`.local` and localhost from the hosted HTTPS page after you grant local
+network access. If it was denied, change the site's local-network permission
+in Chrome's site settings and reconnect. Ordinary public hostnames that happen
+to resolve to a private address are **not** exempt from mixed-content blocking.
+Other browsers may block HTTP/WebSocket access from an HTTPS page; use a local
+HTTP server for those browsers.
+
+The [GitHub Pages site](https://dra1ex.github.io/esp_led_lab/) is rebuilt
+from `main` by GitHub Actions; each build also publishes an offline
+`standalone.html` artifact. The Pages workflow compiles WebAssembly and runs
+the Node.js test suite before deployment.
 
 ## Using the lab
 
